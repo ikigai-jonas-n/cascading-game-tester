@@ -120,6 +120,9 @@ function syncSpinSettingsUI() {
         c.betAmount = parseFloat(uiBetAmount.value) || 20;
         c.cashBet = c.betAmount; // assuming cashBet mirrors betAmount
         c.spinMode = uiStake.value;
+        if (Array.isArray(c.stakes) && c.stakes.length > 0) {
+          c.stakes[0].type = uiStake.value;
+        }
         const str = JSON.stringify(c, null, 2);
         requestBodyTextarea.value = str;
         localStorage.setItem('request_body', str);
@@ -975,7 +978,7 @@ function getSpinStats(fields, wildSymbolId) {
     if (m > maxMultiplier) maxMultiplier = m;
   });
 
-  return { totalGolden, maxMultiplier };
+  return { goldenTransformed: totalGolden, maxMultiplier };
 }
 
 async function playSingleSpin() {
@@ -983,6 +986,8 @@ async function playSingleSpin() {
   const data = await fireSpinRequest(config);
 
   const fields = [];
+  const fieldMetadata = [];
+  const playgroundStats = [];
   let spinType = 'basic';
   let playgroundCounter = 0;
   
@@ -990,13 +995,22 @@ async function playSingleSpin() {
     if (phase.type === 'freeSpin') spinType = 'freeSpin';
     let roundCounter = 0;
     (phase.playgrounds || []).forEach(pg => {
+      let pgTumbles = 0;
+      let pgCascades = 0;
       (pg.fields || []).forEach(f => {
-        fields.push({ 
-          ...f, 
-          _playgroundIndex: playgroundCounter, 
-          _isFreeSpin: phase.type === 'freeSpin',
-          _roundIndex: roundCounter
+        fields.push(f);
+        fieldMetadata.push({
+          playgroundIndex: playgroundCounter,
+          isFreeSpin: phase.type === 'freeSpin',
+          roundIndex: roundCounter
         });
+        pgTumbles++;
+        if (parseFloat(f.coins || 0) > 0) pgCascades++;
+      });
+      playgroundStats.push({ 
+        tumbleCount: pgTumbles, 
+        cascadeCount: pgCascades,
+        headerText: phase.type === 'freeSpin' ? `FreeSpin #${roundCounter + 1}` : 'BaseSpin'
       });
       playgroundCounter++;
       roundCounter++;
@@ -1032,9 +1046,10 @@ async function playSingleSpin() {
     roundTags,
     choices,
     hasMaxWin,
-    hasGolden: stats.totalGolden > 0,
-    totalGolden: stats.totalGolden,
+    goldenTransformed: stats.goldenTransformed,
     maxMultiplier: stats.maxMultiplier,
+    fieldMetadata,
+    playgroundStats
   };
 
   // Internal storage is kept detailed for UI performance,
@@ -1055,20 +1070,30 @@ async function playConcurrentBatch(config, batchSize) {
   for (let i = 0; i < results.length; i++) {
     const data = results[i];
     const fields = [];
+    const fieldMetadata = [];
+    const playgroundStats = [];
     let spinType = 'basic';
     let playgroundCounter = 0;
     
     (data.step?.gamePhases || []).forEach((phase) => {
       if (phase.type === 'freeSpin') spinType = 'freeSpin';
-      let roundCounter = 0;
       (phase.playgrounds || []).forEach(pg => {
+        let pgTumbles = 0;
+        let pgCascades = 0;
         (pg.fields || []).forEach(f => {
-          fields.push({ 
-            ...f, 
-            _playgroundIndex: playgroundCounter, 
-            _isFreeSpin: phase.type === 'freeSpin',
-            _roundIndex: roundCounter
+          fields.push({ ...f });
+          fieldMetadata.push({
+            playgroundIndex: playgroundCounter,
+            isFreeSpin: phase.type === 'freeSpin',
+            roundIndex: roundCounter
           });
+          pgTumbles++;
+          if (parseFloat(f.coins || 0) > 0) pgCascades++;
+        });
+        playgroundStats.push({
+          tumbleCount: pgTumbles,
+          cascadeCount: pgCascades,
+          headerText: phase.type === 'freeSpin' ? `FreeSpin #${roundCounter + 1}` : 'BaseSpin'
         });
         playgroundCounter++;
         roundCounter++;
@@ -1103,9 +1128,10 @@ async function playConcurrentBatch(config, batchSize) {
       roundTags,
       choices,
       hasMaxWin,
-      hasGolden: stats.totalGolden > 0,
-      totalGolden: stats.totalGolden,
+      goldenTransformed: stats.goldenTransformed,
       maxMultiplier: stats.maxMultiplier,
+      fieldMetadata,
+      playgroundStats
     });
   }
 
@@ -1394,8 +1420,21 @@ function renderRawDrawer() {
     pre.style.margin = '0';
     pre.style.whiteSpace = 'pre-wrap';
     pre.style.wordBreak = 'break-all';
-    // User requested vertical 1D array: use pretty-print
-    pre.innerText = JSON.stringify(active.data, null, 2);
+    
+    // Filter out internal metadata (keys starting with _) recursively
+    const filterUnderscoredKeys = (obj) => {
+      if (Array.isArray(obj)) return obj.map(filterUnderscoredKeys);
+      if (obj !== null && typeof obj === 'object') {
+        const result = {};
+        for (const key in obj) {
+          if (!key.startsWith('_')) result[key] = filterUnderscoredKeys(obj[key]);
+        }
+        return result;
+      }
+      return obj;
+    };
+
+    pre.innerText = JSON.stringify(filterUnderscoredKeys(active.data), null, 2);
     
     // Support selective Ctrl+A
     pre.tabIndex = 0;
@@ -1614,9 +1653,10 @@ function appendSpinHistoryCards(startIndex, endIndex) {
         <div class="meta-items">
           <span class="m-item">Bet: <b>${bet}</b></span>
           <span class="m-item">Mode: <b>${spin.spinMode || 'std'}</b></span>
-          ${spin.roundTags && spin.roundTags.length > 0 ? `<span class="m-item tag">${spin.roundTags[0]}</span>` : ''}
+          <span class="m-item" style="color:var(--text-accent); font-weight:800;">${spin.spinType === 'freeSpin' ? 'FreeSpin' : 'BaseSpin'}</span>
           <span class="m-item multi">Max: <b>${spin.maxMultiplier || 1}x</b></span>
-          ${spin.totalGolden > 0 ? `<span class="m-item golden">Golden: <b>${spin.totalGolden}</b></span>` : ''}
+          <span class="m-item tumble">Tumbles: <b>${spin.tumbleCount || 0}</b></span>
+          ${(spin.goldenTransformed || 0) > 0 ? `<span class="m-item golden" title="Golden Transformed">G-Trans: <b>${spin.goldenTransformed}</b></span>` : ''}
           ${spin.cascadeCount > 0 ? `<span class="m-item cascade">${spin.cascadeCount} Cascades</span>` : ''}
         </div>
       </div>
@@ -1625,27 +1665,45 @@ function appendSpinHistoryCards(startIndex, endIndex) {
     let auditHtml = '';
     if (isActive) {
       let currentPlayground = -1;
+      let localTumbleIdx = 0;
       const tumbles = spin.fields
         .map((f, tIdx) => {
+          const meta = spin.fieldMetadata ? spin.fieldMetadata[tIdx] : {};
           let headerHtml = '';
-          if (f._playgroundIndex !== undefined && f._playgroundIndex !== currentPlayground) {
+          if (meta.playgroundIndex !== undefined && meta.playgroundIndex !== currentPlayground) {
             const isFirst = currentPlayground === -1;
-            currentPlayground = f._playgroundIndex;
-            const headerText = f._isFreeSpin ? `FreeSpin #${f._roundIndex + 1}` : 'BaseSpin';
-            const closeDiv = isFirst ? '' : '</div>';
+            const prevStats = currentPlayground !== -1 && spin.playgroundStats ? spin.playgroundStats[currentPlayground] : null;
+            const summaryHtml = prevStats ? `
+              <div class="round-summary-v5" style="margin:8px 0; padding:6px 10px; background:rgba(34,197,94,0.05); border-radius:6px; border:1px solid rgba(34,197,94,0.1); display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:9px; color:#4ade80; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">Round Summary</span>
+                <span style="font-size:10px; color:#fff; font-weight:800; font-family:monospace;">${prevStats.tumbleCount} Tumbles · ${prevStats.cascadeCount} Cascades</span>
+              </div>` : '';
+
+            currentPlayground = meta.playgroundIndex;
+            localTumbleIdx = 1; // Reset local index for new playground
+            
+            const stats = spin.playgroundStats ? spin.playgroundStats[currentPlayground] : null;
+            const headerText = stats ? stats.headerText : (meta.isFreeSpin ? `FreeSpin #${meta.roundIndex + 1}` : 'BaseSpin');
+            const statsHtml = stats ? `<span style="font-size: 9px; opacity: 0.7; font-weight: normal; margin-left: auto; margin-right: 12px;">(${stats.tumbleCount} Tumbles, ${stats.cascadeCount} Cascades)</span>` : '';
+            
+            const closeDiv = isFirst ? '' : `${summaryHtml}</div>`;
             
             let isActiveRound = false;
-            if (spin.fields[gameState.currentIndex] && spin.fields[gameState.currentIndex]._playgroundIndex === currentPlayground) {
+            const currentMeta = spin.fieldMetadata ? spin.fieldMetadata[gameState.currentIndex] : null;
+            if (currentMeta && currentMeta.playgroundIndex === currentPlayground) {
               isActiveRound = true;
             }
-            if (!spin.fields[gameState.currentIndex] && isFirst) isActiveRound = true;
+            if (!currentMeta && isFirst) isActiveRound = true;
 
             headerHtml = `${closeDiv}
-              <div class="round-header" data-round="${currentPlayground}" style="cursor:pointer; font-size:10px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin:12px 0 4px 0; border-bottom:1px dashed rgba(255,255,255,0.1); padding-bottom:4px; letter-spacing: 0.5px; display:flex; justify-content:space-between; align-items:center; user-select:none;">
+              <div class="round-header" data-round="${currentPlayground}" style="cursor:pointer; font-size:10px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin:12px 0 4px 0; border-bottom:1px dashed rgba(255,255,255,0.1); padding-bottom:4px; letter-spacing: 0.5px; display:flex; align-items:center; user-select:none;">
                 <span>${headerText}</span>
+                ${statsHtml}
                 <span class="round-toggle-icon" style="transition: transform 0.2s; transform: ${isActiveRound ? 'rotate(180deg)' : 'rotate(0deg)'}">▼</span>
               </div>
               <div class="round-content" id="round-content-${currentPlayground}" style="display: ${isActiveRound ? 'block' : 'none'};">`;
+          } else {
+            localTumbleIdx++;
           }
 
           const isTumbleActive = tIdx === gameState.currentIndex;
@@ -1653,7 +1711,10 @@ function appendSpinHistoryCards(startIndex, endIndex) {
           const isWinStep = parseFloat(f.coins || 0) > 0;
 
           // cascadeNum = group this tumble belongs to WITHIN the same playground
-          const payingBefore = spin.fields.slice(0, tIdx).filter(f2 => parseFloat(f2.coins || 0) > 0 && f2._playgroundIndex === f._playgroundIndex).length;
+          const payingBefore = spin.fields.slice(0, tIdx).filter((f2, idx2) => {
+            const m2 = spin.fieldMetadata ? spin.fieldMetadata[idx2] : {};
+            return parseFloat(f2.coins || 0) > 0 && m2.playgroundIndex === meta.playgroundIndex;
+          }).length;
           const cascadeNum = payingBefore + 1;
           const badgeBg = isWinStep ? 'rgba(59,130,246,0.18)' : 'rgba(255,255,255,0.03)';
           const badgeColor = isWinStep ? 'var(--info)' : '#444';
@@ -1739,7 +1800,7 @@ function appendSpinHistoryCards(startIndex, endIndex) {
                 cursor: pointer; margin-top: 4px;">
               <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div style="display:flex; align-items:center;">
-                  <span class="step-label" style="font-weight:700; color:${isTumbleActive ? '#fff' : 'var(--text-muted)'}; font-size:10px;">TUMBLE ${tIdx + 1}</span>
+                  <span class="step-label" style="font-weight:700; color:${isTumbleActive ? '#fff' : 'var(--text-muted)'}; font-size:10px;">TUMBLE ${localTumbleIdx}</span>
                   ${cascadeBadge}
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -1752,7 +1813,13 @@ function appendSpinHistoryCards(startIndex, endIndex) {
         })
         .join('');
       
-      const tumblesHtml = tumbles + (spin.fields.length > 0 ? '</div>' : '');
+      const lastStats = currentPlayground !== -1 && spin.playgroundStats ? spin.playgroundStats[currentPlayground] : null;
+      const lastSummaryHtml = lastStats ? `
+        <div class="round-summary-v5" style="margin:8px 0; padding:6px 10px; background:rgba(34,197,94,0.05); border-radius:6px; border:1px solid rgba(34,197,94,0.1); display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:9px; color:#4ade80; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">Round Summary</span>
+          <span style="font-size:10px; color:#fff; font-weight:800; font-family:monospace;">${lastStats.tumbleCount} Tumbles · ${lastStats.cascadeCount} Cascades</span>
+        </div>` : '';
+      const tumblesHtml = tumbles + (spin.fields.length > 0 ? lastSummaryHtml + '</div>' : '');
       
       const auditContainer = document.createElement('div');
       auditContainer.style.marginTop = '10px';
@@ -1780,9 +1847,12 @@ function appendSpinHistoryCards(startIndex, endIndex) {
             icon.style.transform = 'rotate(180deg)';
             
             // Auto-select the first tumble of this round if not already in it
-            const firstTumbleIdx = spin.fields.findIndex(f => f._playgroundIndex === roundIdx);
-            if (firstTumbleIdx !== -1 && (!spin.fields[gameState.currentIndex] || spin.fields[gameState.currentIndex]._playgroundIndex !== roundIdx)) {
-              window.selectTumble(firstTumbleIdx);
+            const firstTumbleIdx = (spin.fieldMetadata || []).findIndex(m => m.playgroundIndex === roundIdx);
+            if (firstTumbleIdx !== -1) {
+              const currentMeta = spin.fieldMetadata ? spin.fieldMetadata[gameState.currentIndex] : null;
+              if (!currentMeta || currentMeta.playgroundIndex !== roundIdx) {
+                window.selectTumble(firstTumbleIdx);
+              }
             }
             
             // Scroll header into view
@@ -2010,10 +2080,12 @@ function showTumble(index, phase) {
         const idx = parseInt(t.dataset.tumble);
         const isActive = idx === index;
         if (isActive) activeTumbleEl = t;
+        
         t.style.background = isActive ? 'rgba(34, 197, 94, 0.12)' : 'transparent';
         t.style.border = isActive ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid transparent';
         t.setAttribute('aria-pressed', isActive.toString());
         t.setAttribute('tabindex', isActive ? '0' : '-1');
+        
         const stepLabel = t.querySelector('.step-label');
         if (stepLabel) {
           stepLabel.style.color = isActive ? '#fff' : 'var(--text-muted)';
@@ -2028,6 +2100,7 @@ function showTumble(index, phase) {
           const roundIdx = roundContent.id.replace('round-content-', '');
           const header = spinHistoryEl.querySelector(`.round-header[data-round="${roundIdx}"]`);
           if (header) {
+            // Expand this round, collapse others
             spinHistoryEl.querySelectorAll('.round-content').forEach(el => el.style.display = 'none');
             spinHistoryEl.querySelectorAll('.round-toggle-icon').forEach(el => el.style.transform = 'rotate(0deg)');
             roundContent.style.display = 'block';
@@ -2036,16 +2109,12 @@ function showTumble(index, phase) {
           }
         }
         
-        // Scroll into view
         activeTumbleEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        if (document.activeElement && document.activeElement.hasAttribute('data-tumble')) {
-          activeTumbleEl.focus();
-        }
       }
     } else {
       renderSpinHistory();
       // Try once more after render
-      setTimeout(updateAuditListStyles, 0);
+      setTimeout(updateAuditListStyles, 50);
     }
   };
 
@@ -2059,11 +2128,22 @@ function showTumble(index, phase) {
   const totalTumbles = gameState.fields.length;
   const tumbleNavLabel = document.getElementById('tumbleNavLabel');
   const cascadeNavLabel = document.getElementById('cascadeNavLabel');
+  
+  const spin = globalHistory[currentSpinIndex];
+  const meta = spin && spin.fieldMetadata ? spin.fieldMetadata[index] : null;
+
   if (tumbleNavLabel) {
-    tumbleNavLabel.innerText = `TUMBLE ${index + 1} / ${totalTumbles}`;
+    if (meta && meta.playgroundIndex !== undefined) {
+      // Find local index
+      const localIdx = spin.fieldMetadata.slice(0, index + 1).filter(m => m.playgroundIndex === meta.playgroundIndex).length;
+      const stats = spin.playgroundStats ? spin.playgroundStats[meta.playgroundIndex] : null;
+      const totalLocal = stats ? stats.tumbleCount : '?';
+      tumbleNavLabel.innerText = `TUMBLE ${localIdx} / ${totalLocal}`;
+    } else {
+      tumbleNavLabel.innerText = `TUMBLE ${index + 1} / ${totalTumbles}`;
+    }
   }
   if (cascadeNavLabel) {
-    // cascadeNum = (# paying tumbles BEFORE this index) + 1
     const payingBefore = gameState.fields.slice(0, index).filter(f => parseInt(f.coins || 0) > 0).length;
     const cascadeNum = payingBefore + 1;
     const isPayingTumble = parseInt(field.coins || 0) > 0;
@@ -2391,7 +2471,10 @@ const triggerImport = (mode) => {
         const processed = chunk.map((item) => {
           const r = item.rawData || item.r || item;
           if (!r || !r.step) return null;
+          
           const fields = [];
+          const fieldMetadata = [];
+          const playgroundStats = [];
           let spinType = 'basic';
           let playgroundCounter = 0;
           
@@ -2399,23 +2482,33 @@ const triggerImport = (mode) => {
             if (phase.type === 'freeSpin') spinType = 'freeSpin';
             let roundCounter = 0;
             (phase.playgrounds || []).forEach(pg => {
+              let pgTumbles = 0;
+              let pgCascades = 0;
               (pg.fields || []).forEach(f => {
-                fields.push({ 
-                  ...f, 
-                  _playgroundIndex: playgroundCounter, 
-                  _isFreeSpin: phase.type === 'freeSpin',
-                  _roundIndex: roundCounter
+                fields.push({ ...f });
+                fieldMetadata.push({
+                  playgroundIndex: playgroundCounter,
+                  isFreeSpin: phase.type === 'freeSpin',
+                  roundIndex: roundCounter
                 });
+                pgTumbles++;
+                if (parseFloat(f.coins || 0) > 0) pgCascades++;
+              });
+              playgroundStats.push({ 
+                tumbleCount: pgTumbles, 
+                cascadeCount: pgCascades,
+                headerText: phase.type === 'freeSpin' ? `FreeSpin #${roundCounter + 1}` : 'BaseSpin'
               });
               playgroundCounter++;
               roundCounter++;
             });
           });
+
           const summary = r.step.summary;
           const ts = item.timestamp || item.t || new Date().toISOString();
           const metaPublic = r.meta?.public || r.step?.meta?.public || {};
-
           const stats = getSpinStats(fields, game.wildSymbolId);
+
           return {
             finger: `${ts}_${summary.coins}_${fields.length}`,
             data: {
@@ -2425,19 +2518,22 @@ const triggerImport = (mode) => {
               rawData: r,
               fields,
               summary,
-              isWin: parseInt(summary.coins || 0) > 0,
-              totalWin: summary.coins || 0,
+              isWin: item.isWin !== undefined ? item.isWin : parseInt(summary.coins || 0) > 0,
+              totalWin: item.totalWin !== undefined ? item.totalWin : summary.coins || 0,
               tumbleCount: fields.length,
               cascadeCount: fields.filter((f) => parseInt(f.coins || 0) > 0).length,
               betAmount: metaPublic.betAmount || 0,
               spinMode: metaPublic.spinMode || 'std',
+              spinType,
+              playgroundCount: playgroundCounter,
               roundTags: r.roundTags || r.step?.roundTags || [],
               choices: r.choices || r.step?.choices || [],
               hasMaxWin: !!(summary.hasMaxWin || r.hasMaxWin),
-              hasGolden: stats.totalGolden > 0,
-              totalGolden: stats.totalGolden,
+              goldenTransformed: stats.goldenTransformed,
               maxMultiplier: stats.maxMultiplier,
-              bookmarked: item.b || item.bookmarked || false,
+              fieldMetadata,
+              playgroundStats,
+              bookmarked: item.b || item.bookmarked || false
             }
           };
         }).filter(Boolean);
@@ -2562,16 +2658,19 @@ function navigateRound(direction) {
   const spin = globalHistory[currentSpinIndex];
   if (!spin || spin.fields.length === 0 || gameState.currentIndex < 0) return;
   
-  const currentField = spin.fields[gameState.currentIndex];
-  const currentRound = currentField ? currentField._playgroundIndex : 0;
+  const meta = spin.fieldMetadata ? spin.fieldMetadata[gameState.currentIndex] : null;
+  const currentRound = meta ? meta.playgroundIndex : 0;
+  const playgroundCount = spin.playgroundStats ? spin.playgroundStats.length : 1;
   
   let targetRound = currentRound + direction;
   if (targetRound < 0) targetRound = 0;
-  if (targetRound >= spin.playgroundCount) targetRound = spin.playgroundCount - 1;
+  if (targetRound >= playgroundCount) targetRound = playgroundCount - 1;
   
   if (targetRound !== currentRound) {
-    const header = document.querySelector(`.round-header[data-round="${targetRound}"]`);
-    if (header) header.click();
+    const firstTumbleIdx = (spin.fieldMetadata || []).findIndex(m => m.playgroundIndex === targetRound);
+    if (firstTumbleIdx !== -1) {
+      window.selectTumble(firstTumbleIdx);
+    }
   }
 }
 
@@ -2941,6 +3040,8 @@ function navigateSpinFiltered(direction) {
 if (playbackPlayBtn) playbackPlayBtn.onclick = togglePlayback;
 if (playbackBackBtn) playbackBackBtn.onclick = () => stepPlayback(-1);
 if (playbackForwardBtn) playbackForwardBtn.onclick = () => stepPlayback(1);
+if (prevRoundBtn) prevRoundBtn.onclick = () => navigateRound(-1);
+if (nextRoundBtn) nextRoundBtn.onclick = () => navigateRound(1);
 if (prevBtn) prevBtn.onclick = () => navigateSpinFiltered(-1);
 if (nextBtn) nextBtn.onclick = () => navigateSpinFiltered(1);
 if (playbackReplayBtn) playbackReplayBtn.onclick = replaySpin;

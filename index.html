@@ -177,44 +177,60 @@
             <!-- Group 2: Unified Control Hub (Center Column - Mathematically Centered) -->
             <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; justify-self: center;">
                 <div class="control-hub" style="display: flex; align-items: flex-start; gap: 10px;">
-                    <!-- Spin Prev -->
+                    <!-- Spin Prev (⏮️) -->
                     <div class="nav-btn-container">
-                        <button id="prevBtn" class="btn-ghost" style="padding: 6px; border-radius: 8px;" title="Previous Spin (Filtered)">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="m11 17-5-5 5-5M18 17l-5-5 5-5"/></svg>
+                        <button id="prevBtn" class="btn-ghost" style="padding: 6px; border-radius: 8px;" title="Previous Spin (⏮️)">
+                            <span style="font-size: 14px;">⏮️</span>
                         </button>
-                        <span class="nav-label">Spin</span>
+                        <span class="nav-label">prev spin</span>
+                    </div>
+
+                    <!-- Round Prev (<<) -->
+                    <div class="nav-btn-container">
+                        <button id="prevRoundBtn" class="btn-ghost" style="padding: 6px; border-radius: 8px;" title="Previous Round (<<)">
+                            <span style="font-size: 14px; font-weight: 900; letter-spacing: -2px;">&lt;&lt;</span>
+                        </button>
+                        <span class="nav-label">prev round</span>
                     </div>
                     
-                    <!-- Frame Back -->
+                    <!-- Frame Back (<) -->
                     <div class="nav-btn-container">
-                        <button id="playbackBackBtn" class="btn-ghost" style="padding: 6px; border-radius: 8px;" title="Previous Frame">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="m15 18-6-6 6-6"/></svg>
+                        <button id="playbackBackBtn" class="btn-ghost" style="padding: 6px; border-radius: 8px;" title="Previous Frame (<)">
+                            <span style="font-size: 14px; font-weight: 900;">&lt;</span>
                         </button>
-                        <span class="nav-label">Frame</span>
+                        <span class="nav-label">prev frame</span>
                     </div>
 
                     <!-- Play/Pause -->
                     <div class="nav-btn-container">
-                        <button id="playbackPlayBtn" class="btn-primary" style="width: 44px; height: 44px; border-radius: 50%; padding: 0; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);" title="Play/Pause">
+                        <button id="playbackPlayBtn" class="btn-primary" style="width: 44px; height: 44px; border-radius: 50%; padding: 0; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);" title="Play/Pause (Space)">
                             <svg id="playIcon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
                             <svg id="pauseIcon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
                         </button>
                     </div>
 
-                    <!-- Frame Forward -->
+                    <!-- Frame Forward (>) -->
                     <div class="nav-btn-container">
-                        <button id="playbackForwardBtn" class="btn-ghost" style="padding: 6px; border-radius: 8px;" title="Next Frame">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="m9 18 6-6-6-6"/></svg>
+                        <button id="playbackForwardBtn" class="btn-ghost" style="padding: 6px; border-radius: 8px;" title="Next Frame (>)">
+                            <span style="font-size: 14px; font-weight: 900;">&gt;</span>
                         </button>
-                        <span class="nav-label">Frame</span>
+                        <span class="nav-label">next frame</span>
                     </div>
 
-                    <!-- Spin Next -->
+                    <!-- Round Next (>>) -->
                     <div class="nav-btn-container">
-                        <button id="nextBtn" class="btn-ghost" style="padding: 6px; border-radius: 8px;" title="Next Spin (Filtered)">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="m13 17 5-5-5-5M6 17l5-5-5-5"/></svg>
+                        <button id="nextRoundBtn" class="btn-ghost" style="padding: 6px; border-radius: 8px;" title="Next Round (>>)">
+                            <span style="font-size: 14px; font-weight: 900; letter-spacing: -2px;">&gt;&gt;</span>
                         </button>
-                        <span class="nav-label">Spin</span>
+                        <span class="nav-label">next round</span>
+                    </div>
+
+                    <!-- Spin Next (⏭️) -->
+                    <div class="nav-btn-container">
+                        <button id="nextBtn" class="btn-ghost" style="padding: 6px; border-radius: 8px;" title="Next Spin (⏭️)">
+                            <span style="font-size: 14px;">⏭️</span>
+                        </button>
+                        <span class="nav-label">next spin</span>
                     </div>
                 </div>
 
