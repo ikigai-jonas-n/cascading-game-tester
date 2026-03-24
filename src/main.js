@@ -32,7 +32,21 @@ function switchGame(id) {
 const spinBtn = document.getElementById('spinBtn');
 const grid = document.getElementById('grid');
 const multDisplay = document.getElementById('multDisplay');
+const currentTumbleWinEl = document.getElementById('currentTumbleWin');
+const accWinDisplayEl = document.getElementById('accWinDisplay');
+const totalWinEl = document.getElementById('totalWin');
 const spinHistoryEl = document.getElementById('spinHistory');
+
+function setHudValue(el, val, baseEm = 1.6) {
+  if (!el) return;
+  el.innerText = val;
+  const len = String(val).length;
+  let scale = 1;
+  if (len > 9) scale = 0.55;
+  else if (len > 7) scale = 0.70;
+  else if (len > 5) scale = 0.85;
+  el.style.fontSize = (baseEm * scale) + 'em';
+}
 const exportBtn = document.getElementById('exportBtn');
 const importMenuBtn = document.getElementById('importMenuBtn');
 const importDropdown = document.getElementById('importDropdown');
@@ -1077,11 +1091,12 @@ async function playConcurrentBatch(config, batchSize) {
     
     (data.step?.gamePhases || []).forEach((phase) => {
       if (phase.type === 'freeSpin') spinType = 'freeSpin';
+      let roundCounter = 0;
       (phase.playgrounds || []).forEach(pg => {
         let pgTumbles = 0;
         let pgCascades = 0;
         (pg.fields || []).forEach(f => {
-          fields.push({ ...f });
+          fields.push(f);
           fieldMetadata.push({
             playgroundIndex: playgroundCounter,
             isFreeSpin: phase.type === 'freeSpin',
@@ -1143,7 +1158,7 @@ async function playConcurrentBatch(config, batchSize) {
 }
 
 // ── Play Modes ───────────────────────────────────────────────────────────────
-const CONCURRENCY = 5; // requests in-flight per batch
+const CONCURRENCY = 1000; // requests in-flight per batch
 
 async function playSpin() {
   if (gameState.isAnimating || autoPlayRunning) return;
@@ -1176,20 +1191,25 @@ async function playSpin() {
   const startTime = performance.now();
 
   try {
+    let lastRenderTime = performance.now();
     if (mode === 'count') {
-      // Concurrent batch mode — fire CONCURRENCY requests at once
+      // Concurrent batch mode
       while (autoPlayRunning && count < maxSpins) {
         const remaining = maxSpins - count;
         const batchSize = Math.min(CONCURRENCY, remaining);
         const entries = await playConcurrentBatch(config, batchSize);
         count += entries.length;
 
-        const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
-        const rps = (count / ((performance.now() - startTime) / 1000)).toFixed(1);
+        const now = performance.now();
+        const elapsed = ((now - startTime) / 1000).toFixed(1);
+        const rps = (count / ((now - startTime) / 1000)).toFixed(1);
         if (statusEl) statusEl.innerText = `${count}/${maxSpins} (${rps}/s)`;
 
-        // Yield to UI every batch
-        renderSpinHistory();
+        // Yield to UI, but only update heavy DOM max 4 times a second
+        if (now - lastRenderTime > 250) {
+          renderSpinHistory();
+          lastRenderTime = now;
+        }
         await new Promise((r) => setTimeout(r, 0));
       }
     } else {
@@ -1421,20 +1441,8 @@ function renderRawDrawer() {
     pre.style.whiteSpace = 'pre-wrap';
     pre.style.wordBreak = 'break-all';
     
-    // Filter out internal metadata (keys starting with _) recursively
-    const filterUnderscoredKeys = (obj) => {
-      if (Array.isArray(obj)) return obj.map(filterUnderscoredKeys);
-      if (obj !== null && typeof obj === 'object') {
-        const result = {};
-        for (const key in obj) {
-          if (!key.startsWith('_')) result[key] = filterUnderscoredKeys(obj[key]);
-        }
-        return result;
-      }
-      return obj;
-    };
-
-    pre.innerText = JSON.stringify(filterUnderscoredKeys(active.data), null, 2);
+    // Pure JSON display without recursive filtering bottleneck
+    pre.innerText = JSON.stringify(active.data, null, 2);
     
     // Support selective Ctrl+A
     pre.tabIndex = 0;
@@ -2047,7 +2055,7 @@ function updatePlaybackLabels() {
 
 // ── Summary ──────────────────────────────────────────────────────────────────
 function updateGlobalSummary() {
-  document.getElementById('totalWin').innerText = gameState.summary.coins;
+  setHudValue(totalWinEl, gameState.summary.coins, 1.0); // Uses base size since its parent is tiny font
   
   const tumbleCountEl = document.getElementById('tumbleCount');
   if (tumbleCountEl) tumbleCountEl.innerText = gameState.fields.length;
@@ -2120,9 +2128,9 @@ function showTumble(index, phase) {
 
   updateAuditListStyles();
 
-  multDisplay.innerText = (field.features?.cumulativeMultiplier || 1) + 'x';
-  document.getElementById('currentTumbleWin').innerText = field.coins;
-  document.getElementById('accWinDisplay').innerText = gameState.accumulatedWins[index];
+  setHudValue(multDisplay, (field.features?.cumulativeMultiplier || 1) + 'x');
+  setHudValue(currentTumbleWinEl, field.coins);
+  setHudValue(accWinDisplayEl, gameState.accumulatedWins[index]);
 
   // Update navigation context header
   const totalTumbles = gameState.fields.length;
@@ -2158,7 +2166,7 @@ function showTumble(index, phase) {
         phaseStatusText.innerText = 'END';
         phaseStatusText.style.color = 'var(--text-muted)';
       } else {
-        phaseStatusText.innerText = isPayingTumble ? 'POP' : 'HOLD & GROW';
+        phaseStatusText.innerText = isPayingTumble ? 'POP' : 'GROW';
         phaseStatusText.style.color = isPayingTumble ? '#10b981' : 'var(--bg-accent)';
       }
     }
@@ -2315,9 +2323,9 @@ async function playTumbleSequence(index) {
     }
     if (nextField) {
       gameState.currentIndex = index + 1;
-      multDisplay.innerText = (nextField.features?.cumulativeMultiplier || 1) + 'x';
-      document.getElementById('currentTumbleWin').innerText = nextField.coins;
-      document.getElementById('accWinDisplay').innerText = gameState.accumulatedWins[index + 1];
+      setHudValue(multDisplay, (nextField.features?.cumulativeMultiplier || 1) + 'x');
+      setHudValue(currentTumbleWinEl, nextField.coins);
+      setHudValue(accWinDisplayEl, gameState.accumulatedWins[index + 1]);
       showTumble(index + 1);
     }
   }
@@ -2485,7 +2493,7 @@ const triggerImport = (mode) => {
               let pgTumbles = 0;
               let pgCascades = 0;
               (pg.fields || []).forEach(f => {
-                fields.push({ ...f });
+                fields.push(f);
                 fieldMetadata.push({
                   playgroundIndex: playgroundCounter,
                   isFreeSpin: phase.type === 'freeSpin',
@@ -2750,12 +2758,12 @@ document.addEventListener('keydown', (e) => {
       if (overlay) overlay.style.display = 'none';
 
       // Reset stats
-      document.getElementById('totalWin').innerText = '0';
-      document.getElementById('multDisplay').innerText = '1x';
+      setHudValue(totalWinEl, '0', 1.0);
+      setHudValue(multDisplay, '1x');
       document.getElementById('cascadeCount').innerText = '0';
       document.getElementById('tumbleCount').innerText = '0';
-      document.getElementById('currentTumbleWin').innerText = '0';
-      document.getElementById('accWinDisplay').innerText = '0';
+      setHudValue(currentTumbleWinEl, '0');
+      setHudValue(accWinDisplayEl, '0');
     }
   }
 });

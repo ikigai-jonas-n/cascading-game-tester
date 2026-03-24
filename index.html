@@ -114,17 +114,17 @@
             <div style="display: flex; align-items: stretch; padding: 12px 0;">
                 <div class="hud-column">
                     <div style="font-size: 0.62em; color: var(--bg-accent); font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 3px;">Mult</div>
-                    <div id="multDisplay" style="font-size: 1.6em; font-weight: 900; color: var(--bg-accent); line-height: 1;">1x</div>
+                    <div id="multDisplay" style="font-size: 1.6em; font-weight: 900; color: var(--bg-accent); line-height: 1; transition: font-size 0.2s;">1x</div>
                 </div>
                 <div style="width: 1px; background: rgba(255,255,255,0.06); align-self: stretch;"></div>
                 <div class="hud-column">
                     <div style="font-size: 0.62em; color: #bbb; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 3px;">Win</div>
-                    <div id="currentTumbleWin" style="font-size: 1.6em; font-weight: 900; color: #fff; line-height: 1;">0</div>
+                    <div id="currentTumbleWin" style="font-size: 1.6em; font-weight: 900; color: #fff; line-height: 1; transition: font-size 0.2s;">0</div>
                 </div>
                 <div style="width: 1px; background: rgba(255,255,255,0.06); align-self: stretch;"></div>
                 <div class="hud-column">
                     <div style="font-size: 0.62em; color: var(--bg-accent); font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 3px; white-space: nowrap;">Acc Win</div>
-                    <div id="accWinDisplay" style="font-size: 1.6em; font-weight: 900; color: var(--bg-accent); line-height: 1;">0</div>
+                    <div id="accWinDisplay" style="font-size: 1.6em; font-weight: 900; color: var(--bg-accent); line-height: 1; transition: font-size 0.2s;">0</div>
                 </div>
             </div>
 
@@ -134,14 +134,14 @@
                 <span style="font-size: 0.6em; color: #333;">·</span>
                 <span style="font-size: 0.6em; color: #444; font-weight: 700;"><span id="cascadeCountTop" style="color: var(--info); opacity: 0.6;">0</span> cascades</span>
                 <span style="font-size: 0.6em; color: #333;">·</span>
-                <span style="font-size: 0.6em; font-weight: 900; color: var(--success); opacity: 0.7;"><span id="totalWin">0</span> total</span>
+                <span style="font-size: 0.6em; font-weight: 900; color: var(--success); opacity: 0.7;"><span id="totalWin" style="transition: font-size 0.2s;">0</span> total</span>
             </div>
 
         </section>
 
         <!-- Phase Status Panel -->
         <div id="phaseStatusPanel" class="glass" style="position: absolute; top: 20px; right: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 24px; border-radius: 14px; min-width: 160px; z-index: 100; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
-            <div style="font-size: 0.65em; font-weight: 900; color: #999; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px;">Current Phase</div>
+            <div style="font-size: 0.65em; font-weight: 900; color: #999; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px;">Phase</div>
             <div id="phaseStatusText" style="font-size: 1.1em; font-weight: 900; color: var(--bg-accent); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; transition: color 0.3s ease;">HOLD & GROW</div>
         </div>
 
