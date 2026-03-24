@@ -1,2 +1,2 @@
-name = "slot-studio"
+name = 'cascading-game-tester'
 pages_build_output_dir = "dist"

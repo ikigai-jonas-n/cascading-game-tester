@@ -983,8 +983,6 @@ async function playSingleSpin() {
   const data = await fireSpinRequest(config);
 
   const fields = [];
-  const fieldMetadata = [];
-  const playgroundStats = [];
   let spinType = 'basic';
   let playgroundCounter = 0;
   
@@ -992,24 +990,13 @@ async function playSingleSpin() {
     if (phase.type === 'freeSpin') spinType = 'freeSpin';
     let roundCounter = 0;
     (phase.playgrounds || []).forEach(pg => {
-      let pgTumbleCount = 0;
-      let pgCascadeCount = 0;
       (pg.fields || []).forEach(f => {
-        fields.push(f);
-        fieldMetadata.push({ 
-          playgroundIndex: playgroundCounter, 
-          isFreeSpin: phase.type === 'freeSpin',
-          roundIndex: roundCounter
+        fields.push({ 
+          ...f, 
+          _playgroundIndex: playgroundCounter, 
+          _isFreeSpin: phase.type === 'freeSpin',
+          _roundIndex: roundCounter
         });
-        pgTumbleCount++;
-        if (parseFloat(f.coins || 0) > 0) pgCascadeCount++;
-      });
-      playgroundStats.push({
-        index: playgroundCounter,
-        tumbleCount: pgTumbleCount,
-        cascadeCount: pgCascadeCount,
-        isFreeSpin: phase.type === 'freeSpin',
-        roundIndex: roundCounter
       });
       playgroundCounter++;
       roundCounter++;
@@ -1031,22 +1018,23 @@ async function playSingleSpin() {
     num: nextNum,
     timestamp: new Date().toISOString(),
     gameId: game.id,
-    totalWin: summary.coins,
-    isWin: summary.coins > 0,
-    spinType,
+    rawData: data,
     fields,
-    fieldMetadata,
-    playgroundStats,
-    playgroundCount: playgroundCounter,
-    hasMaxWin,
+    summary,
+    isWin: parseInt(summary.coins || 0) > 0,
+    totalWin: summary.coins || 0,
+    tumbleCount: fields.length,
+    cascadeCount: fields.filter((f) => parseInt(f.coins || 0) > 0).length,
     betAmount,
     spinMode,
+    spinType,
+    playgroundCount: playgroundCounter,
     roundTags,
     choices,
+    hasMaxWin,
     hasGolden: stats.totalGolden > 0,
     totalGolden: stats.totalGolden,
     maxMultiplier: stats.maxMultiplier,
-    rawData: data // Keep full data for potential future use
   };
 
   // Internal storage is kept detailed for UI performance,
@@ -1067,8 +1055,6 @@ async function playConcurrentBatch(config, batchSize) {
   for (let i = 0; i < results.length; i++) {
     const data = results[i];
     const fields = [];
-    const fieldMetadata = [];
-    const playgroundStats = [];
     let spinType = 'basic';
     let playgroundCounter = 0;
     
@@ -1076,24 +1062,13 @@ async function playConcurrentBatch(config, batchSize) {
       if (phase.type === 'freeSpin') spinType = 'freeSpin';
       let roundCounter = 0;
       (phase.playgrounds || []).forEach(pg => {
-        let pgTumbleCount = 0;
-        let pgCascadeCount = 0;
         (pg.fields || []).forEach(f => {
-          fields.push(f);
-          fieldMetadata.push({ 
-            playgroundIndex: playgroundCounter, 
-            isFreeSpin: phase.type === 'freeSpin',
-            roundIndex: roundCounter
+          fields.push({ 
+            ...f, 
+            _playgroundIndex: playgroundCounter, 
+            _isFreeSpin: phase.type === 'freeSpin',
+            _roundIndex: roundCounter
           });
-          pgTumbleCount++;
-          if (parseFloat(f.coins || 0) > 0) pgCascadeCount++;
-        });
-        playgroundStats.push({
-          index: playgroundCounter,
-          tumbleCount: pgTumbleCount,
-          cascadeCount: pgCascadeCount,
-          isFreeSpin: phase.type === 'freeSpin',
-          roundIndex: roundCounter
         });
         playgroundCounter++;
         roundCounter++;
@@ -1114,22 +1089,23 @@ async function playConcurrentBatch(config, batchSize) {
       num: baseNum + i,
       timestamp: new Date().toISOString(),
       gameId: game.id,
-      totalWin: summary.coins,
-      isWin: summary.coins > 0,
-      spinType,
+      rawData: data,
       fields,
-      fieldMetadata,
-      playgroundStats,
-      playgroundCount: playgroundCounter,
-      hasMaxWin,
+      summary,
+      isWin: parseInt(summary.coins || 0) > 0,
+      totalWin: summary.coins || 0,
+      tumbleCount: fields.length,
+      cascadeCount: fields.filter((f) => parseInt(f.coins || 0) > 0).length,
       betAmount,
       spinMode,
+      spinType,
+      playgroundCount: playgroundCounter,
       roundTags,
       choices,
+      hasMaxWin,
       hasGolden: stats.totalGolden > 0,
       totalGolden: stats.totalGolden,
       maxMultiplier: stats.maxMultiplier,
-      rawData: data
     });
   }
 
@@ -1649,45 +1625,35 @@ function appendSpinHistoryCards(startIndex, endIndex) {
     let auditHtml = '';
     if (isActive) {
       let currentPlayground = -1;
-      let localTumbleIdx = 0;
       const tumbles = spin.fields
         .map((f, tIdx) => {
-          const meta = spin.fieldMetadata[tIdx];
           let headerHtml = '';
-          if (meta.playgroundIndex !== currentPlayground) {
+          if (f._playgroundIndex !== undefined && f._playgroundIndex !== currentPlayground) {
             const isFirst = currentPlayground === -1;
-            currentPlayground = meta.playgroundIndex;
-            localTumbleIdx = 0; // Will be incremented to 1 below
-            
-            const stats = spin.playgroundStats.find(s => s.index === currentPlayground);
-            const headerText = meta.isFreeSpin ? `FreeSpin #${meta.roundIndex + 1}` : 'BaseSpin';
-            const statsHtml = `<span style="font-size: 9px; opacity: 0.7; font-weight: normal; margin-left: auto; margin-right: 12px;">(${stats.tumbleCount} Tumbles, ${stats.cascadeCount} Cascades)</span>`;
-            
+            currentPlayground = f._playgroundIndex;
+            const headerText = f._isFreeSpin ? `FreeSpin #${f._roundIndex + 1}` : 'BaseSpin';
             const closeDiv = isFirst ? '' : '</div>';
             
             let isActiveRound = false;
-            if (spin.fieldMetadata[gameState.currentIndex] && spin.fieldMetadata[gameState.currentIndex].playgroundIndex === currentPlayground) {
+            if (spin.fields[gameState.currentIndex] && spin.fields[gameState.currentIndex]._playgroundIndex === currentPlayground) {
               isActiveRound = true;
             }
-            if (!spin.fieldMetadata[gameState.currentIndex] && isFirst) isActiveRound = true;
+            if (!spin.fields[gameState.currentIndex] && isFirst) isActiveRound = true;
 
             headerHtml = `${closeDiv}
               <div class="round-header" data-round="${currentPlayground}" style="cursor:pointer; font-size:10px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin:12px 0 4px 0; border-bottom:1px dashed rgba(255,255,255,0.1); padding-bottom:4px; letter-spacing: 0.5px; display:flex; justify-content:space-between; align-items:center; user-select:none;">
                 <span>${headerText}</span>
-                ${statsHtml}
                 <span class="round-toggle-icon" style="transition: transform 0.2s; transform: ${isActiveRound ? 'rotate(180deg)' : 'rotate(0deg)'}">▼</span>
               </div>
               <div class="round-content" id="round-content-${currentPlayground}" style="display: ${isActiveRound ? 'block' : 'none'};">`;
           }
 
-          localTumbleIdx++;
           const isTumbleActive = tIdx === gameState.currentIndex;
           const goldenPositions = f.features?.golden || [];
           const isWinStep = parseFloat(f.coins || 0) > 0;
 
           // cascadeNum = group this tumble belongs to WITHIN the same playground
-          const payingBefore = spin.fieldMetadata.slice(0, tIdx)
-            .filter((m2, idx2) => parseFloat(spin.fields[idx2].coins || 0) > 0 && m2.playgroundIndex === meta.playgroundIndex).length;
+          const payingBefore = spin.fields.slice(0, tIdx).filter(f2 => parseFloat(f2.coins || 0) > 0 && f2._playgroundIndex === f._playgroundIndex).length;
           const cascadeNum = payingBefore + 1;
           const badgeBg = isWinStep ? 'rgba(59,130,246,0.18)' : 'rgba(255,255,255,0.03)';
           const badgeColor = isWinStep ? 'var(--info)' : '#444';
@@ -1696,14 +1662,17 @@ function appendSpinHistoryCards(startIndex, endIndex) {
           const cascadeBadge = `<span style="background:${badgeBg}; color:${badgeColor}; border:1px solid ${badgeBorder}; padding:2px 6px; border-radius:4px; font-size:9px; margin-left:8px; font-weight:800; font-family:monospace;">${badgeLabel}</span>`;
 
           // Generate tallies for this tumble
+          const payoutMap = new Map();
           const payoutPositions = new Set();
           (f.symbols.payouts || []).forEach(p => {
+            const sid = p.symbolId !== undefined ? p.symbolId : p.symbol !== undefined ? p.symbol : p.id;
+            payoutMap.set(sid, p);
             if (Array.isArray(p.positions)) {
               p.positions.forEach(pos => payoutPositions.add(pos));
             }
           });
 
-          // Identify "Winning Golden" symbols for the audit listing
+          // 1. Identify "Winning Golden" symbols for the audit listing
           const winningGoldenTallies = new Map(); // sid -> count
           goldenPositions.forEach(pos => {
             if (payoutPositions.has(pos)) {
@@ -1713,6 +1682,8 @@ function appendSpinHistoryCards(startIndex, endIndex) {
           });
 
           let linesHtml = '';
+          
+          // 1a. Golden Wins (Listed specifically)
           winningGoldenTallies.forEach((count, sid) => {
             const name = SYMBOLS[sid] || sid;
             const emoji = EMOJIS[sid] || '';
@@ -1727,6 +1698,7 @@ function appendSpinHistoryCards(startIndex, endIndex) {
             `;
           });
 
+          // 2. Wild Line (count Wilds in initial grid that were part of a win)
           const wildId = game.wildSymbolId;
           const winningWildCount = f.symbols.initial.filter((id, pos) => id === wildId && payoutPositions.has(pos)).length;
           if (winningWildCount > 0) {
@@ -1741,6 +1713,7 @@ function appendSpinHistoryCards(startIndex, endIndex) {
             `;
           }
 
+          // 3. Regular Payout Lines (Total count as per photo)
           (f.symbols.payouts || []).forEach(p => {
              const sid = p.symbolId !== undefined ? p.symbolId : p.symbol !== undefined ? p.symbol : p.id;
              const name = SYMBOLS[sid] || sid;
@@ -1766,7 +1739,7 @@ function appendSpinHistoryCards(startIndex, endIndex) {
                 cursor: pointer; margin-top: 4px;">
               <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div style="display:flex; align-items:center;">
-                  <span class="step-label" style="font-weight:700; color:${isTumbleActive ? '#fff' : 'var(--text-muted)'}; font-size:10px;">TUMBLE ${localTumbleIdx}</span>
+                  <span class="step-label" style="font-weight:700; color:${isTumbleActive ? '#fff' : 'var(--text-muted)'}; font-size:10px;">TUMBLE ${tIdx + 1}</span>
                   ${cascadeBadge}
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -1993,8 +1966,8 @@ function updatePlaybackLabels() {
     currentPhaseLabel.innerText = gameState.currentFramePhase || 'INITIAL';
   }
   if (currentTumbleLabel) {
-    const meta = spin.fieldMetadata[gameState.currentIndex];
-    const prefix = meta && meta.isFreeSpin ? `FS #${(meta.roundIndex || 0) + 1} · ` : '';
+    const field = spin.fields[gameState.currentIndex];
+    const prefix = field && field._isFreeSpin ? `FS #${(field._roundIndex || 0) + 1} · ` : '';
     currentTumbleLabel.innerText = `${prefix}Tumble ${gameState.currentIndex + 1}`;
   }
   if (currentSpinIdLabel) {
@@ -2422,30 +2395,17 @@ const triggerImport = (mode) => {
           let spinType = 'basic';
           let playgroundCounter = 0;
           
-          const fieldMetadata = [];
-          const playgroundStats = [];
           (r.step?.gamePhases || []).forEach((phase) => {
             if (phase.type === 'freeSpin') spinType = 'freeSpin';
             let roundCounter = 0;
             (phase.playgrounds || []).forEach(pg => {
-              let pgTumbleCount = 0;
-              let pgCascadeCount = 0;
               (pg.fields || []).forEach(f => {
-                fields.push(f);
-                fieldMetadata.push({ 
-                  playgroundIndex: playgroundCounter, 
-                  isFreeSpin: phase.type === 'freeSpin', 
-                  roundIndex: roundCounter 
+                fields.push({ 
+                  ...f, 
+                  _playgroundIndex: playgroundCounter, 
+                  _isFreeSpin: phase.type === 'freeSpin',
+                  _roundIndex: roundCounter
                 });
-                pgTumbleCount++;
-                if (parseFloat(f.coins || 0) > 0) pgCascadeCount++;
-              });
-              playgroundStats.push({
-                index: playgroundCounter,
-                tumbleCount: pgTumbleCount,
-                cascadeCount: pgCascadeCount,
-                isFreeSpin: phase.type === 'freeSpin',
-                roundIndex: roundCounter
               });
               playgroundCounter++;
               roundCounter++;
@@ -2458,25 +2418,27 @@ const triggerImport = (mode) => {
           const stats = getSpinStats(fields, game.wildSymbolId);
           return {
             finger: `${ts}_${summary.coins}_${fields.length}`,
-            num: item.num || item.n || 0,
-            timestamp: ts,
-            totalWin: summary.coins,
-            isWin: summary.coins > 0,
-            spinType,
-            fields,
-            fieldMetadata,
-            playgroundStats,
-            playgroundCount: playgroundCounter,
-            hasMaxWin: !!(summary.hasMaxWin || r.hasMaxWin),
-            betAmount: metaPublic.betAmount || 0,
-            spinMode: metaPublic.spinMode || 'std',
-            roundTags: r.roundTags || r.step?.roundTags || [],
-            choices: r.choices || r.step?.choices || [],
-            hasGolden: stats.totalGolden > 0,
-            totalGolden: stats.totalGolden,
-            maxMultiplier: stats.maxMultiplier,
-            bookmarked: item.b || item.bookmarked || false,
-            rawData: r
+            data: {
+              num: item.num || item.n || undefined,
+              timestamp: ts,
+              gameId: item.gameId || item.g || game.id,
+              rawData: r,
+              fields,
+              summary,
+              isWin: parseInt(summary.coins || 0) > 0,
+              totalWin: summary.coins || 0,
+              tumbleCount: fields.length,
+              cascadeCount: fields.filter((f) => parseInt(f.coins || 0) > 0).length,
+              betAmount: metaPublic.betAmount || 0,
+              spinMode: metaPublic.spinMode || 'std',
+              roundTags: r.roundTags || r.step?.roundTags || [],
+              choices: r.choices || r.step?.choices || [],
+              hasMaxWin: !!(summary.hasMaxWin || r.hasMaxWin),
+              hasGolden: stats.totalGolden > 0,
+              totalGolden: stats.totalGolden,
+              maxMultiplier: stats.maxMultiplier,
+              bookmarked: item.b || item.bookmarked || false,
+            }
           };
         }).filter(Boolean);
         restored.push(...processed);
@@ -2593,15 +2555,15 @@ function navigateFrame(direction) {
   }
 }
 
-// Removed duplicate prevBtn binding
-// Removed duplicate nextBtn binding
+document.getElementById('prevBtn').onclick = () => navigateFrame(-1);
+document.getElementById('nextBtn').onclick = () => navigateFrame(1);
 
 function navigateRound(direction) {
   const spin = globalHistory[currentSpinIndex];
   if (!spin || spin.fields.length === 0 || gameState.currentIndex < 0) return;
   
-  const meta = spin.fieldMetadata[gameState.currentIndex];
-  const currentRound = meta ? meta.playgroundIndex : 0;
+  const currentField = spin.fields[gameState.currentIndex];
+  const currentRound = currentField ? currentField._playgroundIndex : 0;
   
   let targetRound = currentRound + direction;
   if (targetRound < 0) targetRound = 0;
@@ -2649,13 +2611,13 @@ document.addEventListener('keydown', (e) => {
     } else if (e.key === 'ArrowLeft') {
       e.preventDefault();
       if (e.shiftKey) navigateRound(-1);
-      else if (e.altKey || e.metaKey) navigateSpinFiltered(-1);
-      else stepPlayback(-1);
+      else if (e.altKey || e.metaKey) navigateSpinCard(-1);
+      else navigateFrame(-1);
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
       if (e.shiftKey) navigateRound(1);
-      else if (e.altKey || e.metaKey) navigateSpinFiltered(1);
-      else stepPlayback(1);
+      else if (e.altKey || e.metaKey) navigateSpinCard(1);
+      else navigateFrame(1);
     }
   }
 
@@ -2981,11 +2943,6 @@ if (playbackBackBtn) playbackBackBtn.onclick = () => stepPlayback(-1);
 if (playbackForwardBtn) playbackForwardBtn.onclick = () => stepPlayback(1);
 if (prevBtn) prevBtn.onclick = () => navigateSpinFiltered(-1);
 if (nextBtn) nextBtn.onclick = () => navigateSpinFiltered(1);
-
-const roundBackBtn = document.getElementById('roundBackBtn');
-const roundForwardBtn = document.getElementById('roundForwardBtn');
-if (roundBackBtn) roundBackBtn.onclick = () => navigateRound(-1);
-if (roundForwardBtn) roundForwardBtn.onclick = () => navigateRound(1);
 if (playbackReplayBtn) playbackReplayBtn.onclick = replaySpin;
 if (playbackAutoBtn) playbackAutoBtn.onclick = toggleAutoReplay;
 if (playbackSpeedSlider) playbackSpeedSlider.oninput = handleSpeedChange;
