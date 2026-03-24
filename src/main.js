@@ -2847,11 +2847,42 @@ async function loadDefaultData(manual = false) {
         const r = entry.rawData || entry.r || entry; // Legacy fallback kept very brief
         if (!r || !r.step) return null;
         
-        const fields = r.step.gamePhases[0].playgrounds[0].fields;
+        let spinType = 'basic';
+        const fields = [];
+        const fieldMetadata = [];
+        const playgroundStats = [];
+        let playgroundCounter = 0;
+
+        (r.step.gamePhases || []).forEach((phase) => {
+          if (phase.type === 'freeSpin') spinType = 'freeSpin';
+          let roundCounter = 0;
+          (phase.playgrounds || []).forEach(pg => {
+            let pgTumbles = 0;
+            let pgCascades = 0;
+            (pg.fields || []).forEach(f => {
+              fields.push(f);
+              fieldMetadata.push({
+                playgroundIndex: playgroundCounter,
+                isFreeSpin: phase.type === 'freeSpin',
+                roundIndex: roundCounter
+              });
+              pgTumbles++;
+              if (parseInt(f.coins || 0) > 0) pgCascades++;
+            });
+            playgroundStats.push({ 
+              tumbleCount: pgTumbles, 
+              cascadeCount: pgCascades,
+              headerText: phase.type === 'freeSpin' ? `FreeSpin #${roundCounter + 1}` : 'BaseSpin'
+            });
+            playgroundCounter++;
+            roundCounter++;
+          });
+        });
+
         const summary = r.step.summary;
         const metaPublic = r.meta?.public || r.step?.meta?.public || {};
-
         const stats = getSpinStats(fields, game.wildSymbolId);
+
         return {
           num: entry.num || entry.n || (idx + 1),
           timestamp: entry.timestamp || entry.t || new Date().toISOString(),
@@ -2865,13 +2896,16 @@ async function loadDefaultData(manual = false) {
           cascadeCount: fields.filter((f) => parseInt(f.coins || 0) > 0).length,
           betAmount: metaPublic.betAmount || 0,
           spinMode: metaPublic.spinMode || 'std',
+          spinType,
+          playgroundCount: playgroundCounter,
           roundTags: r.roundTags || r.step?.roundTags || [],
           choices: r.choices || r.step?.choices || [],
           bookmarked: entry.b || entry.bookmarked || false,
           hasMaxWin: !!(summary.hasMaxWin || r.hasMaxWin),
-          hasGolden: stats.totalGolden > 0,
-          totalGolden: stats.totalGolden,
+          goldenTransformed: stats.goldenTransformed,
           maxMultiplier: stats.maxMultiplier,
+          fieldMetadata,
+          playgroundStats
         };
       }).filter(Boolean);
 
