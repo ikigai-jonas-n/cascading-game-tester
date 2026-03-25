@@ -30,29 +30,23 @@ export interface IGamePlugin {
 
   // --- UI PIPELINE ---
   ui: {
-    /**
-     * Replaces main.js `createGrid()` and `renderGrid()`.
-     * The plugin has 100% control over the DOM inside the Main Stage.
-     */
-    GameBoard: React.FC<{ 
-      frameData: any; 
-      playbackState: 'playing' | 'paused';
-    }>;
+    /** Replaces main.js createGrid/renderGrid. Full control over the DOM. */
+    GameBoard: React.FC<{ frameData: any; playbackState: 'playing' | 'paused' }>;
     
-    /**
-     * Injected into the Core OS SpinHistoryCard footer.
-     */
+    /** Injected into the Core OS SpinHistoryCard footer. */
     HistoryCardMeta: React.FC<{ customStats: any }>;
     
-    /**
-     * Replaces the manual HTML string building for `tumblesHtml`.
-     */
+    /** Replaces the manual HTML string building for tumblesHtml. */
     AuditTrail: React.FC<{ frameData: any }>;
 
-    /**
-     * Optional: Replaces default paytable/symbol mappings modal.
-     */
+    /** Optional: Replaces default paytable/symbol mappings modal. */
     SymbolMapContent?: React.FC<{}>;
+
+    /** RESTORED: Floating panels over the board (e.g., Captain Jack Jackpot Meter) */
+    CustomHUD?: React.FC<{ frameData: any }>;
+
+    /** RESTORED: Extra game-specific panels injected into the Sidebar layout */
+    ExtraSidePanel?: React.FC<{ spinData: any }>;
   };
 
   // --- MOCKING PIPELINE ---

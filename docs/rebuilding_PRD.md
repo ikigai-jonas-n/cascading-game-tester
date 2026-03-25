@@ -34,6 +34,13 @@ Currently, `filters.js` uses strict value checking (`item.tumbleCount >= filters
 * **Requirement:** Integrate **Fuse.js**. 
 * The Core OS maps over the `spins` array, extracts `pluginTags` (provided by the game plugin), and passes the flattened list to Fuse.js for powerful fuzzy searching (e.g., typing "15x multiplier gold" into a single search bar).
 
+### 2.4 UI Shells & Injection Slots (Inversion of Control)
+To support infinite UI customizability without modifying the Core OS, Antigravity must build the core layout as "Shells" with explicit injection slots:
+
+* **Sidebar Shell:** Renders the generic header (Spin ID, Win/Loss dot, Total Win) and exposes a `<footer>` slot. The Core OS actively injects `<activePlugin.ui.HistoryCardMeta />` into this footer. If `<activePlugin.ui.ExtraSidePanel />` exists, it renders it below the history list.
+* **Main Stage Shell:** Provides a centered `position: relative` container. It delegates the entire inner area to `<activePlugin.ui.GameBoard />`. It also checks for `<activePlugin.ui.CustomHUD />`; if present, it renders it as an absolute overlay (e.g., `z-index: 100`) for game-specific UI like Jackpot Meters.
+* **Audit Drawer Shell:** Renders the raw JSON viewer and provides a dedicated React slot for the plugin's `<activePlugin.ui.AuditTrail />` component to translate the math into human-readable text.
+
 ---
 
 ## 3. Nitty-Gritty Details: The Plugin Extraction (Sexy Fruits)
