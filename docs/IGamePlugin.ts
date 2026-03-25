@@ -1,4 +1,3 @@
-```typescript
 import React from 'react';
 
 /**
@@ -12,14 +11,12 @@ export interface IGamePlugin {
 
   // --- DATA PIPELINE ---
   /**
-   * Replaces main.js `getSpinStats()`.
-   * Takes raw RGS payload, returns game-specific metrics.
+   * Replaces main.js `getSpinStats()`. Takes raw RGS payload, returns game metrics.
    */
   parseCustomStats: (rawPayload: any) => Record<string, any>;
   
   /**
-   * Takes the output of parseCustomStats and generates string tags 
-   * for the Core OS Fuse.js engine (e.g., ["15x Multiplier", "Golden Win"]).
+   * Translates stats into string tags for Fuse.js (e.g., ["15x Multiplier", "Golden Win"]).
    */
   getSearchableTags: (customStats: any) => string[]; 
 
@@ -42,10 +39,10 @@ export interface IGamePlugin {
     /** Optional: Replaces default paytable/symbol mappings modal. */
     SymbolMapContent?: React.FC<{}>;
 
-    /** RESTORED: Floating panels over the board (e.g., Captain Jack Jackpot Meter) */
+    /** Optional: Floating panels over the board (e.g., Captain Jack Jackpot Meter) */
     CustomHUD?: React.FC<{ frameData: any }>;
 
-    /** RESTORED: Extra game-specific panels injected into the Sidebar layout */
+    /** Optional: Extra game-specific panels injected into the Sidebar layout */
     ExtraSidePanel?: React.FC<{ spinData: any }>;
   };
 
@@ -53,8 +50,8 @@ export interface IGamePlugin {
   simulator?: {
     /**
      * Local deterministic RGS generator. Unblocks frontend from backend math.
+     * Uses seeded RNG so QA can share reproducible UI states.
      */
     simulateSpin: (betAmount: number, overrides?: any) => any; 
   };
 }
-```
