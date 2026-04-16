@@ -207,6 +207,9 @@ openSettingsBtn.onclick = () => {
   const apiUrlInput = document.getElementById('apiUrlInput');
   if (apiUrlInput) apiUrlInput.value = API_URL;
 
+  const playerIdInput = document.getElementById('playerIdInput');
+  if (playerIdInput) playerIdInput.value = PLAYER_ID;
+
   const syncBtn = document.getElementById('syncHistoryBtn');
   if (syncBtn) {
     syncBtn.onclick = async () => {
@@ -227,7 +230,107 @@ openSettingsBtn.onclick = () => {
 const closeSettings = () => {
   settingsModal.close();
   if (lastFocusedElementBeforeModal) lastFocusedElementBeforeModal.focus();
-};
+}
+
+// ── Quick Cheat Modal ────────────────────────────────────────────────────────
+const quickCheatBtn = document.getElementById('quickCheatBtn');
+const quickCheatModal = document.getElementById('quickCheatModal');
+const closeQuickCheatBtn = document.getElementById('closeQuickCheatBtn');
+const sendQuickCheatBtn = document.getElementById('sendQuickCheatBtn');
+const quickTestConfigInput = document.getElementById('quickTestConfigInput');
+const quickCheatError = document.getElementById('quickCheatError');
+
+if (quickCheatBtn && quickCheatModal) {
+  quickCheatBtn.onclick = () => {
+    quickCheatError.style.display = 'none';
+    let savedTestConfig = localStorage.getItem('test_config');
+    if (!savedTestConfig && quickTestConfigInput.value) {
+        savedTestConfig = quickTestConfigInput.value;
+    }
+    
+    if (savedTestConfig) {
+      quickTestConfigInput.value = savedTestConfig;
+    } else {
+      const defaultTestConfig = {
+        configId: typeof PLAYER_ID !== 'undefined' ? PLAYER_ID : game.playerId,
+        gameCode: game.gameCode,
+        config: {
+          baseSpin: {
+            initialScreen: {
+              clusterCount: 5,
+              symbols: [
+                { symbol: "WILD", count: 10 }
+              ]
+            },
+            cascadeCount: 6,
+            tumbleCount: 20
+          }
+        }
+      };
+      quickTestConfigInput.value = JSON.stringify(defaultTestConfig, null, 2);
+    }
+    quickCheatModal.showModal();
+  };
+
+  closeQuickCheatBtn.onclick = () => quickCheatModal.close();
+
+  sendQuickCheatBtn.onclick = async () => {
+    quickCheatError.style.display = 'none';
+    const jsonStr = quickTestConfigInput.value;
+    const originalText = sendQuickCheatBtn.innerText;
+    
+    try {
+      const parsed = JSON.parse(jsonStr);
+      // Automatically inject current IDs if PLAYER_ID exists
+      if (typeof PLAYER_ID !== 'undefined') parsed.configId = PLAYER_ID;
+      parsed.gameCode = game.gameCode;
+      
+      sendQuickCheatBtn.innerText = 'SENDING...';
+      const response = await fetch(`${API_URL}/v1/test/test-config`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-signature': 'rgs-local-signature',
+          'accept': '*/*'
+        },
+        body: JSON.stringify(parsed),
+      });
+      
+      const text = await response.text();
+      let result = {};
+      if (text) {
+        try {
+          result = JSON.parse(text);
+        } catch (e) {
+          // Handle cases where response text is not JSON
+        }
+      }
+      
+      sendQuickCheatBtn.innerText = originalText;
+      
+      // The backend may return 200 OK but with an error object inside
+      if (response.ok && !result.error && !result.errors) {
+        showLoading('Cheat Sent successfully! ✅');
+        localStorage.setItem('test_config', jsonStr);
+        setTimeout(hideLoading, 2000);
+        quickCheatModal.close();
+      } else {
+        const errorMsg = result.error?.message || result.message || text || response.statusText;
+        quickCheatError.style.display = 'block';
+        quickCheatError.innerText = `Failed: ${errorMsg}`;
+      }
+    } catch (err) {
+      sendQuickCheatBtn.innerText = originalText;
+      quickCheatError.style.display = 'block';
+      quickCheatError.innerText = `Invalid JSON or Request Error: ${err.message}`;
+    }
+  };
+  
+  // Basic Focus Trap inside cheat modal
+  quickCheatModal.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') quickCheatModal.close();
+  });
+}
 
 closeSettingsBtn.onclick = closeSettings;
 saveSettingsBtn.onclick = () => {
@@ -235,6 +338,11 @@ saveSettingsBtn.onclick = () => {
   if (apiUrlInput) {
     API_URL = apiUrlInput.value || 'http://localhost:9000';
     localStorage.setItem('api_url', API_URL);
+  }
+  const playerIdInput = document.getElementById('playerIdInput');
+  if (playerIdInput) {
+    PLAYER_ID = playerIdInput.value || game.playerId;
+    localStorage.setItem('player_id', PLAYER_ID);
   }
   // Persist request body so it survives reload
   if (requestBodyTextarea.value && requestBodyTextarea.value.trim() !== '') {
@@ -913,6 +1021,7 @@ document.querySelectorAll('.resizer').forEach((resizer) => {
 // ── Play Spin (single) ──────────────────────────────────────────────────────
 // ── Backend URL Discovery ───────────────────────────────────────────────────
 let API_URL = localStorage.getItem('api_url') || import.meta.env.VITE_API_URL || 'http://localhost:9000';
+let PLAYER_ID = localStorage.getItem('player_id') || game.playerId;
 
 async function autoDetectBackend() {
   if (window.location.hostname === 'localhost' && !localStorage.getItem('api_url')) {
@@ -934,7 +1043,7 @@ async function fireSpinRequest(config) {
   const reqBody = {
     ...config,
     gameCode: game.gameCode,
-    id: game.playerId,
+    id: PLAYER_ID,
   };
 
   const makeRequest = async (body) => {

@@ -19,6 +19,7 @@
                     <span id="gameLabel" style="font-size: 9px; color: var(--text-muted); font-weight: 700; text-transform: uppercase;"></span>
                 </div>
                 <div style="display: flex; gap: 4px; position: relative;">
+                    <button id="quickCheatBtn" title="Quick Cheat Config" style="background: #3b82f6; color: #fff; border: none; margin-right: 4px; padding: 6px 10px; font-size: 10px; font-weight: 800; border-radius: 6px; letter-spacing: 0.5px; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4); cursor: pointer; transition: all 0.2s;">CHEAT</button>
                     <div id="exportWrapper" style="display: contents;">
                       <button id="exportMenuBtn" class="btn-ghost" title="Export Options">EXP ▾</button>
                       <div id="exportDropdown" class="dropdown-menu" style="display: none; top: 100%; right: 0;">
@@ -315,6 +316,10 @@
                             <label style="display: block; color: #888; font-size: 9px; font-weight: 800; margin-bottom: 4px; text-transform: uppercase;">Backend URL</label>
                             <input type="text" id="apiUrlInput" placeholder="http://localhost:9000" style="width: 100%; font-size: 12px; padding: 10px; color: var(--bg-accent); background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 8px;">
                         </div>
+                        <div>
+                            <label style="display: block; color: #888; font-size: 9px; font-weight: 800; margin-bottom: 4px; text-transform: uppercase;">Player ID</label>
+                            <input type="text" id="playerIdInput" placeholder="Enter Player ID" style="width: 100%; font-size: 12px; padding: 10px; color: var(--success); background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 8px;">
+                        </div>
                     </div>
                 </section>
 
@@ -357,7 +362,7 @@
                 <!-- Group: Request Body -->
                 <section>
                     <div style="color: var(--bg-accent); font-size: 10px; font-weight: 900; letter-spacing: 1px; margin-bottom: 8px; text-transform: uppercase; opacity: 0.8;">Request Body</div>
-                    <textarea id="requestBody" style="width: 100%; height: 100px; background: #000; color: var(--success); border: 1px solid var(--border-color); padding: 12px; border-radius: 10px; font-family: monospace; font-size: 11px; resize: vertical;"></textarea>
+                    <textarea id="requestBody" style="width: 100%; height: 80px; background: #000; color: var(--success); border: 1px solid var(--border-color); padding: 12px; border-radius: 10px; font-family: monospace; font-size: 11px; resize: vertical;"></textarea>
                 </section>
 
                 <!-- Group: Maintenance -->
@@ -373,6 +378,25 @@
 
             <footer style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 16px;">
                 <button id="saveSettingsBtn" class="btn-primary" style="width: 100%; padding: 14px; font-size: 12px; border-radius: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">SAVE CHANGES</button>
+            </footer>
+        </div>
+    </dialog>
+
+    <!-- QUICK CHEAT MODAL -->
+    <dialog id="quickCheatModal" style="border: none; background: transparent; padding: 0;">
+        <div class="modal-content" style="max-width: 500px; max-width: 400px; display: flex; flex-direction: column; padding: 24px; border: 1px solid rgba(59, 130, 246, 0.4); box-shadow: 0 10px 40px rgba(59, 130, 246, 0.1);">
+            <header style="display: flex; flex-direction: row; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(59, 130, 246, 0.2); padding-bottom: 12px;">
+                <h2 style="color: #3b82f6; font-size: 1.1rem; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;">QUICK CHEAT (test-config)</h2>
+                <button id="closeQuickCheatBtn" class="btn-ghost" style="font-size: 18px; color: #888;">&times;</button>
+            </header>
+
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
+                <textarea id="quickTestConfigInput" style="width: 100%; height: 200px; background: #000; color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); padding: 12px; border-radius: 10px; font-family: monospace; font-size: 11px; resize: vertical;"></textarea>
+                <div id="quickCheatError" style="display: none; color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px; font-size: 10px; font-weight: 800; border: 1px solid rgba(239, 68, 68, 0.3); word-break: break-word;"></div>
+            </div>
+
+            <footer style="margin-top: 20px; border-top: 1px solid rgba(59, 130, 246, 0.2); padding-top: 16px;">
+                <button id="sendQuickCheatBtn" class="btn-ghost" style="width: 100%; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.5); padding: 14px; font-size: 12px; border-radius: 12px; font-weight: 800; color: #3b82f6; text-transform: uppercase; letter-spacing: 1px;">SEND CHEAT</button>
             </footer>
         </div>
     </dialog>
