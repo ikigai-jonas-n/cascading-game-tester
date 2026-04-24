@@ -102,6 +102,17 @@ export async function clearAllSpins() {
   });
 }
 
+/** Delete a single spin by number */
+export async function deleteSpin(num) {
+  await open();
+  return new Promise((resolve, reject) => {
+    const store = getStore('readwrite');
+    const req = store.delete(num);
+    req.onsuccess = () => resolve();
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
 /** Get total count */
 export async function getSpinCount() {
   await open();

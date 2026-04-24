@@ -166,6 +166,22 @@ export const FILTER_DEFS = [
     apply: (spin, value) => spin.spinMode === value,
   },
   {
+    id: 'spinType',
+    label: 'Spin Type',
+    type: 'select',
+    options: [
+      { label: 'BaseSpin', value: 'hasBase' },
+      { label: 'FreeSpin', value: 'hasFree' },
+    ],
+    apply: (spin, value) => {
+      const hasBase = !!spin.hasBaseSpin || spin.spinType === 'baseSpin' || spin.spinType === 'basic';
+      const hasFree = !!spin.hasFreeSpin || spin.spinType === 'freeSpin';
+      if (value === 'hasFree') return hasFree;
+      if (value === 'hasBase') return hasBase;
+      return true;
+    },
+  },
+  {
     id: 'hasMaxWin',
     label: 'Max Win Only',
     type: 'toggle',

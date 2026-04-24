@@ -1111,11 +1111,13 @@ async function playSingleSpin() {
   const fields = [];
   const fieldMetadata = [];
   const playgroundStats = [];
-  let spinType = 'basic';
+  let hasBaseSpin = false;
+  let hasFreeSpin = false;
   let playgroundCounter = 0;
   
   (data.step?.gamePhases || []).forEach((phase) => {
-    if (phase.type === 'freeSpin') spinType = 'freeSpin';
+    if (phase.type === 'baseSpin') hasBaseSpin = true;
+    if (phase.type === 'freeSpin') hasFreeSpin = true;
     let roundCounter = 0;
     (phase.playgrounds || []).forEach(pg => {
       let pgTumbles = 0;
@@ -1164,7 +1166,9 @@ async function playSingleSpin() {
     cascadeCount: fields.filter((f) => parseInt(f.coins || 0) > 0).length,
     betAmount,
     spinMode,
-    spinType,
+    spinType: hasFreeSpin ? 'freeSpin' : 'baseSpin',
+    hasBaseSpin,
+    hasFreeSpin,
     playgroundCount: playgroundCounter,
     roundTags,
     choices,
@@ -1195,11 +1199,13 @@ async function playConcurrentBatch(config, batchSize) {
     const fields = [];
     const fieldMetadata = [];
     const playgroundStats = [];
-    let spinType = 'basic';
+    let hasBaseSpin = false;
+    let hasFreeSpin = false;
     let playgroundCounter = 0;
     
     (data.step?.gamePhases || []).forEach((phase) => {
-      if (phase.type === 'freeSpin') spinType = 'freeSpin';
+      if (phase.type === 'baseSpin') hasBaseSpin = true;
+      if (phase.type === 'freeSpin') hasFreeSpin = true;
       let roundCounter = 0;
       (phase.playgrounds || []).forEach(pg => {
         let pgTumbles = 0;
@@ -1247,7 +1253,9 @@ async function playConcurrentBatch(config, batchSize) {
       cascadeCount: fields.filter((f) => parseInt(f.coins || 0) > 0).length,
       betAmount,
       spinMode,
-      spinType,
+      spinType: hasFreeSpin ? 'freeSpin' : 'baseSpin',
+      hasBaseSpin,
+      hasFreeSpin,
       playgroundCount: playgroundCounter,
       roundTags,
       choices,
@@ -1750,8 +1758,11 @@ function appendSpinHistoryCards(startIndex, endIndex) {
         </div>
         <div class="header-right">
           <div class="meta-time">${formatTimestamp(spin.timestamp).split(' ')[1]}</div>
-          <button class="bookmark-btn-v5 ${isBookmarked ? 'active' : ''}" data-num="${spin.num}">
+          <button class="bookmark-btn-v5 ${isBookmarked ? 'active' : ''}" data-num="${spin.num}" title="Bookmark">
              <svg width="12" height="12" viewBox="0 0 24 24" fill="${isBookmarked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2.5"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+          </button>
+          <button class="delete-btn-v5" data-num="${spin.num}" title="Delete Record">
+             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
           </button>
         </div>
       </div>
@@ -1991,6 +2002,27 @@ function appendSpinHistoryCards(startIndex, endIndex) {
           const spin = globalHistory.find(s => s.num === num);
           if (spin) spin.bookmarked = newState;
           renderSpinHistory(true);
+        });
+        return;
+      }
+
+      const deleteBtn = e.target.closest('.delete-btn-v5');
+      if (deleteBtn) {
+        e.stopPropagation();
+        const num = parseInt(deleteBtn.dataset.num);
+        if (!confirm(`Are you sure you want to delete spin #${num}?`)) return;
+        
+        import('./db.js').then(db => db.deleteSpin(num)).then(() => {
+          const idx = globalHistory.findIndex(s => s.num === num);
+          if (idx !== -1) {
+            globalHistory.splice(idx, 1);
+            if (currentSpinIndex === idx) {
+              currentSpinIndex = -1;
+            } else if (currentSpinIndex > idx) {
+              currentSpinIndex--;
+            }
+          }
+          renderSpinHistory();
         });
         return;
       }
