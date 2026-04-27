@@ -4,11 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "node scripts/gen-version.js && vite",
+    "build": "node scripts/gen-version.js && vite build",
     "preview": "vite preview",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "split-history": "node scripts/split-history.js",
+    "split-history": "node scripts/split-history.js && node scripts/gen-version.js",
     "deploy": "npm run build && npx wrangler pages deploy dist"
   },
   "keywords": [],

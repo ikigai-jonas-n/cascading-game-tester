@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Slot Studio</title>
-  <script type="module" crossorigin src="/assets/index-BsXB_3Yd.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-DgAFaD5p.css">
+  <script type="module" crossorigin src="/assets/index-6sKdQhxr.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-DHf09g3E.css">
 </head>
 <body class="dark-mode">
     <!-- LEFT COLUMN: History & Filters -->
@@ -13,28 +13,46 @@
         <header>
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 4px;">
                         <h1>SLOT STUDIO</h1>
-                        <button id="openSettingsBtn" class="btn-ghost" style="width: 18px; height: 18px; padding: 0; font-size: 14px; border: none; background: transparent; color: var(--text-muted);" title="Open Settings">&#9881;</button>
+                        <button id="shortcutsBtn" class="header-btn-v5" style="min-width: unset; padding: 2px 4px;" title="Keyboard Shortcuts">
+                            <span class="icon">⌨️</span>
+                        </button>
+                        <button id="openSettingsBtn" class="header-btn-v5" style="min-width: unset; padding: 2px 4px;" title="Open Settings">
+                            <span class="icon">⚙️</span>
+                        </button>
                     </div>
                     <span id="gameLabel" style="font-size: 9px; color: var(--text-muted); font-weight: 700; text-transform: uppercase;"></span>
                 </div>
-                <div style="display: flex; gap: 4px; position: relative;">
+                <div style="display: flex; gap: 4px; position: relative; align-items: center;">
+                    <button id="quickCheatBtn" class="header-btn-v5" title="Quick Cheat Config">
+                        <span class="icon">⚡</span>
+                        <span class="label">Cheat</span>
+                    </button>
                     <div id="exportWrapper" style="display: contents;">
-                      <button id="exportMenuBtn" class="btn-ghost" title="Export Options">EXP ▾</button>
+                      <button id="exportMenuBtn" class="header-btn-v5" title="Export Options">
+                        <span class="icon">📤</span>
+                        <span class="label">Export</span>
+                      </button>
                       <div id="exportDropdown" class="dropdown-menu" style="display: none; top: 100%; right: 0;">
                         <div class="dropdown-item" id="exportFilteredBtn">Export Filtered</div>
                         <div class="dropdown-item" id="exportAllBtn">Export All (Full)</div>
                       </div>
                     </div>
                     <div id="importWrapper" style="display: contents;">
-                      <button id="importMenuBtn" class="btn-ghost" title="Import Options">IMP ▾</button>
+                      <button id="importMenuBtn" class="header-btn-v5" title="Import Options">
+                        <span class="icon">📥</span>
+                        <span class="label">Import</span>
+                      </button>
                       <div id="importDropdown" class="dropdown-menu" style="display: none; top: 100%; right: 0;">
                         <div class="dropdown-item" id="importMergeBtn">Merge with existing</div>
                         <div class="dropdown-item" id="importReplaceBtn">Totally replace</div>
                       </div>
                     </div>
-                    <button id="clearHistoryBtn" class="btn-danger btn-ghost" title="Clear All History" style="padding: 4px 6px;">CLR</button>
+                    <button id="clearHistoryBtn" class="header-btn-v5" title="Clear All History" style="color: var(--error);">
+                        <span class="icon">🗑️</span>
+                        <span class="label">Clear</span>
+                    </button>
                 </div>
             </div>
 
@@ -115,17 +133,17 @@
             <div style="display: flex; align-items: stretch; padding: 12px 0;">
                 <div class="hud-column">
                     <div style="font-size: 0.62em; color: var(--bg-accent); font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 3px;">Mult</div>
-                    <div id="multDisplay" style="font-size: 1.6em; font-weight: 900; color: var(--bg-accent); line-height: 1;">1x</div>
+                    <div id="multDisplay" style="font-size: 1.6em; font-weight: 900; color: var(--bg-accent); line-height: 1; transition: font-size 0.2s;">1x</div>
                 </div>
                 <div style="width: 1px; background: rgba(255,255,255,0.06); align-self: stretch;"></div>
                 <div class="hud-column">
                     <div style="font-size: 0.62em; color: #bbb; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 3px;">Win</div>
-                    <div id="currentTumbleWin" style="font-size: 1.6em; font-weight: 900; color: #fff; line-height: 1;">0</div>
+                    <div id="currentTumbleWin" style="font-size: 1.6em; font-weight: 900; color: #fff; line-height: 1; transition: font-size 0.2s;">0</div>
                 </div>
                 <div style="width: 1px; background: rgba(255,255,255,0.06); align-self: stretch;"></div>
                 <div class="hud-column">
                     <div style="font-size: 0.62em; color: var(--bg-accent); font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 3px; white-space: nowrap;">Acc Win</div>
-                    <div id="accWinDisplay" style="font-size: 1.6em; font-weight: 900; color: var(--bg-accent); line-height: 1;">0</div>
+                    <div id="accWinDisplay" style="font-size: 1.6em; font-weight: 900; color: var(--bg-accent); line-height: 1; transition: font-size 0.2s;">0</div>
                 </div>
             </div>
 
@@ -135,14 +153,14 @@
                 <span style="font-size: 0.6em; color: #333;">·</span>
                 <span style="font-size: 0.6em; color: #444; font-weight: 700;"><span id="cascadeCountTop" style="color: var(--info); opacity: 0.6;">0</span> cascades</span>
                 <span style="font-size: 0.6em; color: #333;">·</span>
-                <span style="font-size: 0.6em; font-weight: 900; color: var(--success); opacity: 0.7;"><span id="totalWin">0</span> total</span>
+                <span style="font-size: 0.6em; font-weight: 900; color: var(--success); opacity: 0.7;"><span id="totalWin" style="transition: font-size 0.2s;">0</span> total</span>
             </div>
 
         </section>
 
         <!-- Phase Status Panel -->
         <div id="phaseStatusPanel" class="glass" style="position: absolute; top: 20px; right: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 24px; border-radius: 14px; min-width: 160px; z-index: 100; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
-            <div style="font-size: 0.65em; font-weight: 900; color: #999; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px;">Current Phase</div>
+            <div style="font-size: 0.65em; font-weight: 900; color: #999; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px;">Phase</div>
             <div id="phaseStatusText" style="font-size: 1.1em; font-weight: 900; color: var(--bg-accent); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; transition: color 0.3s ease;">HOLD & GROW</div>
         </div>
 
@@ -178,44 +196,60 @@
             <!-- Group 2: Unified Control Hub (Center Column - Mathematically Centered) -->
             <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; justify-self: center;">
                 <div class="control-hub" style="display: flex; align-items: flex-start; gap: 10px;">
-                    <!-- Spin Prev -->
+                    <!-- Spin Prev (⏮️) -->
                     <div class="nav-btn-container">
-                        <button id="prevBtn" class="btn-ghost" style="padding: 6px; border-radius: 8px;" title="Previous Spin (Filtered)">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="m11 17-5-5 5-5M18 17l-5-5 5-5"/></svg>
+                        <button id="prevBtn" class="btn-ghost" style="padding: 6px; border-radius: 8px;" title="Previous Spin (⏮️)">
+                            <span style="font-size: 14px;">⏮️</span>
                         </button>
-                        <span class="nav-label">Spin</span>
+                        <span class="nav-label">prev spin</span>
+                    </div>
+
+                    <!-- Round Prev (<<) -->
+                    <div class="nav-btn-container">
+                        <button id="prevRoundBtn" class="btn-ghost" style="padding: 6px; border-radius: 8px;" title="Previous Round (<<)">
+                            <span style="font-size: 14px; font-weight: 900; letter-spacing: -2px;">&lt;&lt;</span>
+                        </button>
+                        <span class="nav-label">prev round</span>
                     </div>
                     
-                    <!-- Frame Back -->
+                    <!-- Frame Back (<) -->
                     <div class="nav-btn-container">
-                        <button id="playbackBackBtn" class="btn-ghost" style="padding: 6px; border-radius: 8px;" title="Previous Frame">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="m15 18-6-6 6-6"/></svg>
+                        <button id="playbackBackBtn" class="btn-ghost" style="padding: 6px; border-radius: 8px;" title="Previous Frame (<)">
+                            <span style="font-size: 14px; font-weight: 900;">&lt;</span>
                         </button>
-                        <span class="nav-label">Frame</span>
+                        <span class="nav-label">prev frame</span>
                     </div>
 
                     <!-- Play/Pause -->
                     <div class="nav-btn-container">
-                        <button id="playbackPlayBtn" class="btn-primary" style="width: 44px; height: 44px; border-radius: 50%; padding: 0; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);" title="Play/Pause">
+                        <button id="playbackPlayBtn" class="btn-primary" style="width: 44px; height: 44px; border-radius: 50%; padding: 0; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);" title="Play/Pause (Space)">
                             <svg id="playIcon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
                             <svg id="pauseIcon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
                         </button>
                     </div>
 
-                    <!-- Frame Forward -->
+                    <!-- Frame Forward (>) -->
                     <div class="nav-btn-container">
-                        <button id="playbackForwardBtn" class="btn-ghost" style="padding: 6px; border-radius: 8px;" title="Next Frame">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="m9 18 6-6-6-6"/></svg>
+                        <button id="playbackForwardBtn" class="btn-ghost" style="padding: 6px; border-radius: 8px;" title="Next Frame (>)">
+                            <span style="font-size: 14px; font-weight: 900;">&gt;</span>
                         </button>
-                        <span class="nav-label">Frame</span>
+                        <span class="nav-label">next frame</span>
                     </div>
 
-                    <!-- Spin Next -->
+                    <!-- Round Next (>>) -->
                     <div class="nav-btn-container">
-                        <button id="nextBtn" class="btn-ghost" style="padding: 6px; border-radius: 8px;" title="Next Spin (Filtered)">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="m13 17 5-5-5-5M6 17l5-5-5-5"/></svg>
+                        <button id="nextRoundBtn" class="btn-ghost" style="padding: 6px; border-radius: 8px;" title="Next Round (>>)">
+                            <span style="font-size: 14px; font-weight: 900; letter-spacing: -2px;">&gt;&gt;</span>
                         </button>
-                        <span class="nav-label">Spin</span>
+                        <span class="nav-label">next round</span>
+                    </div>
+
+                    <!-- Spin Next (⏭️) -->
+                    <div class="nav-btn-container">
+                        <button id="nextBtn" class="btn-ghost" style="padding: 6px; border-radius: 8px;" title="Next Spin (⏭️)">
+                            <span style="font-size: 14px;">⏭️</span>
+                        </button>
+                        <span class="nav-label">next spin</span>
                     </div>
                 </div>
 
@@ -300,6 +334,10 @@
                             <label style="display: block; color: #888; font-size: 9px; font-weight: 800; margin-bottom: 4px; text-transform: uppercase;">Backend URL</label>
                             <input type="text" id="apiUrlInput" placeholder="http://localhost:9000" style="width: 100%; font-size: 12px; padding: 10px; color: var(--bg-accent); background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 8px;">
                         </div>
+                        <div>
+                            <label style="display: block; color: #888; font-size: 9px; font-weight: 800; margin-bottom: 4px; text-transform: uppercase;">Player ID</label>
+                            <input type="text" id="playerIdInput" placeholder="Enter Player ID" style="width: 100%; font-size: 12px; padding: 10px; color: var(--success); background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 8px;">
+                        </div>
                     </div>
                 </section>
 
@@ -342,7 +380,7 @@
                 <!-- Group: Request Body -->
                 <section>
                     <div style="color: var(--bg-accent); font-size: 10px; font-weight: 900; letter-spacing: 1px; margin-bottom: 8px; text-transform: uppercase; opacity: 0.8;">Request Body</div>
-                    <textarea id="requestBody" style="width: 100%; height: 100px; background: #000; color: var(--success); border: 1px solid var(--border-color); padding: 12px; border-radius: 10px; font-family: monospace; font-size: 11px; resize: vertical;"></textarea>
+                    <textarea id="requestBody" style="width: 100%; height: 80px; background: #000; color: var(--success); border: 1px solid var(--border-color); padding: 12px; border-radius: 10px; font-family: monospace; font-size: 11px; resize: vertical;"></textarea>
                 </section>
 
                 <!-- Group: Maintenance -->
@@ -362,8 +400,48 @@
         </div>
     </dialog>
 
+    <!-- QUICK CHEAT MODAL -->
+    <dialog id="quickCheatModal" style="border: none; background: transparent; padding: 0;">
+        <div class="modal-content" style="max-width: 500px; max-width: 400px; display: flex; flex-direction: column; padding: 24px; border: 1px solid rgba(59, 130, 246, 0.4); box-shadow: 0 10px 40px rgba(59, 130, 246, 0.1);">
+            <header style="display: flex; flex-direction: row; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(59, 130, 246, 0.2); padding-bottom: 12px;">
+                <h2 style="color: #3b82f6; font-size: 1.1rem; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;">QUICK CHEAT (test-config)</h2>
+                <button id="closeQuickCheatBtn" class="btn-ghost" style="font-size: 18px; color: #888;">&times;</button>
+            </header>
+
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
+                <textarea id="quickTestConfigInput" style="width: 100%; height: 200px; background: #000; color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); padding: 12px; border-radius: 10px; font-family: monospace; font-size: 11px; resize: vertical;"></textarea>
+                <div id="quickCheatError" style="display: none; color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px; font-size: 10px; font-weight: 800; border: 1px solid rgba(239, 68, 68, 0.3); word-break: break-word;"></div>
+            </div>
+
+            <footer style="margin-top: 20px; border-top: 1px solid rgba(59, 130, 246, 0.2); padding-top: 16px;">
+                <button id="sendQuickCheatBtn" class="btn-ghost" style="width: 100%; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.5); padding: 14px; font-size: 12px; border-radius: 12px; font-weight: 800; color: #3b82f6; text-transform: uppercase; letter-spacing: 1px;">SEND CHEAT</button>
+            </footer>
+        </div>
+    </dialog>
+
+    <!-- KEYBOARD SHORTCUTS MODAL -->
+    <dialog id="shortcutsModal" style="border: none; background: transparent; padding: 0;">
+        <div class="modal-content" style="display: flex; flex-direction: column; padding: 24px;">
+            <header style="display: flex; flex-direction: row; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+                <h2 style="color: var(--bg-accent); font-size: 1.1rem; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;">KEYBOARD SHORTCUTS</h2>
+                <button id="closeShortcutsBtn" class="btn-ghost" style="font-size: 18px; color: #888;">&times;</button>
+            </header>
+
+            <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;">
+                <div class="shortcut-row"><span style="color: #eee;">Play / Pause</span> <span class="shortcut-key">SPACE</span></div>
+                <div class="shortcut-row"><span style="color: #eee;">Next Frame</span> <span class="shortcut-key">→</span></div>
+                <div class="shortcut-row"><span style="color: #eee;">Prev Frame</span> <span class="shortcut-key">←</span></div>
+                <div class="shortcut-row"><span style="color: #eee;">Next Round</span> <span class="shortcut-key">SHIFT + →</span></div>
+                <div class="shortcut-row"><span style="color: #eee;">Prev Round</span> <span class="shortcut-key">SHIFT + ←</span></div>
+                <div class="shortcut-row"><span style="color: #eee;">Next Spin</span> <span class="shortcut-key">ALT/META + →</span></div>
+                <div class="shortcut-row"><span style="color: #eee;">Prev Spin</span> <span class="shortcut-key">ALT/META + ←</span></div>
+                <div class="shortcut-row"><span style="color: #eee;">Deselect / Close</span> <span class="shortcut-key">ESC</span></div>
+            </div>
+        </div>
+    </dialog>
+
     <!-- Background Task Toast -->
-    <div id="loadingOverlay" style="position: fixed; bottom: 24px; right: 24px; background: var(--bg-card); border: 1px solid var(--border-color); box-shadow: 0 8px 32px rgba(0,0,0,0.5); border-radius: 12px; display: none; padding: 16px; min-width: 280px; z-index: 9999; color: #fff; gap: 12px; align-items: center; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: translateY(20px); opacity: 0;">
+    <div id="loadingOverlay">
         <div class="spinner" style="width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--bg-accent); border-radius: 50%; animation: spin 1s linear infinite; flex-shrink: 0;"></div>
         <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px;">
             <div id="loadingText" style="font-weight: 800; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; color: var(--text-muted);">Processing...</div>

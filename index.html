@@ -12,29 +12,46 @@
         <header>
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 4px;">
                         <h1>SLOT STUDIO</h1>
-                        <button id="openSettingsBtn" class="btn-ghost" style="width: 18px; height: 18px; padding: 0; font-size: 14px; border: none; background: transparent; color: var(--text-muted);" title="Open Settings">&#9881;</button>
+                        <button id="shortcutsBtn" class="header-btn-v5" style="min-width: unset; padding: 2px 4px;" title="Keyboard Shortcuts">
+                            <span class="icon">⌨️</span>
+                        </button>
+                        <button id="openSettingsBtn" class="header-btn-v5" style="min-width: unset; padding: 2px 4px;" title="Open Settings">
+                            <span class="icon">⚙️</span>
+                        </button>
                     </div>
                     <span id="gameLabel" style="font-size: 9px; color: var(--text-muted); font-weight: 700; text-transform: uppercase;"></span>
                 </div>
-                <div style="display: flex; gap: 4px; position: relative;">
-                    <button id="quickCheatBtn" title="Quick Cheat Config" style="background: #3b82f6; color: #fff; border: none; margin-right: 4px; padding: 6px 10px; font-size: 10px; font-weight: 800; border-radius: 6px; letter-spacing: 0.5px; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4); cursor: pointer; transition: all 0.2s;">CHEAT</button>
+                <div style="display: flex; gap: 4px; position: relative; align-items: center;">
+                    <button id="quickCheatBtn" class="header-btn-v5" title="Quick Cheat Config">
+                        <span class="icon">⚡</span>
+                        <span class="label">Cheat</span>
+                    </button>
                     <div id="exportWrapper" style="display: contents;">
-                      <button id="exportMenuBtn" class="btn-ghost" title="Export Options">EXP ▾</button>
+                      <button id="exportMenuBtn" class="header-btn-v5" title="Export Options">
+                        <span class="icon">📤</span>
+                        <span class="label">Export</span>
+                      </button>
                       <div id="exportDropdown" class="dropdown-menu" style="display: none; top: 100%; right: 0;">
                         <div class="dropdown-item" id="exportFilteredBtn">Export Filtered</div>
                         <div class="dropdown-item" id="exportAllBtn">Export All (Full)</div>
                       </div>
                     </div>
                     <div id="importWrapper" style="display: contents;">
-                      <button id="importMenuBtn" class="btn-ghost" title="Import Options">IMP ▾</button>
+                      <button id="importMenuBtn" class="header-btn-v5" title="Import Options">
+                        <span class="icon">📥</span>
+                        <span class="label">Import</span>
+                      </button>
                       <div id="importDropdown" class="dropdown-menu" style="display: none; top: 100%; right: 0;">
                         <div class="dropdown-item" id="importMergeBtn">Merge with existing</div>
                         <div class="dropdown-item" id="importReplaceBtn">Totally replace</div>
                       </div>
                     </div>
-                    <button id="clearHistoryBtn" class="btn-danger btn-ghost" title="Clear All History" style="padding: 4px 6px;">CLR</button>
+                    <button id="clearHistoryBtn" class="header-btn-v5" title="Clear All History" style="color: var(--error);">
+                        <span class="icon">🗑️</span>
+                        <span class="label">Clear</span>
+                    </button>
                 </div>
             </div>
 
@@ -401,9 +418,30 @@
         </div>
     </dialog>
 
+    <!-- KEYBOARD SHORTCUTS MODAL -->
+    <dialog id="shortcutsModal" style="border: none; background: transparent; padding: 0;">
+        <div class="modal-content" style="display: flex; flex-direction: column; padding: 24px;">
+            <header style="display: flex; flex-direction: row; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+                <h2 style="color: var(--bg-accent); font-size: 1.1rem; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;">KEYBOARD SHORTCUTS</h2>
+                <button id="closeShortcutsBtn" class="btn-ghost" style="font-size: 18px; color: #888;">&times;</button>
+            </header>
+
+            <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;">
+                <div class="shortcut-row"><span style="color: #eee;">Play / Pause</span> <span class="shortcut-key">SPACE</span></div>
+                <div class="shortcut-row"><span style="color: #eee;">Next Frame</span> <span class="shortcut-key">→</span></div>
+                <div class="shortcut-row"><span style="color: #eee;">Prev Frame</span> <span class="shortcut-key">←</span></div>
+                <div class="shortcut-row"><span style="color: #eee;">Next Round</span> <span class="shortcut-key">SHIFT + →</span></div>
+                <div class="shortcut-row"><span style="color: #eee;">Prev Round</span> <span class="shortcut-key">SHIFT + ←</span></div>
+                <div class="shortcut-row"><span style="color: #eee;">Next Spin</span> <span class="shortcut-key">ALT/META + →</span></div>
+                <div class="shortcut-row"><span style="color: #eee;">Prev Spin</span> <span class="shortcut-key">ALT/META + ←</span></div>
+                <div class="shortcut-row"><span style="color: #eee;">Deselect / Close</span> <span class="shortcut-key">ESC</span></div>
+            </div>
+        </div>
+    </dialog>
+
     <script type="module" src="/src/main.js"></script>
     <!-- Background Task Toast -->
-    <div id="loadingOverlay" style="position: fixed; bottom: 24px; right: 24px; background: var(--bg-card); border: 1px solid var(--border-color); box-shadow: 0 8px 32px rgba(0,0,0,0.5); border-radius: 12px; display: none; padding: 16px; min-width: 280px; z-index: 9999; color: #fff; gap: 12px; align-items: center; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: translateY(20px); opacity: 0;">
+    <div id="loadingOverlay">
         <div class="spinner" style="width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--bg-accent); border-radius: 50%; animation: spin 1s linear infinite; flex-shrink: 0;"></div>
         <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px;">
             <div id="loadingText" style="font-weight: 800; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; color: var(--text-muted);">Processing...</div>

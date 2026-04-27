@@ -9,6 +9,7 @@ import {
   migrateFromLocalStorage,
 } from './db.js';
 import { FILTER_DEFS, WIN_OPERATORS, applyFilters } from './filters.js';
+import { APP_VERSION } from './version.js';
 
 // ── Active Game Config (plugin-driven) ───────────────────────────────────────
 let game = getActiveGame();
@@ -180,26 +181,116 @@ function showLoading(msg, percent = -1) {
     if (loadingBar && percent >= 0) {
       loadingBar.style.width = `${percent}%`;
     }
-    if (loadingOverlay.style.display !== 'flex') {
+    if (!loadingOverlay.classList.contains('show')) {
       loadingOverlay.style.display = 'flex';
       // Trigger entrance animation next frame
       requestAnimationFrame(() => {
-        loadingOverlay.style.transform = 'translateY(0)';
-        loadingOverlay.style.opacity = '1';
+        loadingOverlay.classList.add('show');
       });
     }
   }
 }
 function hideLoading() {
   if (loadingOverlay) {
-    loadingOverlay.style.transform = 'translateY(20px)';
-    loadingOverlay.style.opacity = '0';
+    loadingOverlay.classList.remove('show');
     setTimeout(() => {
       loadingOverlay.style.display = 'none';
       if (loadingBar) loadingBar.style.width = '0%';
     }, 300);
   }
 }
+
+async function clearAllDataAndReload(skipConfirm = false) {
+  if (!skipConfirm) {
+    const confirmed = confirm('Are you sure you want to clear ALL data? This will reset all settings, history, and bookmarks. This action cannot be undone.');
+    if (!confirmed) return;
+  }
+
+  try {
+    showLoading('Clearing data and updating...');
+    // Clear all localStorage
+    localStorage.clear();
+    
+    // Clear IndexedDB spins
+    const { clearAllSpins } = await import('./db.js');
+    await clearAllSpins();
+    
+    // Save the current version so we don't prompt again immediately if it was an update action
+    localStorage.setItem('app_version', APP_VERSION);
+    
+    location.reload(true);
+  } catch (err) {
+    console.error('Failed to clear data:', err);
+    alert('An error occurred while clearing data. Check console for details.');
+    hideLoading();
+  }
+}
+
+// ── Version Detection ────────────────────────────────────────────────────────
+async function checkVersion() {
+  const storedVersion = localStorage.getItem('app_version');
+  
+  // Backward compatibility: If no version is found, it's treated as old
+  if (!storedVersion) {
+    showUpdateNotification('Welcome! A new version is available.', APP_VERSION);
+    return;
+  }
+
+  try {
+    const response = await fetch('/version.json?t=' + Date.now());
+    const data = await response.json();
+    const serverVersion = data.version;
+
+    if (serverVersion && serverVersion !== APP_VERSION) {
+      // Check if user skipped THIS specific version
+      if (localStorage.getItem('skip_update') === serverVersion) {
+        return;
+      }
+      showUpdateNotification(`Update available: ${serverVersion}`, serverVersion);
+    } else {
+      // Current version is up to date, just sync storage
+      localStorage.setItem('app_version', APP_VERSION);
+    }
+  } catch (e) {
+    console.warn('Failed to check version', e);
+  }
+}
+
+function showUpdateNotification(msg, serverVersion) {
+  // Remove any existing one
+  const existing = document.querySelector('.update-toast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.className = 'update-toast';
+  toast.innerHTML = `
+    <div style="display:flex; flex-direction:column; gap:2px;">
+      <div style="font-size:11px; font-weight:900; color:var(--bg-accent); text-transform:uppercase; letter-spacing:1px;">New Version Available</div>
+      <div style="font-size:10px; color:#fff; opacity:0.8;">${msg}</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <button id="refreshAppBtn" class="btn-primary" style="padding:6px 12px; border-radius:8px; font-weight:800; font-size:10px;">UPDATE</button>
+      <button id="closeUpdateBtn" class="btn-ghost" style="padding:4px; border:none; background:transparent; color:#fff; opacity:0.4; font-size:14px; cursor:pointer;" title="Skip for now">&times;</button>
+    </div>
+  `;
+  document.body.appendChild(toast);
+
+  document.getElementById('refreshAppBtn').onclick = () => {
+    clearAllDataAndReload(true);
+  };
+
+  document.getElementById('closeUpdateBtn').onclick = () => {
+    localStorage.setItem('skip_update', serverVersion);
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(-20px)';
+    setTimeout(() => toast.remove(), 300);
+  };
+}
+
+// Check on load
+checkVersion();
+// Check every 10 mins
+setInterval(checkVersion, 10 * 60 * 1000);
 
 openSettingsBtn.onclick = () => {
   lastFocusedElementBeforeModal = document.activeElement;
@@ -230,6 +321,19 @@ openSettingsBtn.onclick = () => {
 const closeSettings = () => {
   settingsModal.close();
   if (lastFocusedElementBeforeModal) lastFocusedElementBeforeModal.focus();
+}
+
+// ── Shortcuts Modal ──────────────────────────────────────────────────────────
+const shortcutsBtn = document.getElementById('shortcutsBtn');
+const shortcutsModal = document.getElementById('shortcutsModal');
+const closeShortcutsBtn = document.getElementById('closeShortcutsBtn');
+
+if (shortcutsBtn && shortcutsModal) {
+  shortcutsBtn.onclick = () => shortcutsModal.showModal();
+  closeShortcutsBtn.onclick = () => shortcutsModal.close();
+  shortcutsModal.onclick = (e) => {
+    if (e.target === shortcutsModal) shortcutsModal.close();
+  };
 }
 
 // ── Quick Cheat Modal ────────────────────────────────────────────────────────
@@ -353,25 +457,7 @@ saveSettingsBtn.onclick = () => {
 };
 
 if (clearDataBtn) {
-  clearDataBtn.onclick = async () => {
-    const confirmed = confirm('Are you sure you want to clear ALL data? This will reset all settings, history, and bookmarks. This action cannot be undone.');
-    if (confirmed) {
-      try {
-        // Clear all localStorage
-        localStorage.clear();
-        
-        // Clear IndexedDB spins
-        const { clearAllSpins } = await import('./db.js');
-        await clearAllSpins();
-        
-        alert('All local data has been cleared. The application will now reload.');
-        location.reload();
-      } catch (err) {
-        console.error('Failed to clear data:', err);
-        alert('An error occurred while clearing data. Check console for details.');
-      }
-    }
-  };
+  clearDataBtn.onclick = () => clearAllDataAndReload();
 }
 
 // Basic Focus Trap inside settings modal
@@ -500,7 +586,7 @@ let gameState = {
 let playbackInterval = null;
 let isAutoReplay = localStorage.getItem('is_auto_replay') === 'true';
 let playbackSpeed = parseFloat(localStorage.getItem('playback_speed') || '1.0');
-let isAutoplayOnSelect = localStorage.getItem('autoplay_on_select') !== 'false';
+let isAutoplayOnSelect = localStorage.getItem('autoplay_on_select') === 'true'; // Default to false (old strings were 'false' or null)
 
 // ── DOM Refs for Playback ────────────────────────────────────────────────────
 const playbackPlayBtn = document.getElementById('playbackPlayBtn');
@@ -2037,6 +2123,7 @@ function appendSpinHistoryCards(startIndex, endIndex) {
       // If we are already the active card, ignore clicks on the body to not reset the tumble view
       if (isActive) return;
 
+      stopPlayback();
       loadSpin(originalIdx);
     };
 

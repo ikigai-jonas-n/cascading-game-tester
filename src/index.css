@@ -748,9 +748,120 @@ dialog[open] {
   box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
 }
 
+#loadingOverlay {
+  position: fixed;
+  top: 20px;
+  right: calc(50% + 140px);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  border-radius: 12px;
+  display: none;
+  padding: 16px;
+  min-width: 280px;
+  z-index: 10000;
+  color: #fff;
+  gap: 12px;
+  align-items: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateY(-20px);
+  opacity: 0;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+#loadingOverlay.show {
+  display: flex;
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* Update Toast */
+.update-toast {
+  position: fixed;
+  top: 20px;
+  right: calc(50% + 140px);
+  z-index: 10001;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid var(--bg-accent);
+  padding: 12px 20px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 10px 40px rgba(245, 158, 11, 0.2);
+  animation: slide-in-top-side 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slide-in-top-side {
+  from { transform: translateY(-100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Icon-based Header Buttons */
+.header-btn-v5 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+  min-width: 44px;
+}
+
+.header-btn-v5:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  border-color: var(--border-color);
+}
+
+.header-btn-v5 .icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.header-btn-v5 .label {
+  font-size: 7px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.7;
+}
+
+/* Shortcuts Modal */
+#shortcutsModal .modal-content {
+  width: 400px;
+}
+
+.shortcut-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.shortcut-key {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-color);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--bg-accent);
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
 
 .nav-btn-container {
   display: flex;
