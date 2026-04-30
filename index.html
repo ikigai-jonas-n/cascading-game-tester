@@ -408,7 +408,17 @@
             </header>
 
             <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
-                <textarea id="quickTestConfigInput" style="width: 100%; height: 200px; background: #000; color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); padding: 12px; border-radius: 10px; font-family: monospace; font-size: 11px; resize: vertical;"></textarea>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <label style="display: block; color: #888; font-size: 9px; font-weight: 800; text-transform: uppercase;">Cheat Templates</label>
+                    <select id="cheatTemplateSelect" style="width: 100%; font-size: 11px; padding: 10px; color: #3b82f6; background: rgba(0,0,0,0.3); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px;">
+                        <option value="">-- Select a Template --</option>
+                    </select>
+                    <p id="cheatTemplateDesc" style="font-size: 10px; color: #888; margin: 4px 0 0 2px; line-height: 1.4; display: none;"></p>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
+                    <label style="display: block; color: #888; font-size: 9px; font-weight: 800; text-transform: uppercase;">JSON Configuration</label>
+                    <textarea id="quickTestConfigInput" style="width: 100%; height: 200px; background: #000; color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); padding: 12px; border-radius: 10px; font-family: monospace; font-size: 11px; resize: vertical;"></textarea>
+                </div>
                 <div id="quickCheatError" style="display: none; color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px; font-size: 10px; font-weight: 800; border: 1px solid rgba(239, 68, 68, 0.3); word-break: break-word;"></div>
             </div>
 

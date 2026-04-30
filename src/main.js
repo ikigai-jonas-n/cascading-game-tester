@@ -343,10 +343,86 @@ const closeQuickCheatBtn = document.getElementById('closeQuickCheatBtn');
 const sendQuickCheatBtn = document.getElementById('sendQuickCheatBtn');
 const quickTestConfigInput = document.getElementById('quickTestConfigInput');
 const quickCheatError = document.getElementById('quickCheatError');
+const cheatTemplateSelect = document.getElementById('cheatTemplateSelect');
+const cheatTemplateDesc = document.getElementById('cheatTemplateDesc');
+
+let cheatTemplates = [];
+
+async function loadCheatTemplates() {
+  if (!cheatTemplateSelect) return;
+  try {
+    const resp = await fetch('/cheat-tool.md');
+    if (!resp.ok) return;
+    const text = await resp.text();
+    
+    // Simple parser for ### Title followed by optional description and ```json ... ```
+    const sections = text.split(/###\s+/);
+    sections.shift(); // Remove intro text before first ###
+    
+    cheatTemplates = sections.map(section => {
+      const lines = section.split('\n');
+      const title = lines[0].trim();
+      const jsonMatch = section.match(/```json\s*([\s\S]*?)\s*```/);
+      
+      // Extract description: everything between title line and json block
+      let description = "";
+      const jsonStartIndex = section.indexOf('```json');
+      if (jsonStartIndex !== -1) {
+        description = section.substring(lines[0].length, jsonStartIndex).trim();
+      }
+
+      return {
+        title,
+        description,
+        json: jsonMatch ? jsonMatch[1].trim() : null
+      };
+    }).filter(t => t.json);
+
+    cheatTemplates.forEach((template, index) => {
+      const option = document.createElement('option');
+      option.value = index;
+      option.textContent = template.title;
+      cheatTemplateSelect.appendChild(option);
+    });
+
+    cheatTemplateSelect.onchange = (e) => {
+      const index = e.target.value;
+      if (index !== "") {
+        const template = cheatTemplates[index];
+        if (template.description) {
+          cheatTemplateDesc.textContent = template.description;
+          cheatTemplateDesc.style.display = 'block';
+        } else {
+          cheatTemplateDesc.style.display = 'none';
+        }
+        
+        try {
+          const parsed = JSON.parse(template.json);
+          // Auto-inject current IDs to the template
+          if (typeof PLAYER_ID !== 'undefined') parsed.configId = PLAYER_ID;
+          parsed.gameCode = game.gameCode;
+          
+          quickTestConfigInput.value = JSON.stringify(parsed, null, 2);
+          quickCheatError.style.display = 'none';
+        } catch (err) {
+          quickTestConfigInput.value = template.json;
+        }
+      } else {
+        cheatTemplateDesc.style.display = 'none';
+      }
+    };
+  } catch (e) {
+    console.warn('Failed to load cheat templates', e);
+  }
+}
+
+loadCheatTemplates();
 
 if (quickCheatBtn && quickCheatModal) {
   quickCheatBtn.onclick = () => {
     quickCheatError.style.display = 'none';
+    if (cheatTemplateSelect) cheatTemplateSelect.value = "";
+    if (cheatTemplateDesc) cheatTemplateDesc.style.display = "none";
     let savedTestConfig = localStorage.getItem('test_config');
     if (!savedTestConfig && quickTestConfigInput.value) {
         savedTestConfig = quickTestConfigInput.value;
@@ -1148,9 +1224,37 @@ async function fireSpinRequest(config) {
   // Auto-chain if not finished (e.g. FreeSpin was awarded)
   if (data.finished === false && data.choices && data.choices.length > 0) {
     let allPhases = [...(data.step?.gamePhases || [])];
+
+    // If baseSpin triggered freeSpin, include baseGameWin in the first chained request
+    const baseSpinPhases = data.step?.gamePhases ?? data.roundEvents?.playResult?.step?.gamePhases ?? [];
+    const hasTriggerFreeSpin = baseSpinPhases.some(phase =>
+      (phase.playgrounds ?? []).some(pg =>
+        (pg.fields ?? []).some(field => field.features?.triggerFreeSpin === true)
+      )
+    );
+    const baseGameWin = hasTriggerFreeSpin
+      ? (data.step?.summary?.coins ?? data.roundEvents?.playResult?.step?.summary?.coins ?? 0)
+      : null;
+    let isFirstChain = true;
+
     while (data.finished === false && data.choices && data.choices.length > 0) {
       const nextChoice = data.choices[0];
-      const nextBody = { ...reqBody, choice: nextChoice };
+      let nextBody = { ...reqBody, choice: nextChoice };
+
+      if (isFirstChain && baseGameWin !== null) {
+        nextBody = {
+          ...nextBody,
+          meta: {
+            ...nextBody.meta,
+            private: {
+              ...nextBody.meta?.private,
+              baseGameWin,
+            },
+          },
+        };
+      }
+      isFirstChain = false;
+
       const nextData = await makeRequest(nextBody);
       if (nextData.step && nextData.step.gamePhases) {
         allPhases = allPhases.concat(nextData.step.gamePhases);
@@ -1389,6 +1493,7 @@ async function playSpin() {
 
   const maxSpins = mode === 'count' ? parseInt(playCountInput.value) || 10 : 100000;
   let count = 0;
+  let matchedEntryId = null;
   const statusEl = document.getElementById('autoStatus');
   const config = JSON.parse(requestBodyTextarea.value);
   const startTime = performance.now();
@@ -1416,20 +1521,42 @@ async function playSpin() {
         await new Promise((r) => setTimeout(r, 0));
       }
     } else {
-      // Sequential for untilWin / untilLoss (need to check each result)
+      // Concurrent batch for untilWin / untilLoss / untilFilter
+      const batchSize = 50;
       while (autoPlayRunning && count < maxSpins) {
-        count++;
-        if (statusEl) statusEl.innerText = `Auto: ${count}`;
-        const entry = await playSingleSpin();
+        const remaining = maxSpins - count;
+        const currentBatch = Math.min(batchSize, remaining);
+        
+        const entries = await playConcurrentBatch(config, currentBatch);
+        count += entries.length;
 
-        if (mode === 'untilWin' && entry.isWin) break;
-        if (mode === 'untilLoss' && !entry.isWin) break;
-        if (mode === 'untilFilter' && applyFilters([entry], activeFilters, game).length > 0) break;
+        const now = performance.now();
+        const rps = (count / ((now - startTime) / 1000)).toFixed(1);
+        if (statusEl) statusEl.innerText = `Auto: ${count} (${rps}/s)`;
 
-        if (count % 5 === 0) {
-          renderSpinHistory();
-          await new Promise((r) => setTimeout(r, 0));
+        // Check if any entry matches the condition
+        for (const entry of entries) {
+          if (mode === 'untilWin' && entry.isWin) {
+            matchedEntryId = entry.id;
+            break;
+          }
+          if (mode === 'untilLoss' && !entry.isWin) {
+            matchedEntryId = entry.id;
+            break;
+          }
+          if (mode === 'untilFilter' && applyFilters([entry], activeFilters, game).length > 0) {
+            matchedEntryId = entry.id;
+            break;
+          }
         }
+
+        if (now - lastRenderTime > 250 || matchedEntryId) {
+          renderSpinHistory();
+          lastRenderTime = now;
+        }
+
+        if (matchedEntryId) break;
+        await new Promise((r) => setTimeout(r, 0));
       }
     }
   } catch (err) {
@@ -1445,7 +1572,15 @@ async function playSpin() {
     }, 6000);
     setPlayUIBusy(false);
     renderSpinHistory();
-    if (globalHistory.length > 0) loadSpin(0);
+    
+    if (globalHistory.length > 0) {
+      if (matchedEntryId) {
+        const idx = globalHistory.findIndex(e => e.id === matchedEntryId);
+        loadSpin(idx !== -1 ? idx : 0);
+      } else {
+        loadSpin(0);
+      }
+    }
   }
 }
 
@@ -2356,9 +2491,15 @@ function showTumble(index, phase) {
 
   updateAuditListStyles();
 
+  const isInitialPhase = resolvedPhase === 'initial';
+  const prevAccWin = index > 0 ? gameState.accumulatedWins[index - 1] : 0;
+  
+  const displayCoins = isInitialPhase ? 0 : (field.coins || 0);
+  const displayAccWin = isInitialPhase ? prevAccWin : gameState.accumulatedWins[index];
+
   setHudValue(multDisplay, (field.features?.cumulativeMultiplier || 1) + 'x');
-  setHudValue(currentTumbleWinEl, field.coins);
-  setHudValue(accWinDisplayEl, gameState.accumulatedWins[index]);
+  setHudValue(currentTumbleWinEl, displayCoins);
+  setHudValue(accWinDisplayEl, displayAccWin);
 
   // Update navigation context header
   const totalTumbles = gameState.fields.length;
@@ -2390,7 +2531,11 @@ function showTumble(index, phase) {
     const phaseStatusText = document.getElementById('phaseStatusText');
     if (phaseStatusText) {
       const isLastTumble = (index === totalTumbles - 1);
-      if (isLastTumble) {
+      
+      if (isInitialPhase) {
+        phaseStatusText.innerText = 'GROW';
+        phaseStatusText.style.color = 'var(--bg-accent)';
+      } else if (isLastTumble) {
         phaseStatusText.innerText = 'END';
         phaseStatusText.style.color = 'var(--text-muted)';
       } else {
