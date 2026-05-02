@@ -351,32 +351,9 @@ let cheatTemplates = [];
 async function loadCheatTemplates() {
   if (!cheatTemplateSelect) return;
   try {
-    const resp = await fetch('/cheat-tool.md');
+    const resp = await fetch('/cheat-tool-templates.json');
     if (!resp.ok) return;
-    const text = await resp.text();
-    
-    // Simple parser for ### Title followed by optional description and ```json ... ```
-    const sections = text.split(/###\s+/);
-    sections.shift(); // Remove intro text before first ###
-    
-    cheatTemplates = sections.map(section => {
-      const lines = section.split('\n');
-      const title = lines[0].trim();
-      const jsonMatch = section.match(/```json\s*([\s\S]*?)\s*```/);
-      
-      // Extract description: everything between title line and json block
-      let description = "";
-      const jsonStartIndex = section.indexOf('```json');
-      if (jsonStartIndex !== -1) {
-        description = section.substring(lines[0].length, jsonStartIndex).trim();
-      }
-
-      return {
-        title,
-        description,
-        json: jsonMatch ? jsonMatch[1].trim() : null
-      };
-    }).filter(t => t.json);
+    cheatTemplates = await resp.json();
 
     cheatTemplates.forEach((template, index) => {
       const option = document.createElement('option');
@@ -1522,7 +1499,7 @@ async function playSpin() {
       }
     } else {
       // Concurrent batch for untilWin / untilLoss / untilFilter
-      const batchSize = 50;
+      const batchSize = 5;
       while (autoPlayRunning && count < maxSpins) {
         const remaining = maxSpins - count;
         const currentBatch = Math.min(batchSize, remaining);

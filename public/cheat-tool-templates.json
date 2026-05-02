@@ -1,0 +1,47 @@
+[
+  {
+    "title": "1. Rigid Screen (Exact Placement)",
+    "description": "Replicates a perfect 25-symbol screen with 3 Scatters at the beginning.",
+    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"screen\": [\n          \"SCATTER\", \"SCATTER\", \"SCATTER\", \"H1_Watermelon\", \"H1_Watermelon\",\n          \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\",\n          \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\",\n          \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\",\n          \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\"\n        ]\n      }\n    }\n  }\n}"
+  },
+  {
+    "title": "2. Loose Symbols (Count-based Placement)",
+    "description": "Ensures exactly 3 Scatters are present in the initial screen, placed randomly.",
+    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"SCATTER\", \"count\": 3 }\n        ]\n      }\n    }\n  }\n}"
+  },
+  {
+    "title": "3. Tumble / Cascade Control (Multiplier 2)",
+    "description": "Forces exactly 2 Tumbles (Initial + 1 Growth = Multiplier 2) within a single Cascade.",
+    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"baseSpin\": {\n      \"tumbleCount\": 2,\n      \"cascadeCount\": 1\n    }\n  }\n}"
+  },
+  {
+    "title": "4. Cascade Force (2 winning cycles)",
+    "description": "Forces exactly 2 Cascades (two complete winning cycles from start to finish).",
+    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"baseSpin\": {\n      \"cascadeCount\": 2\n    }\n  }\n}"
+  },
+  {
+    "title": "5. Multiplier Verification (Multiplier 3)",
+    "description": "Forces 3 Tumbles (Initial + 2 Growths) to reach Multiplier 3 in a single Cascade.",
+    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"baseSpin\": {\n      \"tumbleCount\": 3,\n      \"cascadeCount\": 1\n    }\n  }\n}"
+  },
+  {
+    "title": "6. Golden Symbol Transformation",
+    "description": "Forces a rigid screen with 5 Golden J symbols to verify they transform into Wilds upon popping.",
+    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"screen\": [\n          \"L4_J*\", \"L4_J*\", \"L4_J*\", \"L4_J*\", \"L4_J*\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\"\n        ]\n      },\n      \"cascadeCount\": 1\n    }\n  }\n}"
+  },
+  {
+    "title": "7. Free Spin Sequence & Retriggers (Total 15 Spins)",
+    "description": "Forces the total number of Free Spins to be 15 (e.g. Initial 10 + 1 Retrigger of 5).",
+    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"freeSpin\": {\n      \"freeSpinNumber\": 15\n    }\n  }\n}"
+  },
+  {
+    "title": "8. Free Spin Specific Outcomes (Force Multiplier 3 on Spin 1)",
+    "description": "Forces a specific outcome (Multiplier 3) for the first Free Spin, letting subsequent spins fall back to normal probability.",
+    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"freeSpin\": {\n      \"freeSpinConfigs\": [\n        { \"tumbleCount\": 3, \"cascadeCount\": 1 }\n      ]\n    }\n  }\n}"
+  },
+  {
+    "title": "9. Screens Array (Exact Cascade Sequence)",
+    "description": "Forces an exact sequence of screens. The game will play out these screens exactly as provided for the tumbling sequence.",
+    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"baseSpin\": {\n      \"screens\": [\n        [\n          \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\",\n          \"L1_A\", \"L2_K\", \"L3_Q\", \"L4_J\", \"H2_Grapes\",\n          \"L2_K\", \"L3_Q\", \"L4_J\", \"H2_Grapes\", \"L1_A\",\n          \"L3_Q\", \"L4_J\", \"H2_Grapes\", \"L1_A\", \"L2_K\",\n          \"L4_J\", \"H2_Grapes\", \"L1_A\", \"L2_K\", \"L3_Q\"\n        ],\n        [\n          \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\",\n          \"H2_Grapes\", \"L1_A\", \"L2_K\", \"L3_Q\", \"L4_J\",\n          \"L1_A\", \"L2_K\", \"L3_Q\", \"L4_J\", \"H2_Grapes\",\n          \"L2_K\", \"L3_Q\", \"L4_J\", \"H2_Grapes\", \"L1_A\",\n          \"L3_Q\", \"L4_J\", \"H2_Grapes\", \"L1_A\", \"L2_K\"\n        ],\n        [\n          \"H3_Banana\", \"H3_Banana\", \"H3_Banana\", \"H3_Banana\", \"H3_Banana\",\n          \"H2_Grapes\", \"L1_A\", \"L2_K\", \"L3_Q\", \"L4_J\",\n          \"L1_A\", \"L2_K\", \"L3_Q\", \"L4_J\", \"H2_Grapes\",\n          \"L2_K\", \"L3_Q\", \"L4_J\", \"H2_Grapes\", \"L1_A\",\n          \"L3_Q\", \"L4_J\", \"H2_Grapes\", \"L1_A\", \"L2_K\"\n        ]\n      ]\n    }\n  }\n}"
+  }
+]
