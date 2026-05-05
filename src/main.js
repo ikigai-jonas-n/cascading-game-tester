@@ -341,6 +341,7 @@ const quickCheatBtn = document.getElementById('quickCheatBtn');
 const quickCheatModal = document.getElementById('quickCheatModal');
 const closeQuickCheatBtn = document.getElementById('closeQuickCheatBtn');
 const sendQuickCheatBtn = document.getElementById('sendQuickCheatBtn');
+const clearCheatConfigBtn = document.getElementById('clearCheatConfigBtn');
 const quickTestConfigInput = document.getElementById('quickTestConfigInput');
 const quickCheatError = document.getElementById('quickCheatError');
 const cheatTemplateSelect = document.getElementById('cheatTemplateSelect');
@@ -483,6 +484,18 @@ if (quickCheatBtn && quickCheatModal) {
     }
   };
   
+  if (clearCheatConfigBtn) {
+    clearCheatConfigBtn.onclick = () => {
+      localStorage.removeItem('test_config');
+      quickTestConfigInput.value = '';
+      if (cheatTemplateSelect) cheatTemplateSelect.value = '';
+      if (cheatTemplateDesc) cheatTemplateDesc.style.display = 'none';
+      quickCheatError.style.display = 'none';
+      showLoading('Config cleared ✅');
+      setTimeout(hideLoading, 1500);
+    };
+  }
+
   // Basic Focus Trap inside cheat modal
   quickCheatModal.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') quickCheatModal.close();
@@ -1246,6 +1259,17 @@ async function fireSpinRequest(config) {
   return data;
 }
 
+function isSettleField(field) {
+  return field.features?.isSettle === true;
+}
+
+function getFieldEffectiveWin(field) {
+  const raw = parseFloat(field.coins || 0);
+  if (!raw) return 0;
+  if (isSettleField(field)) return raw * (field.features?.cumulativeMultiplier || 1);
+  return raw;
+}
+
 function getSpinStats(fields, wildSymbolId) {
   if (!fields || !wildSymbolId) return { totalGolden: 0, maxMultiplier: 1 };
   let totalGolden = 0;
@@ -1297,10 +1321,10 @@ async function playSingleSpin() {
           roundIndex: roundCounter
         });
         pgTumbles++;
-        if (parseFloat(f.coins || 0) > 0) pgCascades++;
+        if (parseFloat(f.coins || 0) > 0 && isSettleField(f)) pgCascades++;
       });
-      playgroundStats.push({ 
-        tumbleCount: pgTumbles, 
+      playgroundStats.push({
+        tumbleCount: pgTumbles,
         cascadeCount: pgCascades,
         headerText: phase.type === 'freeSpin' ? `FreeSpin #${roundCounter + 1}` : 'BaseSpin'
       });
@@ -1330,7 +1354,7 @@ async function playSingleSpin() {
     isWin: parseInt(summary.coins || 0) > 0,
     totalWin: summary.coins || 0,
     tumbleCount: fields.length,
-    cascadeCount: fields.filter((f) => parseInt(f.coins || 0) > 0).length,
+    cascadeCount: fields.filter((f) => parseInt(f.coins || 0) > 0 && isSettleField(f)).length,
     betAmount,
     spinMode,
     spinType: hasFreeSpin ? 'freeSpin' : 'baseSpin',
@@ -1385,7 +1409,7 @@ async function playConcurrentBatch(config, batchSize) {
             roundIndex: roundCounter
           });
           pgTumbles++;
-          if (parseFloat(f.coins || 0) > 0) pgCascades++;
+          if (parseFloat(f.coins || 0) > 0 && isSettleField(f)) pgCascades++;
         });
         playgroundStats.push({
           tumbleCount: pgTumbles,
@@ -1417,7 +1441,7 @@ async function playConcurrentBatch(config, batchSize) {
       isWin: parseInt(summary.coins || 0) > 0,
       totalWin: summary.coins || 0,
       tumbleCount: fields.length,
-      cascadeCount: fields.filter((f) => parseInt(f.coins || 0) > 0).length,
+      cascadeCount: fields.filter((f) => parseInt(f.coins || 0) > 0 && isSettleField(f)).length,
       betAmount,
       spinMode,
       spinType: hasFreeSpin ? 'freeSpin' : 'baseSpin',
@@ -1514,15 +1538,15 @@ async function playSpin() {
         // Check if any entry matches the condition
         for (const entry of entries) {
           if (mode === 'untilWin' && entry.isWin) {
-            matchedEntryId = entry.id;
+            matchedEntryId = entry.num;
             break;
           }
           if (mode === 'untilLoss' && !entry.isWin) {
-            matchedEntryId = entry.id;
+            matchedEntryId = entry.num;
             break;
           }
           if (mode === 'untilFilter' && applyFilters([entry], activeFilters, game).length > 0) {
-            matchedEntryId = entry.id;
+            matchedEntryId = entry.num;
             break;
           }
         }
@@ -1552,7 +1576,7 @@ async function playSpin() {
     
     if (globalHistory.length > 0) {
       if (matchedEntryId) {
-        const idx = globalHistory.findIndex(e => e.id === matchedEntryId);
+        const idx = globalHistory.findIndex(e => e.num === matchedEntryId);
         loadSpin(idx !== -1 ? idx : 0);
       } else {
         loadSpin(0);
@@ -2034,12 +2058,12 @@ function appendSpinHistoryCards(startIndex, endIndex) {
 
           const isTumbleActive = tIdx === gameState.currentIndex;
           const goldenPositions = f.features?.golden || [];
-          const isWinStep = parseFloat(f.coins || 0) > 0;
+          const isWinStep = parseFloat(f.coins || 0) > 0 && isSettleField(f);
 
           // cascadeNum = group this tumble belongs to WITHIN the same playground
           const payingBefore = spin.fields.slice(0, tIdx).filter((f2, idx2) => {
             const m2 = spin.fieldMetadata ? spin.fieldMetadata[idx2] : {};
-            return parseFloat(f2.coins || 0) > 0 && m2.playgroundIndex === meta.playgroundIndex;
+            return parseFloat(f2.coins || 0) > 0 && isSettleField(f2) && m2.playgroundIndex === meta.playgroundIndex;
           }).length;
           const cascadeNum = payingBefore + 1;
           const badgeBg = isWinStep ? 'rgba(59,130,246,0.18)' : 'rgba(255,255,255,0.03)';
@@ -2114,7 +2138,7 @@ function appendSpinHistoryCards(startIndex, endIndex) {
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <span style="color: var(--text-muted); font-size: 10px;">x${p.oak || p.count || 0}</span>
-                  <span style="color: var(--success); font-weight: 800; font-size: 10px;">+${p.coins}</span>
+                  <span style="color: var(--success); font-weight: 800; font-size: 10px;">+${isSettleField(f) ? parseFloat(p.coins || 0) * (f.features?.cumulativeMultiplier || 1) : parseFloat(p.coins || 0)}</span>
                 </div>
               </div>
              `;
@@ -2130,7 +2154,7 @@ function appendSpinHistoryCards(startIndex, endIndex) {
                   ${cascadeBadge}
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                   <span style="color:${isWinStep ? 'var(--success)' : 'var(--text-muted)'}; font-size: 10px; font-weight: 800;">+${f.coins}</span>
+                   <span style="color:${isWinStep ? 'var(--success)' : 'var(--text-muted)'}; font-size: 10px; font-weight: 800;">+${getFieldEffectiveWin(f)}</span>
                    <span style="color: var(--bg-accent); font-size: 11px; font-weight: 800;">${f.features?.cumulativeMultiplier || 1}x</span>
                 </div>
               </div>
@@ -2333,7 +2357,7 @@ function loadSpin(historyIndex) {
 
   let acc = 0;
   gameState.accumulatedWins = spin.fields.map((f) => {
-    acc += parseInt(f.coins);
+    acc += isSettleField(f) ? getFieldEffectiveWin(f) : 0;
     return acc;
   });
 
@@ -2402,7 +2426,7 @@ function updateGlobalSummary() {
 
   const cascadeCountEl = document.getElementById('cascadeCountTop');
   if (cascadeCountEl) {
-    cascadeCountEl.innerText = gameState.fields.filter((f) => parseInt(f.coins || 0) > 0).length;
+    cascadeCountEl.innerText = gameState.fields.filter((f) => parseFloat(f.coins || 0) > 0 && isSettleField(f)).length;
   }
 }
 
@@ -2471,8 +2495,8 @@ function showTumble(index, phase) {
   const isInitialPhase = resolvedPhase === 'initial';
   const prevAccWin = index > 0 ? gameState.accumulatedWins[index - 1] : 0;
   
-  const displayCoins = isInitialPhase ? 0 : (field.coins || 0);
-  const displayAccWin = isInitialPhase ? prevAccWin : gameState.accumulatedWins[index];
+  const displayCoins = (isInitialPhase || !isSettleField(field)) ? 0 : getFieldEffectiveWin(field);
+  const displayAccWin = (isInitialPhase || !isSettleField(field)) ? prevAccWin : gameState.accumulatedWins[index];
 
   setHudValue(multDisplay, (field.features?.cumulativeMultiplier || 1) + 'x');
   setHudValue(currentTumbleWinEl, displayCoins);
@@ -2498,9 +2522,9 @@ function showTumble(index, phase) {
     }
   }
   if (cascadeNavLabel) {
-    const payingBefore = gameState.fields.slice(0, index).filter(f => parseInt(f.coins || 0) > 0).length;
+    const payingBefore = gameState.fields.slice(0, index).filter(f => parseInt(f.coins || 0) > 0 && isSettleField(f)).length;
     const cascadeNum = payingBefore + 1;
-    const isPayingTumble = parseInt(field.coins || 0) > 0;
+    const isPayingTumble = parseInt(field.coins || 0) > 0 && isSettleField(field);
     cascadeNavLabel.innerText = isPayingTumble ? `· CASCADE ${cascadeNum} ↓` : `· CASCADE ${cascadeNum}`;
     cascadeNavLabel.style.display = 'inline';
     cascadeNavLabel.style.opacity = isPayingTumble ? '1' : '0.45';
@@ -2534,6 +2558,51 @@ function showTumble(index, phase) {
   //                  (winning golden positions turned into wilds, so they're no longer golden)
   const goldenInitial = gameState.goldenCandidates[index] || new Set();
   const goldenFinal   = gameState.goldenCandidates[index + 1] || new Set();
+
+  // Grow phase cluster payout overlay
+  const growOverlay = document.getElementById('growPayoutOverlay');
+  if (growOverlay) {
+    const payouts = field.symbols?.payouts || [];
+    const isGrow = !isInitialPhase && !isSettleField(field) && payouts.length > 0;
+    growOverlay.style.display = isGrow ? 'block' : 'none';
+    growOverlay.textContent = '';
+    if (isGrow) {
+      // Grow-phase payouts have coins=0; look ahead to the next settle field for actual coins
+      const nextField = gameState.fields[index + 1];
+      const settlePayouts = (nextField && isSettleField(nextField)) ? (nextField.symbols?.payouts || []) : [];
+      payouts.forEach(p => {
+        const sid = p.symbolId !== undefined ? p.symbolId : p.symbol !== undefined ? p.symbol : p.id;
+        const name = SYMBOLS[sid] || String(sid);
+        const emoji = EMOJIS[sid] || '';
+        const count = p.oak || p.count || 0;
+        const settleP = settlePayouts.find(sp => {
+          const spid = sp.symbolId !== undefined ? sp.symbolId : sp.symbol !== undefined ? sp.symbol : sp.id;
+          return spid === sid;
+        });
+        const rawWin = parseFloat((settleP || p).coins || 0);
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:12px;';
+        const leftSpan = document.createElement('span');
+        leftSpan.style.cssText = 'display:flex; align-items:center; gap:4px; white-space:nowrap;';
+        const emojiSpan = document.createElement('span');
+        emojiSpan.textContent = emoji;
+        const nameB = document.createElement('b');
+        nameB.textContent = name;
+        leftSpan.append(emojiSpan, nameB);
+        const rightSpan = document.createElement('span');
+        rightSpan.style.cssText = 'white-space:nowrap; text-align:right;';
+        const countSpan = document.createElement('span');
+        countSpan.style.color = '#aaa';
+        countSpan.textContent = '×' + count + ' → ';
+        const winSpan = document.createElement('span');
+        winSpan.style.color = '#4ade80';
+        winSpan.textContent = rawWin;
+        rightSpan.append(countSpan, winSpan);
+        row.append(leftSpan, rightSpan);
+        growOverlay.appendChild(row);
+      });
+    }
+  }
 
   if (showDoubleGrid && hasChanges) {
     wrapper?.classList.add('double-view');
