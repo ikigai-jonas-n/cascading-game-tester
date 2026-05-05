@@ -1280,8 +1280,8 @@ function isSettleField(field) {
 function getFieldEffectiveWin(field) {
   const raw = parseFloat(field.coins || 0);
   if (!raw) return 0;
-  if (isSettleField(field)) return raw * (field.features?.cumulativeMultiplier || 1);
-  return raw;
+  const val = isSettleField(field) ? raw * (field.features?.cumulativeMultiplier || 1) : raw;
+  return parseFloat(val.toFixed(2));
 }
 
 function getSpinStats(fields, wildSymbolId) {
@@ -2152,7 +2152,7 @@ function appendSpinHistoryCards(startIndex, endIndex) {
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <span style="color: var(--text-muted); font-size: 10px;">x${p.oak || p.count || 0}</span>
-                  <span style="color: var(--success); font-weight: 800; font-size: 10px;">+${isSettleField(f) ? parseFloat(p.coins || 0) * (f.features?.cumulativeMultiplier || 1) : parseFloat(p.coins || 0)}</span>
+                  <span style="color: var(--success); font-weight: 800; font-size: 10px;">+${parseFloat((isSettleField(f) ? parseFloat(p.coins || 0) * (f.features?.cumulativeMultiplier || 1) : parseFloat(p.coins || 0)).toFixed(2))}</span>
                 </div>
               </div>
              `;
@@ -2168,7 +2168,7 @@ function appendSpinHistoryCards(startIndex, endIndex) {
                   ${cascadeBadge}
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                   <span style="color:${isWinStep ? 'var(--success)' : 'var(--text-muted)'}; font-size: 10px; font-weight: 800;">+${getFieldEffectiveWin(f)}</span>
+                   <span style="color:${isWinStep ? 'var(--success)' : 'var(--text-muted)'}; font-size: 10px; font-weight: 800;">+${parseFloat(getFieldEffectiveWin(f).toFixed(2))}</span>
                    <span style="color: var(--bg-accent); font-size: 11px; font-weight: 800;">${f.features?.cumulativeMultiplier || 1}x</span>
                 </div>
               </div>
