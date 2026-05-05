@@ -485,14 +485,28 @@ if (quickCheatBtn && quickCheatModal) {
   };
   
   if (clearCheatConfigBtn) {
-    clearCheatConfigBtn.onclick = () => {
-      localStorage.removeItem('test_config');
-      quickTestConfigInput.value = '';
-      if (cheatTemplateSelect) cheatTemplateSelect.value = '';
-      if (cheatTemplateDesc) cheatTemplateDesc.style.display = 'none';
-      quickCheatError.style.display = 'none';
-      showLoading('Config cleared ✅');
-      setTimeout(hideLoading, 1500);
+    clearCheatConfigBtn.onclick = async () => {
+      const configId = typeof PLAYER_ID !== 'undefined' ? PLAYER_ID : game.playerId;
+      const gameCode = game.gameCode;
+      const params = new URLSearchParams({ gameCode, configId });
+      try {
+        showLoading('Clearing config...');
+        const response = await fetch(`${API_URL}/v1/test/test-config?${params}`, {
+          method: 'DELETE',
+          headers: { 'accept': '*/*', 'x-signature': 'rgs-local-signature' },
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        localStorage.removeItem('test_config');
+        if (cheatTemplateSelect) cheatTemplateSelect.value = '';
+        if (cheatTemplateDesc) cheatTemplateDesc.style.display = 'none';
+        quickCheatError.style.display = 'none';
+        showLoading('Config cleared ✅');
+        setTimeout(hideLoading, 1500);
+      } catch (err) {
+        hideLoading();
+        quickCheatError.textContent = `Clear failed: ${err.message}`;
+        quickCheatError.style.display = 'block';
+      }
     };
   }
 
