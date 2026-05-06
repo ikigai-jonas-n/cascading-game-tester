@@ -401,8 +401,8 @@
     </dialog>
 
     <!-- QUICK CHEAT MODAL -->
-    <dialog id="quickCheatModal" style="border: none; background: transparent; padding: 0;">
-        <div class="modal-content" style="max-width: 500px; max-width: 400px; display: flex; flex-direction: column; padding: 24px; border: 1px solid rgba(59, 130, 246, 0.4); box-shadow: 0 10px 40px rgba(59, 130, 246, 0.1);">
+    <dialog id="quickCheatModal" style="border: none; background: transparent; padding: 0; width: min(860px, 90vw); max-width: none;">
+        <div class="modal-content" style="width: 100%; display: flex; flex-direction: column; padding: 24px; border: 1px solid rgba(59, 130, 246, 0.4); box-shadow: 0 10px 40px rgba(59, 130, 246, 0.1);">
             <header style="display: flex; flex-direction: row; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(59, 130, 246, 0.2); padding-bottom: 12px;">
                 <h2 style="color: #3b82f6; font-size: 1.1rem; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;">QUICK CHEAT (test-config)</h2>
                 <button id="closeQuickCheatBtn" class="btn-ghost" style="font-size: 18px; color: #888;">&times;</button>
@@ -418,7 +418,7 @@
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
                     <label style="display: block; color: #888; font-size: 9px; font-weight: 800; text-transform: uppercase;">JSON Configuration</label>
-                    <textarea id="quickTestConfigInput" style="width: 100%; height: 200px; background: #000; color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); padding: 12px; border-radius: 10px; font-family: monospace; font-size: 11px; resize: vertical;"></textarea>
+                    <textarea id="quickTestConfigInput" style="width: 100%; height: clamp(300px, 50vh, 600px); background: #000; color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); padding: 12px; border-radius: 10px; font-family: monospace; font-size: 14px; resize: vertical;"></textarea>
                 </div>
                 <div id="quickCheatError" style="display: none; color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px; font-size: 10px; font-weight: 800; border: 1px solid rgba(239, 68, 68, 0.3); word-break: break-word;"></div>
             </div>
