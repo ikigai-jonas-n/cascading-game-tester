@@ -3185,6 +3185,10 @@ function getOptimizedData(history) {
       w: entry.isWin,
       v: entry.totalWin,
       b: entry.bookmarked || false,
+      desc: entry.description || null,
+      hg: entry.hasGolden || false,
+      hbs: entry.hasBaseSpin || false,
+      hfs: entry.hasFreeSpin || false,
     })),
   };
 }
@@ -3370,10 +3374,10 @@ const triggerImport = (mode) => {
               fieldMetadata,
               playgroundStats,
               bookmarked: item.b || item.bookmarked || false,
-              description: item.description || null,
-              hasGolden: item.hasGolden || false,
-              hasBaseSpin: item.hasBaseSpin || false,
-              hasFreeSpin: item.hasFreeSpin || false,
+              description: item.desc || item.description || null,
+              hasGolden: item.hg || item.hasGolden || false,
+              hasBaseSpin: item.hbs || item.hasBaseSpin || false,
+              hasFreeSpin: item.hfs || item.hasFreeSpin || false,
             }
           };
         }).filter(Boolean);
