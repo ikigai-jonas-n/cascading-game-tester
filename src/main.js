@@ -9,7 +9,6 @@ import {
   migrateFromLocalStorage,
 } from './db.js';
 import { FILTER_DEFS, WIN_OPERATORS, applyFilters } from './filters.js';
-import { APP_VERSION } from './version.js';
 
 // ── Active Game Config (plugin-driven) ───────────────────────────────────────
 let game = getActiveGame();
@@ -245,8 +244,7 @@ async function clearAllDataAndReload(skipConfirm = false) {
     const { clearAllSpins } = await import('./db.js');
     await clearAllSpins();
     
-    // Save the current version so we don't prompt again immediately if it was an update action
-    localStorage.setItem('app_version', APP_VERSION);
+    // app_version will be re-stored on next load from CF header
     
     location.reload(true);
   } catch (err) {
@@ -257,32 +255,41 @@ async function clearAllDataAndReload(skipConfirm = false) {
 }
 
 // ── Version Detection ────────────────────────────────────────────────────────
-async function checkVersion() {
+async function getDeployVersion() {
+  try {
+    const res = await fetch('/?t=' + Date.now(), { method: 'HEAD' });
+    return res.headers.get('X-Worker-Version-Id');
+  } catch {
+    return null;
+  }
+}
+
+async function checkVersionOnLoad() {
+  const serverVersion = await getDeployVersion();
+  if (!serverVersion) return; // local dev or no CF header
+
   const storedVersion = localStorage.getItem('app_version');
-  
-  // Backward compatibility: If no version is found, it's treated as old
   if (!storedVersion) {
-    showUpdateNotification('Welcome! A new version is available.', APP_VERSION);
+    localStorage.setItem('app_version', serverVersion);
     return;
   }
-
-  try {
-    const response = await fetch('/version.json?t=' + Date.now());
-    const data = await response.json();
-    const serverVersion = data.version;
-
-    if (serverVersion && serverVersion !== APP_VERSION) {
-      // Skip only if user dismissed THIS exact version (version-keyed, persists across reloads)
-      if (localStorage.getItem('skip_update') === serverVersion) {
-        return;
-      }
-      showUpdateNotification(`Update available: ${serverVersion}`, serverVersion);
-    } else {
-      // Current version is up to date, just sync storage
-      localStorage.setItem('app_version', APP_VERSION);
+  if (storedVersion !== serverVersion) {
+    if (localStorage.getItem('skip_update') === serverVersion) {
+      localStorage.setItem('app_version', serverVersion);
+      return;
     }
-  } catch (e) {
-    console.warn('Failed to check version', e);
+    showUpdateNotification(`New version deployed`, serverVersion);
+  }
+}
+
+async function checkVersionPeriodic() {
+  const serverVersion = await getDeployVersion();
+  if (!serverVersion) return;
+
+  const storedVersion = localStorage.getItem('app_version');
+  if (storedVersion && serverVersion !== storedVersion) {
+    if (localStorage.getItem('skip_update') === serverVersion) return;
+    showUpdateNotification(`Update available`, serverVersion);
   }
 }
 
@@ -317,10 +324,10 @@ function showUpdateNotification(msg, serverVersion) {
   };
 }
 
-// Check on load
-checkVersion();
-// Check every 10 mins
-setInterval(checkVersion, 10 * 60 * 1000);
+// Check on load (compare bundled version vs last seen version — no network needed)
+checkVersionOnLoad();
+// Periodic: detect new deploy while tab is open
+setInterval(checkVersionPeriodic, 10 * 60 * 1000);
 
 openSettingsBtn.onclick = () => {
   lastFocusedElementBeforeModal = document.activeElement;

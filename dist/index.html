@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Slot Studio</title>
-  <script type="module" crossorigin src="/assets/index-6sKdQhxr.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-DHf09g3E.css">
+  <script type="module" crossorigin src="/assets/index-1EzGojlg.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-B4AIQ-tQ.css">
 </head>
 <body class="dark-mode">
     <!-- LEFT COLUMN: History & Filters -->
@@ -80,6 +80,7 @@
                     <option value="untilLoss">Until Loss</option>
                     <option value="count">Play N</option>
                     <option value="untilFilter">Until Filter</option>
+                    <option value="allCheatTemplates">All Cheat Templates</option>
                 </select>
                 <input type="number" id="playCount" value="10" min="1" max="10000" style="width: 50px; display: none;">
                 <button id="stopAutoBtn" class="btn-danger" style="display: none;">STOP</button>
@@ -409,12 +410,23 @@
             </header>
 
             <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
-                <textarea id="quickTestConfigInput" style="width: 100%; height: 200px; background: #000; color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); padding: 12px; border-radius: 10px; font-family: monospace; font-size: 11px; resize: vertical;"></textarea>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <label style="display: block; color: #888; font-size: 9px; font-weight: 800; text-transform: uppercase;">Cheat Templates</label>
+                    <select id="cheatTemplateSelect" style="width: 100%; font-size: 11px; padding: 10px; color: #3b82f6; background: rgba(0,0,0,0.3); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px;">
+                        <option value="">-- Select a Template --</option>
+                    </select>
+                    <p id="cheatTemplateDesc" style="font-size: 10px; color: #888; margin: 4px 0 0 2px; line-height: 1.4; display: none;"></p>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
+                    <label style="display: block; color: #888; font-size: 9px; font-weight: 800; text-transform: uppercase;">JSON Configuration</label>
+                    <textarea id="quickTestConfigInput" style="width: 100%; height: 200px; background: #000; color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); padding: 12px; border-radius: 10px; font-family: monospace; font-size: 11px; resize: vertical;"></textarea>
+                </div>
                 <div id="quickCheatError" style="display: none; color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px; font-size: 10px; font-weight: 800; border: 1px solid rgba(239, 68, 68, 0.3); word-break: break-word;"></div>
             </div>
 
-            <footer style="margin-top: 20px; border-top: 1px solid rgba(59, 130, 246, 0.2); padding-top: 16px;">
+            <footer style="margin-top: 20px; border-top: 1px solid rgba(59, 130, 246, 0.2); padding-top: 16px; display: flex; flex-direction: column; gap: 8px;">
                 <button id="sendQuickCheatBtn" class="btn-ghost" style="width: 100%; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.5); padding: 14px; font-size: 12px; border-radius: 12px; font-weight: 800; color: #3b82f6; text-transform: uppercase; letter-spacing: 1px;">SEND CHEAT</button>
+                <button id="clearCheatConfigBtn" class="btn-ghost" style="width: 100%; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.3); padding: 10px; font-size: 11px; border-radius: 12px; font-weight: 800; color: #ef4444; text-transform: uppercase; letter-spacing: 1px;">CLEAR CONFIG</button>
             </footer>
         </div>
     </dialog>
