@@ -356,6 +356,70 @@ select:focus, input:focus {
   filter: drop-shadow(0 0 5px rgba(245, 158, 11, 0.5));
 }
 
+/* Card Title (description row — pinned above card header) */
+.card-title-v5 {
+  display: flex;
+  align-items: center;
+  margin: -10px -14px 8px;
+  padding: 5px 14px 5px 12px;
+  border-left: 3px solid var(--bg-accent);
+  background: rgba(245, 158, 11, 0.06);
+  cursor: pointer;
+  overflow: hidden;
+  transition: background 0.15s;
+  border-radius: 6px 6px 0 0;
+}
+.card-title-v5:hover {
+  background: rgba(245, 158, 11, 0.1);
+}
+.card-title-v5.title-empty {
+  opacity: 0;
+  pointer-events: none;
+  background: transparent;
+  border-left-color: rgba(255,255,255,0.1);
+}
+.spin-history-card:hover .card-title-v5.title-empty,
+.spin-history-card.active .card-title-v5.title-empty {
+  opacity: 1;
+  pointer-events: auto;
+}
+.card-title-v5 .title-text {
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1;
+  letter-spacing: 0.1px;
+}
+.card-title-v5.title-empty .title-text {
+  color: rgba(255,255,255,0.2);
+  font-weight: 400;
+  font-style: italic;
+}
+.card-title-v5:hover .title-text {
+  color: #fff;
+}
+.card-title-v5 .title-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 0;
+  outline: none;
+  width: 100%;
+  letter-spacing: 0.1px;
+}
+.card-title-v5:has(.title-input) {
+  background: rgba(245, 158, 11, 0.08);
+  border-left-color: var(--bg-accent);
+}
+
 /* Filters */
 .filter-bar {
   display: flex;

@@ -1273,6 +1273,43 @@ async function fireSpinRequest(config) {
   return data;
 }
 
+function truncateMiddle(str, maxLen = 32) {
+  if (!str || str.length <= maxLen) return str;
+  const front = Math.ceil((maxLen - 1) / 2);
+  const end = Math.floor((maxLen - 1) / 2);
+  return str.slice(0, front) + '…' + str.slice(-end);
+}
+
+window.startDescEdit = (num, rowEl) => {
+  if (rowEl.querySelector('.title-input')) return;
+  const spin = globalHistory.find(s => s.num === num);
+  const current = spin?.description || '';
+  while (rowEl.firstChild) rowEl.removeChild(rowEl.firstChild);
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'title-input';
+  input.value = current;
+  input.placeholder = 'Add title…';
+  rowEl.appendChild(input);
+  input.focus();
+  if (current) input.select();
+
+  const save = () => {
+    const val = input.value.trim();
+    if (spin) spin.description = val || null;
+    renderSpinHistory(true);
+  };
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') {
+      input.removeEventListener('blur', save);
+      input.blur();
+      renderSpinHistory(true);
+    }
+  });
+};
+
 function isSettleField(field) {
   return field.features?.isSettle === true;
 }
@@ -1309,8 +1346,8 @@ function getSpinStats(fields, wildSymbolId) {
   return { goldenTransformed: totalGolden, maxMultiplier };
 }
 
-async function playSingleSpin() {
-  const config = JSON.parse(requestBodyTextarea.value);
+async function playSingleSpin(overrideConfig = null, description = null) {
+  const config = overrideConfig || JSON.parse(requestBodyTextarea.value);
   const data = await fireSpinRequest(config);
 
   const fields = [];
@@ -1381,7 +1418,8 @@ async function playSingleSpin() {
     goldenTransformed: stats.goldenTransformed,
     maxMultiplier: stats.maxMultiplier,
     fieldMetadata,
-    playgroundStats
+    playgroundStats,
+    description: description || null,
   };
 
   // Internal storage is kept detailed for UI performance,
@@ -1479,6 +1517,21 @@ async function playConcurrentBatch(config, batchSize) {
   return entries;
 }
 
+async function sendCheatConfig(jsonStr) {
+  const parsed = JSON.parse(jsonStr);
+  if (typeof PLAYER_ID !== 'undefined') parsed.configId = PLAYER_ID;
+  parsed.gameCode = game.gameCode;
+  const response = await fetch(`${API_URL}/v1/test/test-config`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-signature': 'rgs-local-signature', 'accept': '*/*' },
+    body: JSON.stringify(parsed),
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Cheat config failed (${response.status}): ${text}`);
+  }
+}
+
 // ── Play Modes ───────────────────────────────────────────────────────────────
 const CONCURRENCY = 1000; // requests in-flight per batch
 
@@ -1497,6 +1550,44 @@ async function playSpin() {
       alert('Error: ' + err.message);
     } finally {
       setPlayUIBusy(false);
+    }
+    return;
+  }
+
+  if (mode === 'allCheatTemplates') {
+    if (!cheatTemplates.length) {
+      alert('No cheat templates loaded.');
+      return;
+    }
+    autoPlayRunning = true;
+    stopAutoBtn.style.display = 'inline-block';
+    setPlayUIBusy(true);
+    const statusEl = document.getElementById('autoStatus');
+    let lastIdx = 0;
+    try {
+      for (let i = 0; i < cheatTemplates.length; i++) {
+        if (!autoPlayRunning) break;
+        const template = cheatTemplates[i];
+        if (statusEl) statusEl.innerText = `Template ${i + 1}/${cheatTemplates.length}: ${truncateMiddle(template.title, 28)}`;
+        await sendCheatConfig(template.json);
+        const entry = await playSingleSpin(null, template.title);
+        lastIdx = globalHistory.indexOf(entry);
+        renderSpinHistory();
+        await new Promise(r => setTimeout(r, 0));
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error: ' + err.message);
+    } finally {
+      autoPlayRunning = false;
+      stopAutoBtn.style.display = 'none';
+      if (statusEl) {
+        statusEl.innerText = `Done: ${cheatTemplates.length} templates`;
+        setTimeout(() => { statusEl.innerText = ''; }, 4000);
+      }
+      setPlayUIBusy(false);
+      renderSpinHistory();
+      if (globalHistory.length > 0) loadSpin(lastIdx !== -1 ? lastIdx : 0);
     }
     return;
   }
@@ -1985,6 +2076,10 @@ function appendSpinHistoryCards(startIndex, endIndex) {
     const hasMaxWin = !!spin.hasMaxWin;
 
     card.innerHTML = `
+      <div class="card-title-v5 ${spin.description ? '' : 'title-empty'}" title="${spin.description ? spin.description.replace(/"/g, '&quot;') : ''}" data-desc-num="${spin.num}">
+        <span class="title-text">${spin.description ? truncateMiddle(spin.description, 44) : '+ Add title…'}</span>
+      </div>
+
       <div class="card-header-v5">
         <div class="header-left">
           <span class="status-dot ${spin.isWin ? 'winner' : 'no-win'}"></span>
@@ -2260,6 +2355,13 @@ function appendSpinHistoryCards(startIndex, endIndex) {
           }
           renderSpinHistory();
         });
+        return;
+      }
+
+      const descRow = e.target.closest('.card-title-v5');
+      if (descRow) {
+        e.stopPropagation();
+        window.startDescEdit(parseInt(descRow.dataset.descNum), descRow);
         return;
       }
 
