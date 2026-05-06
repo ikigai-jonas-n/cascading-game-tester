@@ -30,7 +30,7 @@
     "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"screen\": [\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"L4_J\", \"L4_J\",\n          \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon*\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\"\n        ]\n      }\n    }\n  }\n}"
   },
   {
-    "title": "7. Wild Transformation + Wild Sharing Showcase (Sharing for Multiple Clusters)",
+    "title": "7. Wild Sharing Showcase (Multi Clusters)",
     "description": "Uses the smart generator to build two clusters around a formed Wild. Requires Golden in Round 1 and forcing Round 2 via cascadeCount.",
     "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"screen\": [\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"L4_J\", \"L4_J\",\n          \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon*\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\"\n        ]\n      },\n      \"cascade\": {\n        \"cascadeCount\": 2\n      }\n    }\n  }\n}"
   },
