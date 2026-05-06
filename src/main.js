@@ -338,9 +338,9 @@ async function checkBackendHealth(url, label = 'custom') {
   try {
     const res = await fetch(`${url.replace(/\/$/, '')}/v1/service/play`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-signature': 'rgs-local-signature' },
       body: JSON.stringify({
-        gameCode: 'LGS-008',
+        gameCode: game?.gameCode || 'LGS-008',
         id: `healthcheck_test_${label}`,
         cashBet: '80',
         currencyDec: 2,
