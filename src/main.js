@@ -329,14 +329,26 @@ checkVersionOnLoad();
 // Periodic: detect new deploy while tab is open
 setInterval(checkVersionPeriodic, 10 * 60 * 1000);
 
-async function checkBackendHealth(url) {
+async function checkBackendHealth(url, label = 'custom') {
   const statusEl = document.getElementById('backendHealthStatus');
   if (!statusEl) return;
   if (!url) { statusEl.textContent = ''; return; }
   statusEl.style.color = '#888';
   statusEl.textContent = 'Checking...';
   try {
-    const res = await fetch(`${url.replace(/\/$/, '')}/v1/service/healthcheck`, { signal: AbortSignal.timeout(5000) });
+    const res = await fetch(`${url.replace(/\/$/, '')}/v1/service/play`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        gameCode: 'LGS-008',
+        id: `healthcheck_test_${label}`,
+        cashBet: '80',
+        currencyDec: 2,
+        stakes: [{ type: 'commonGame' }],
+        rtpOption: 'RTP_97',
+      }),
+      signal: AbortSignal.timeout(5000),
+    });
     if (res.ok) {
       statusEl.style.color = '#22c55e';
       statusEl.textContent = '✓ Reachable';
@@ -368,11 +380,11 @@ openSettingsBtn.onclick = () => {
     document.querySelectorAll('.backend-preset-btn').forEach(btn => {
       btn.onclick = () => {
         apiUrlInput.value = btn.dataset.url;
-        checkBackendHealth(btn.dataset.url);
+        checkBackendHealth(btn.dataset.url, btn.textContent.trim());
       };
     });
 
-    checkBackendHealth(API_URL);
+    checkBackendHealth(API_URL, 'current');
   }
 
   const playerIdInput = document.getElementById('playerIdInput');
