@@ -38,6 +38,36 @@ const accWinDisplayEl = document.getElementById('accWinDisplay');
 const totalWinEl = document.getElementById('totalWin');
 const spinHistoryEl = document.getElementById('spinHistory');
 
+// Description hover tooltip
+const _descTooltip = (() => {
+  const el = document.createElement('div');
+  el.id = 'desc-tooltip';
+  document.body.appendChild(el);
+
+  spinHistoryEl.addEventListener('mouseover', (e) => {
+    const titleEl = e.target.closest('.card-title-v5[data-desc]');
+    if (titleEl && titleEl.dataset.desc) {
+      el.textContent = titleEl.dataset.desc;
+      el.classList.add('visible');
+    }
+  });
+  spinHistoryEl.addEventListener('mousemove', (e) => {
+    if (el.classList.contains('visible')) {
+      const x = e.clientX + 14;
+      const y = e.clientY + 14;
+      const vw = window.innerWidth;
+      const tw = el.offsetWidth;
+      el.style.left = (x + tw > vw - 8 ? vw - tw - 8 : x) + 'px';
+      el.style.top = y + 'px';
+    }
+  });
+  spinHistoryEl.addEventListener('mouseout', (e) => {
+    if (!e.relatedTarget?.closest?.('.card-title-v5')) {
+      el.classList.remove('visible');
+    }
+  });
+})();
+
 function setHudValue(el, val, baseEm = 1.6) {
   if (!el) return;
   el.innerText = val;
@@ -242,7 +272,7 @@ async function checkVersion() {
     const serverVersion = data.version;
 
     if (serverVersion && serverVersion !== APP_VERSION) {
-      // Check if user skipped THIS specific version
+      // Skip only if user dismissed THIS exact version (version-keyed, persists across reloads)
       if (localStorage.getItem('skip_update') === serverVersion) {
         return;
       }
@@ -754,6 +784,17 @@ function buildFilterBar() {
         renderChips();
         renderSpinHistory();
       };
+
+      const valueEl = chip.querySelector('.filter-chip-value');
+      if (valueEl && def.type !== 'toggle') {
+        valueEl.classList.add('editable');
+        valueEl.title = 'Click to edit';
+        valueEl.onclick = (e) => {
+          e.stopPropagation();
+          showFilterEditInput(def, af);
+        };
+      }
+
       chips.appendChild(chip);
     });
 
@@ -1126,6 +1167,257 @@ function buildFilterBar() {
     cancelBtn.onclick = cancel;
     input.onkeydown = (e) => {
       if (e.key === 'Enter') commit();
+      if (e.key === 'Escape') cancel();
+    };
+
+    wrapper.appendChild(input);
+    wrapper.appendChild(confirmBtn);
+    wrapper.appendChild(cancelBtn);
+    chips.appendChild(wrapper);
+    input.focus();
+  }
+
+  /** Edit an existing active filter's value in-place */
+  function showFilterEditInput(def, af) {
+    clearPendingInputs();
+
+    if (def.type === 'toggle') return;
+
+    const commit = (newValue) => {
+      af.value = newValue;
+      renderChips();
+      renderSpinHistory();
+    };
+
+    if (def.type === 'condition') {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'filter-condition-input';
+
+      const opSelect = document.createElement('select');
+      opSelect.className = 'filter-input';
+      opSelect.style.width = '55px';
+      WIN_OPERATORS.forEach((o) => {
+        const opt = document.createElement('option');
+        opt.value = o.op;
+        opt.textContent = o.label;
+        if (o.op === af.value?.op) opt.selected = true;
+        opSelect.appendChild(opt);
+      });
+
+      const numInput = document.createElement('input');
+      numInput.type = 'number';
+      numInput.placeholder = def.placeholder || '0';
+      numInput.className = 'filter-input';
+      numInput.style.width = '80px';
+      numInput.value = af.value?.num || '';
+
+      const confirmBtn = document.createElement('button');
+      confirmBtn.innerText = '✓';
+      confirmBtn.className = 'filter-confirm-btn';
+      const cancelBtn = document.createElement('button');
+      cancelBtn.innerText = '✕';
+      cancelBtn.className = 'filter-cancel-btn';
+
+      const doCommit = () => {
+        if (numInput.value) commit({ op: opSelect.value, num: numInput.value });
+        wrapper.remove();
+      };
+      const cancel = () => wrapper.remove();
+
+      confirmBtn.onclick = doCommit;
+      cancelBtn.onclick = cancel;
+      numInput.onkeydown = (e) => {
+        if (e.key === 'Enter') doCommit();
+        if (e.key === 'Escape') cancel();
+      };
+
+      wrapper.appendChild(opSelect);
+      wrapper.appendChild(numInput);
+      wrapper.appendChild(confirmBtn);
+      wrapper.appendChild(cancelBtn);
+      chips.appendChild(wrapper);
+      numInput.focus();
+      return;
+    }
+
+    if (def.type === 'symbolCount') {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'filter-condition-input';
+
+      const symSelect = document.createElement('select');
+      symSelect.className = 'filter-input';
+      Object.entries(game.symbols)
+        .filter(([k]) => parseInt(k) !== game.emptySymbolId)
+        .forEach(([k, v]) => {
+          const opt = document.createElement('option');
+          opt.value = k;
+          opt.textContent = `${v} ${game.emojis[k] || ''}`;
+          if (k === String(af.value?.symId)) opt.selected = true;
+          symSelect.appendChild(opt);
+        });
+
+      const opLabel = document.createElement('span');
+      opLabel.innerText = ' >= ';
+      opLabel.style.color = '#888';
+      opLabel.style.fontSize = '10px';
+
+      const numInput = document.createElement('input');
+      numInput.type = 'number';
+      numInput.value = af.value?.count || '1';
+      numInput.min = '1';
+      numInput.className = 'filter-input';
+      numInput.style.width = '50px';
+
+      const confirmBtn = document.createElement('button');
+      confirmBtn.innerText = '✓';
+      confirmBtn.className = 'filter-confirm-btn';
+      const cancelBtn = document.createElement('button');
+      cancelBtn.innerText = '✕';
+      cancelBtn.className = 'filter-cancel-btn';
+
+      const doCommit = () => {
+        if (numInput.value) commit({ symId: symSelect.value, count: parseInt(numInput.value) });
+        wrapper.remove();
+      };
+      const cancel = () => wrapper.remove();
+
+      confirmBtn.onclick = doCommit;
+      cancelBtn.onclick = cancel;
+      numInput.onkeydown = (e) => {
+        if (e.key === 'Enter') doCommit();
+        if (e.key === 'Escape') cancel();
+      };
+
+      wrapper.appendChild(symSelect);
+      wrapper.appendChild(opLabel);
+      wrapper.appendChild(numInput);
+      wrapper.appendChild(confirmBtn);
+      wrapper.appendChild(cancelBtn);
+      chips.appendChild(wrapper);
+      symSelect.focus();
+      return;
+    }
+
+    if (def.type === 'select') {
+      let options = def.options || [];
+      if (def.optionsFromGame) {
+        options = Object.entries(game.symbols)
+          .filter(([k]) => parseInt(k) !== game.emptySymbolId)
+          .map(([k, v]) => ({ label: `${v} ${game.emojis[k] || ''}`, value: k }));
+      }
+      if (def.optionsFromGames) {
+        options = listGames().map((g) => ({ label: g.name, value: g.id }));
+      }
+
+      const picker = document.createElement('div');
+      picker.className = 'filter-inline-picker';
+      options.forEach((opt) => {
+        const btn = document.createElement('button');
+        btn.className = `filter-inline-option${opt.value === af.value ? ' active' : ''}`;
+        btn.innerText = opt.label;
+        btn.onclick = () => {
+          commit(opt.value);
+          picker.remove();
+        };
+        picker.appendChild(btn);
+      });
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'filter-cancel-btn';
+      cancelBtn.innerText = '✕ Cancel';
+      cancelBtn.onclick = () => picker.remove();
+      picker.appendChild(cancelBtn);
+      chips.appendChild(picker);
+      return;
+    }
+
+    if (def.type === 'date') {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'filter-date-picker';
+
+      const today = new Date();
+      const fmt = (d) => d.toISOString().slice(0, 10);
+
+      const presets = document.createElement('div');
+      presets.className = 'filter-date-presets';
+
+      const doCommit = (val) => {
+        if (val) commit(val);
+        wrapper.remove();
+      };
+
+      [
+        { label: 'Today', value: fmt(today) },
+        { label: 'Yesterday', value: fmt(new Date(today.getTime() - 86400000)) },
+        { label: 'Last 7d', value: fmt(new Date(today.getTime() - 7 * 86400000)) },
+        { label: 'Last 30d', value: fmt(new Date(today.getTime() - 30 * 86400000)) },
+      ].forEach((p) => {
+        const btn = document.createElement('button');
+        btn.className = 'filter-inline-option';
+        btn.innerText = p.label;
+        btn.onclick = () => doCommit(p.value);
+        presets.appendChild(btn);
+      });
+
+      const inputRow = document.createElement('div');
+      inputRow.className = 'filter-inline-input';
+      inputRow.style.marginTop = '6px';
+
+      const input = document.createElement('input');
+      input.type = 'date';
+      input.className = 'filter-input';
+      input.style.width = '150px';
+      input.value = af.value || fmt(today);
+
+      const confirmBtn = document.createElement('button');
+      confirmBtn.innerText = '✓';
+      confirmBtn.className = 'filter-confirm-btn';
+      const cancelBtn = document.createElement('button');
+      cancelBtn.innerText = '✕';
+      cancelBtn.className = 'filter-cancel-btn';
+
+      confirmBtn.onclick = () => doCommit(input.value);
+      cancelBtn.onclick = () => wrapper.remove();
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter') doCommit(input.value);
+        if (e.key === 'Escape') wrapper.remove();
+      };
+
+      inputRow.appendChild(input);
+      inputRow.appendChild(confirmBtn);
+      inputRow.appendChild(cancelBtn);
+      wrapper.appendChild(presets);
+      wrapper.appendChild(inputRow);
+      chips.appendChild(wrapper);
+      input.focus();
+      return;
+    }
+
+    // Number / Text
+    const wrapper = document.createElement('div');
+    wrapper.className = 'filter-inline-input';
+    const input = document.createElement('input');
+    input.type = def.type === 'number' ? 'number' : 'text';
+    input.placeholder = def.placeholder || def.label;
+    input.className = 'filter-input';
+    input.value = af.value || '';
+    const confirmBtn = document.createElement('button');
+    confirmBtn.innerText = '✓';
+    confirmBtn.className = 'filter-confirm-btn';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.innerText = '✕';
+    cancelBtn.className = 'filter-cancel-btn';
+
+    const doCommit = () => {
+      if (input.value) commit(input.value);
+      wrapper.remove();
+    };
+    const cancel = () => wrapper.remove();
+
+    confirmBtn.onclick = doCommit;
+    cancelBtn.onclick = cancel;
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter') doCommit();
       if (e.key === 'Escape') cancel();
     };
 
@@ -2076,7 +2368,7 @@ function appendSpinHistoryCards(startIndex, endIndex) {
     const hasMaxWin = !!spin.hasMaxWin;
 
     card.innerHTML = `
-      <div class="card-title-v5 ${spin.description ? '' : 'title-empty'}" title="${spin.description ? spin.description.replace(/"/g, '&quot;') : ''}" data-desc-num="${spin.num}">
+      <div class="card-title-v5 ${spin.description ? '' : 'title-empty'}" data-desc="${spin.description ? spin.description.replace(/"/g, '&quot;') : ''}" data-desc-num="${spin.num}">
         <span class="title-text">${spin.description ? truncateMiddle(spin.description, 44) : '+ Add title…'}</span>
       </div>
 
@@ -2406,8 +2698,9 @@ function appendSpinHistoryCards(startIndex, endIndex) {
 
     // Keyboard support for activating the card
     card.onkeydown = (e) => {
-      // Don't intercept if focus is inside a tumble item
+      // Don't intercept if focus is inside a tumble item or text input
       if (document.activeElement.hasAttribute('data-tumble')) return;
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
 
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
@@ -3076,7 +3369,11 @@ const triggerImport = (mode) => {
               maxMultiplier: stats.maxMultiplier,
               fieldMetadata,
               playgroundStats,
-              bookmarked: item.b || item.bookmarked || false
+              bookmarked: item.b || item.bookmarked || false,
+              description: item.description || null,
+              hasGolden: item.hasGolden || false,
+              hasBaseSpin: item.hasBaseSpin || false,
+              hasFreeSpin: item.hasFreeSpin || false,
             }
           };
         }).filter(Boolean);

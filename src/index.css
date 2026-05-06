@@ -420,6 +420,27 @@ select:focus, input:focus {
   border-left-color: var(--bg-accent);
 }
 
+#desc-tooltip {
+  position: fixed;
+  z-index: 99999;
+  background: #1a2235;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 7px;
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  max-width: 300px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  pointer-events: none;
+  display: none;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+}
+#desc-tooltip.visible {
+  display: block;
+}
+
 /* Filters */
 .filter-bar {
   display: flex;
@@ -466,6 +487,9 @@ select:focus, input:focus {
 
 .filter-chip-label { font-weight: 700; color: var(--text-muted); cursor: pointer; }
 .filter-chip-value { color: var(--bg-accent); font-weight: 700; }
+.filter-chip-value.editable { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px; }
+.filter-chip-value.editable:hover { color: #fbbf24; }
+.filter-inline-option.active { background: rgba(245, 158, 11, 0.2); border-color: var(--bg-accent); color: var(--bg-accent); }
 .filter-chip-remove {
   cursor: pointer;
   width: 16px;
