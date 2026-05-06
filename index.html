@@ -331,8 +331,16 @@
                             <select id="gameSelect" style="width: 100%; font-size: 12px; padding: 10px; color: var(--success); background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 8px;"></select>
                         </div>
                         <div>
-                            <label style="display: block; color: #888; font-size: 9px; font-weight: 800; margin-bottom: 4px; text-transform: uppercase;">Backend URL</label>
+                            <label style="display: block; color: #888; font-size: 9px; font-weight: 800; margin-bottom: 6px; text-transform: uppercase;">Backend URL</label>
+                            <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px;">
+                                <button class="backend-preset-btn" data-url="http://localhost:9000" style="font-size: 9px; font-weight: 800; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.05); color: #aaa; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px;">localhost</button>
+                                <button class="backend-preset-btn" data-url="https://letsgo-game-gs1.iki-cit.cc" style="font-size: 9px; font-weight: 800; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.05); color: #aaa; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px;">CIT</button>
+                                <button class="backend-preset-btn" data-url="https://letsgo-game-gs1.iki-qat.cc" style="font-size: 9px; font-weight: 800; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.05); color: #aaa; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px;">QAT</button>
+                                <button class="backend-preset-btn" data-url="https://letsgo-game-gs1.iki-stg.cc" style="font-size: 9px; font-weight: 800; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.05); color: #aaa; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px;">STG</button>
+                                <button class="backend-preset-btn" data-url="https://letsgo-game-gs1.iki-prd.cc" style="font-size: 9px; font-weight: 800; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.05); color: #aaa; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px;">PRD</button>
+                            </div>
                             <input type="text" id="apiUrlInput" placeholder="http://localhost:9000" style="width: 100%; font-size: 12px; padding: 10px; color: var(--bg-accent); background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 8px;">
+                            <div id="backendHealthStatus" style="margin-top: 5px; font-size: 9px; font-weight: 800; min-height: 14px;"></div>
                         </div>
                         <div>
                             <label style="display: block; color: #888; font-size: 9px; font-weight: 800; margin-bottom: 4px; text-transform: uppercase;">Player ID</label>
