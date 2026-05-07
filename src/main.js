@@ -341,7 +341,7 @@ async function checkBackendHealth(url, label = 'custom') {
       headers: { 'Content-Type': 'application/json', 'x-signature': 'rgs-local-signature' },
       body: JSON.stringify({
         gameCode: game?.gameCode || 'LGS-008',
-        id: `healthcheck_test_${label}`,
+        id: 'cascading-game-tester',
         cashBet: '80',
         currencyDec: 2,
         stakes: [{ type: 'commonGame' }],
@@ -614,7 +614,7 @@ saveSettingsBtn.onclick = () => {
   }
   const playerIdInput = document.getElementById('playerIdInput');
   if (playerIdInput) {
-    PLAYER_ID = playerIdInput.value || game.playerId;
+    PLAYER_ID = playerIdInput.value || 'cascading-game-tester';
     localStorage.setItem('player_id', PLAYER_ID);
   }
   // Persist request body so it survives reload
@@ -1538,7 +1538,7 @@ document.querySelectorAll('.resizer').forEach((resizer) => {
 // ── Play Spin (single) ──────────────────────────────────────────────────────
 // ── Backend URL Discovery ───────────────────────────────────────────────────
 let API_URL = localStorage.getItem('api_url') || import.meta.env.VITE_API_URL || 'http://localhost:9000';
-let PLAYER_ID = localStorage.getItem('player_id') || game.playerId;
+let PLAYER_ID = localStorage.getItem('player_id') || 'cascading-game-tester';
 
 async function autoDetectBackend() {
   if (window.location.hostname === 'localhost' && !localStorage.getItem('api_url')) {
