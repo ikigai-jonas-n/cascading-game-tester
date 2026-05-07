@@ -1,13 +1,13 @@
 [
   {
     "title": "1. Rigid Screen (Exact Placement)",
-    "description": "Replicates a perfect 25-symbol screen with 3 Scatters at the beginning to trigger Free Spins.",
-    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"screen\": [\n          \"SCATTER\", \"SCATTER\", \"SCATTER\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\"\n        ]\n      }\n    }\n  }\n}"
+    "description": "Replicates a perfect 25-symbol screen manually without triggering any features.",
+    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"screen\": [\n          \"H2_Grapes\", \"H2_Grapes\", \"H2_Grapes\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\"\n        ]\n      }\n    }\n  }\n}"
   },
   {
-    "title": "2. Loose Symbols (Random Scatters)",
-    "description": "Ensures exactly 3 Scatters are present in the initial screen, placed randomly.",
-    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"SCATTER\", \"count\": 3 }\n        ]\n      }\n    }\n  }\n}"
+    "title": "2. Loose Symbols (Count-based Placement)",
+    "description": "Ensures exactly 6 H1_Watermelon symbols are placed randomly; engine fills the remaining 19 normally.",
+    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Watermelon\", \"count\": 6 }\n        ]\n      }\n    }\n  }\n}"
   },
   {
     "title": "3. H1 Minimum Cluster (5 Symbols)",
