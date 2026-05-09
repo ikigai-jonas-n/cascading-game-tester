@@ -34,8 +34,11 @@
                         <span class="label">Export</span>
                       </button>
                       <div id="exportDropdown" class="dropdown-menu" style="display: none; top: 100%; right: 0;">
-                        <div class="dropdown-item" id="exportFilteredBtn">Export Filtered</div>
+                        <div class="dropdown-item" id="exportFilteredBtn">Export Filtered (Full)</div>
                         <div class="dropdown-item" id="exportAllBtn">Export All (Full)</div>
+                        <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
+                        <div class="dropdown-item" id="exportMappedFilteredBtn" title="Export only PlayRequest and PlayResponse pairs">Mapped JSON (Filtered)</div>
+                        <div class="dropdown-item" id="exportMappedAllBtn" title="Export only PlayRequest and PlayResponse pairs">Mapped JSON (All)</div>
                       </div>
                     </div>
                     <div id="importWrapper" style="display: contents;">

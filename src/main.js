@@ -28,6 +28,11 @@ function switchGame(id) {
   renderGrid(new Array(totalCells).fill(game.emptySymbolId), [], new Set());
 }
 
+// ── Globals ──────────────────────────────────────────────────────────────────
+let API_URL = localStorage.getItem('api_url') || import.meta.env.VITE_API_URL || 'http://localhost:9000';
+let PLAYER_ID = localStorage.getItem('player_id') || 'cascading-game-tester';
+
+
 // ── DOM refs ─────────────────────────────────────────────────────────────────
 const spinBtn = document.getElementById('spinBtn');
 const grid = document.getElementById('grid');
@@ -96,6 +101,8 @@ const exportMenuBtn = document.getElementById('exportMenuBtn');
 const exportDropdown = document.getElementById('exportDropdown');
 const exportFilteredBtn = document.getElementById('exportFilteredBtn');
 const exportAllBtn = document.getElementById('exportAllBtn');
+const exportMappedFilteredBtn = document.getElementById('exportMappedFilteredBtn');
+const exportMappedAllBtn = document.getElementById('exportMappedAllBtn');
 
 if (exportMenuBtn) {
   exportMenuBtn.onclick = (e) => {
@@ -575,16 +582,20 @@ if (quickCheatBtn && quickCheatModal) {
   
   if (clearCheatConfigBtn) {
     clearCheatConfigBtn.onclick = async () => {
-      const configId = typeof PLAYER_ID !== 'undefined' ? PLAYER_ID : game.playerId;
+      const configId = PLAYER_ID;
       const gameCode = game.gameCode;
-      const params = new URLSearchParams({ gameCode, configId });
+      const params = new URLSearchParams({ gameCode, configId, playerId: configId });
       try {
         showLoading('Clearing config...');
+        console.log(`Clearing cheat config for game=${gameCode}, id=${configId}`);
         const response = await fetch(`${API_URL}/v1/test/test-config?${params}`, {
           method: 'DELETE',
           headers: { 'accept': '*/*', 'x-signature': 'rgs-local-signature' },
         });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
+        }
         localStorage.removeItem('test_config');
         if (cheatTemplateSelect) cheatTemplateSelect.value = '';
         if (cheatTemplateDesc) cheatTemplateDesc.style.display = 'none';
@@ -1537,9 +1548,6 @@ document.querySelectorAll('.resizer').forEach((resizer) => {
 
 // ── Play Spin (single) ──────────────────────────────────────────────────────
 // ── Backend URL Discovery ───────────────────────────────────────────────────
-let API_URL = localStorage.getItem('api_url') || import.meta.env.VITE_API_URL || 'http://localhost:9000';
-let PLAYER_ID = localStorage.getItem('player_id') || 'cascading-game-tester';
-
 async function autoDetectBackend() {
   if (window.location.hostname === 'localhost' && !localStorage.getItem('api_url')) {
     try {
@@ -1626,9 +1634,9 @@ async function fireSpinRequest(config) {
 
 function truncateMiddle(str, maxLen = 32) {
   if (!str || str.length <= maxLen) return str;
-  const front = Math.ceil((maxLen - 1) / 2);
-  const end = Math.floor((maxLen - 1) / 2);
-  return str.slice(0, front) + '…' + str.slice(-end);
+  const front = Math.ceil((maxLen - 3) / 2);
+  const end = Math.floor((maxLen - 3) / 2);
+  return str.slice(0, front) + '...' + str.slice(-end);
 }
 
 window.startDescEdit = (num, rowEl) => {
@@ -1695,6 +1703,25 @@ function getSpinStats(fields, wildSymbolId) {
   });
 
   return { goldenTransformed: totalGolden, maxMultiplier };
+}
+
+function getMappedRequest(config) {
+  const playReq = {
+    ...config,
+    gameCode: game.gameCode,
+    id: PLAYER_ID,
+  };
+  const cheatRaw = localStorage.getItem('test_config');
+  let testConfig = null;
+  if (cheatRaw) {
+    try {
+      testConfig = JSON.parse(cheatRaw);
+    } catch (e) {}
+  }
+  return {
+    play: playReq,
+    testConfig: testConfig
+  };
 }
 
 async function playSingleSpin(overrideConfig = null, description = null) {
@@ -1771,6 +1798,7 @@ async function playSingleSpin(overrideConfig = null, description = null) {
     fieldMetadata,
     playgroundStats,
     description: description || null,
+    requestBody: getMappedRequest(config),
   };
 
   // Internal storage is kept detailed for UI performance,
@@ -1857,7 +1885,8 @@ async function playConcurrentBatch(config, batchSize) {
       goldenTransformed: stats.goldenTransformed,
       maxMultiplier: stats.maxMultiplier,
       fieldMetadata,
-      playgroundStats
+      playgroundStats,
+      requestBody: getMappedRequest(config),
     });
   }
 
@@ -3253,6 +3282,24 @@ function getOptimizedData(history) {
 }
 
 // ── Chunked Export ──────────────────────────────────────────────────────────
+async function exportMappedData(dataList, fileName) {
+  showLoading('Preparing mapped export...', 0);
+  
+  const mapped = dataList.map(s => ({
+    request: s.requestBody || {},
+    response: s.rawData || {}
+  }));
+
+  const blob = new Blob([JSON.stringify(mapped, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+  hideLoading();
+}
+
 async function exportDataChunked(dataList, fileName) {
   showLoading('Preparing Export...');
   const chunks = [];
@@ -3299,6 +3346,15 @@ exportFilteredBtn.onclick = () => {
 
 exportAllBtn.onclick = () => {
   exportDataChunked(globalHistory, `slot-all-${game.id}-${new Date().toISOString().slice(0, 10)}.json`);
+};
+
+exportMappedFilteredBtn.onclick = () => {
+  const filtered = applyFilters(globalHistory, activeFilters, game);
+  exportMappedData(filtered, `mapped-filtered-${game.id}-${new Date().toISOString().slice(0, 10)}.json`);
+};
+
+exportMappedAllBtn.onclick = () => {
+  exportMappedData(globalHistory, `mapped-all-${game.id}-${new Date().toISOString().slice(0, 10)}.json`);
 };
 
 // ── Import Handler ───────────────────────────────────────────────────────────
