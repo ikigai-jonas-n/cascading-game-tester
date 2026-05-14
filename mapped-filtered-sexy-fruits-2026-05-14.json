@@ -1,0 +1,5308 @@
+[
+  {
+    "request": {
+      "play": {
+        "betAmount": 20,
+        "cashBet": 20,
+        "currencyDec": 2,
+        "stakes": [
+          {
+            "type": "commonGame"
+          }
+        ],
+        "rtpOption": "RTP_97",
+        "spinMode": "commonGame",
+        "gameCode": "LGS-008",
+        "id": "cascading-game-tester"
+      },
+      "testConfig": {
+        "gameCode": "LGS-008",
+        "configId": "cascading-game-tester",
+        "config": {
+          "baseSpin": {
+            "cascade": {
+              "cascadeConfigs": [
+                {
+                  "growCount": 2
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "response": {
+      "step": {
+        "gamePhases": [
+          {
+            "type": "regular",
+            "coins": "100",
+            "playgrounds": [
+              {
+                "type": "basic",
+                "coins": "100",
+                "fields": [
+                  {
+                    "coins": "100",
+                    "symbols": {
+                      "coins": "100",
+                      "final": [
+                        7,
+                        4,
+                        1,
+                        3,
+                        4,
+                        6,
+                        9,
+                        6,
+                        5,
+                        4,
+                        5,
+                        3,
+                        4,
+                        9,
+                        8,
+                        9,
+                        6,
+                        3,
+                        8,
+                        8,
+                        3,
+                        1,
+                        2,
+                        7,
+                        5
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 9,
+                          "coins": "100",
+                          "oak": 3,
+                          "positions": -1
+                        }
+                      ],
+                      "initial": [
+                        7,
+                        4,
+                        1,
+                        3,
+                        4,
+                        6,
+                        9,
+                        6,
+                        5,
+                        4,
+                        5,
+                        3,
+                        4,
+                        9,
+                        8,
+                        9,
+                        6,
+                        3,
+                        8,
+                        8,
+                        3,
+                        1,
+                        2,
+                        7,
+                        5
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": true,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": true
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "freeSpin",
+            "coins": "144",
+            "playgrounds": [
+              {
+                "type": "basic",
+                "coins": "60",
+                "fields": [
+                  {
+                    "coins": "12",
+                    "symbols": {
+                      "coins": "12",
+                      "final": [
+                        10,
+                        2,
+                        2,
+                        2,
+                        2,
+                        10,
+                        10,
+                        10,
+                        2,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 2,
+                          "coins": "12",
+                          "oak": 5,
+                          "positions": [
+                            1,
+                            2,
+                            3,
+                            8,
+                            4
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        5,
+                        2,
+                        2,
+                        2,
+                        2,
+                        3,
+                        4,
+                        8,
+                        2,
+                        1,
+                        1,
+                        3,
+                        4,
+                        6,
+                        5,
+                        8,
+                        6,
+                        4,
+                        7,
+                        6,
+                        4,
+                        6,
+                        8,
+                        1,
+                        5
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 9,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  },
+                  {
+                    "coins": "16",
+                    "symbols": {
+                      "coins": "16",
+                      "final": [
+                        2,
+                        2,
+                        2,
+                        2,
+                        2,
+                        10,
+                        10,
+                        10,
+                        2,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 2,
+                          "coins": "16",
+                          "oak": 6,
+                          "positions": [
+                            0,
+                            1,
+                            2,
+                            3,
+                            8,
+                            4
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        2,
+                        2,
+                        2,
+                        2,
+                        2,
+                        5,
+                        6,
+                        1,
+                        2,
+                        4,
+                        3,
+                        7,
+                        7,
+                        1,
+                        4,
+                        5,
+                        1,
+                        7,
+                        4,
+                        5,
+                        6,
+                        3,
+                        7,
+                        1,
+                        5
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 9,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 2,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  },
+                  {
+                    "coins": "20",
+                    "symbols": {
+                      "coins": "20",
+                      "final": [
+                        2,
+                        2,
+                        2,
+                        2,
+                        2,
+                        10,
+                        10,
+                        10,
+                        2,
+                        2,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 2,
+                          "coins": "20",
+                          "oak": 7,
+                          "positions": [
+                            0,
+                            1,
+                            2,
+                            3,
+                            8,
+                            4,
+                            9
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        2,
+                        2,
+                        2,
+                        2,
+                        2,
+                        6,
+                        4,
+                        3,
+                        2,
+                        2,
+                        1,
+                        8,
+                        4,
+                        8,
+                        3,
+                        6,
+                        4,
+                        6,
+                        1,
+                        8,
+                        3,
+                        3,
+                        7,
+                        8,
+                        4
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 9,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 3,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  },
+                  {
+                    "coins": "20",
+                    "symbols": {
+                      "coins": "20",
+                      "final": [
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        1,
+                        7,
+                        4,
+                        10,
+                        10,
+                        4,
+                        3,
+                        5,
+                        5,
+                        6,
+                        1,
+                        3,
+                        4,
+                        3,
+                        1,
+                        1,
+                        5,
+                        8,
+                        7,
+                        3
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 2,
+                          "coins": "20",
+                          "oak": 7,
+                          "positions": [
+                            0,
+                            1,
+                            2,
+                            3,
+                            8,
+                            4,
+                            9
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        2,
+                        2,
+                        2,
+                        2,
+                        2,
+                        1,
+                        7,
+                        4,
+                        2,
+                        2,
+                        4,
+                        3,
+                        5,
+                        5,
+                        6,
+                        1,
+                        3,
+                        4,
+                        3,
+                        1,
+                        1,
+                        5,
+                        8,
+                        7,
+                        3
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 9,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 3,
+                      "golden": [],
+                      "isSettle": true
+                    }
+                  },
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        4,
+                        2,
+                        5,
+                        8,
+                        6,
+                        2,
+                        7,
+                        1,
+                        7,
+                        4,
+                        4,
+                        3,
+                        5,
+                        5,
+                        6,
+                        1,
+                        3,
+                        4,
+                        3,
+                        1,
+                        1,
+                        5,
+                        8,
+                        7,
+                        3
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        4,
+                        2,
+                        5,
+                        8,
+                        6,
+                        2,
+                        7,
+                        1,
+                        7,
+                        4,
+                        4,
+                        3,
+                        5,
+                        5,
+                        6,
+                        1,
+                        3,
+                        4,
+                        3,
+                        1,
+                        1,
+                        5,
+                        8,
+                        7,
+                        3
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 9,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 3,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "84",
+                "fields": [
+                  {
+                    "coins": "12",
+                    "symbols": {
+                      "coins": "12",
+                      "final": [
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        2,
+                        2,
+                        10,
+                        2,
+                        2,
+                        2,
+                        10,
+                        10
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 2,
+                          "coins": "12",
+                          "oak": 5,
+                          "positions": [
+                            17,
+                            22,
+                            18,
+                            21,
+                            20
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        8,
+                        8,
+                        7,
+                        3,
+                        8,
+                        1,
+                        4,
+                        4,
+                        7,
+                        4,
+                        3,
+                        1,
+                        8,
+                        1,
+                        4,
+                        5,
+                        3,
+                        2,
+                        2,
+                        5,
+                        2,
+                        2,
+                        2,
+                        6,
+                        5
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 8,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 3,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  },
+                  {
+                    "coins": "12",
+                    "symbols": {
+                      "coins": "12",
+                      "final": [
+                        4,
+                        4,
+                        8,
+                        5,
+                        6,
+                        5,
+                        7,
+                        5,
+                        4,
+                        4,
+                        8,
+                        6,
+                        6,
+                        8,
+                        7,
+                        5,
+                        6,
+                        10,
+                        10,
+                        8,
+                        10,
+                        10,
+                        10,
+                        1,
+                        7
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 2,
+                          "coins": "12",
+                          "oak": 5,
+                          "positions": [
+                            17,
+                            22,
+                            18,
+                            21,
+                            20
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        4,
+                        4,
+                        8,
+                        5,
+                        6,
+                        5,
+                        7,
+                        5,
+                        4,
+                        4,
+                        8,
+                        6,
+                        6,
+                        8,
+                        7,
+                        5,
+                        6,
+                        2,
+                        2,
+                        8,
+                        2,
+                        2,
+                        2,
+                        1,
+                        7
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 8,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 3,
+                      "golden": [],
+                      "isSettle": true
+                    }
+                  },
+                  {
+                    "coins": "12",
+                    "symbols": {
+                      "coins": "12",
+                      "final": [
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        2,
+                        2,
+                        10,
+                        10,
+                        10,
+                        2,
+                        2,
+                        2,
+                        10,
+                        10
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 2,
+                          "coins": "12",
+                          "oak": 5,
+                          "positions": [
+                            15,
+                            20,
+                            16,
+                            21,
+                            22
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        4,
+                        4,
+                        8,
+                        5,
+                        6,
+                        5,
+                        7,
+                        5,
+                        4,
+                        4,
+                        8,
+                        6,
+                        6,
+                        8,
+                        7,
+                        2,
+                        2,
+                        5,
+                        6,
+                        8,
+                        2,
+                        2,
+                        2,
+                        1,
+                        7
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 8,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 4,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  },
+                  {
+                    "coins": "12",
+                    "symbols": {
+                      "coins": "12",
+                      "final": [
+                        1,
+                        7,
+                        1,
+                        6,
+                        8,
+                        6,
+                        7,
+                        8,
+                        4,
+                        4,
+                        5,
+                        4,
+                        8,
+                        7,
+                        3,
+                        10,
+                        10,
+                        6,
+                        4,
+                        5,
+                        10,
+                        10,
+                        10,
+                        3,
+                        3
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 2,
+                          "coins": "12",
+                          "oak": 5,
+                          "positions": [
+                            15,
+                            20,
+                            16,
+                            21,
+                            22
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        1,
+                        7,
+                        1,
+                        6,
+                        8,
+                        6,
+                        7,
+                        8,
+                        4,
+                        4,
+                        5,
+                        4,
+                        8,
+                        7,
+                        3,
+                        2,
+                        2,
+                        6,
+                        4,
+                        5,
+                        2,
+                        2,
+                        2,
+                        3,
+                        3
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 8,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 4,
+                      "golden": [],
+                      "isSettle": true
+                    }
+                  },
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        1,
+                        7,
+                        1,
+                        6,
+                        8,
+                        6,
+                        7,
+                        8,
+                        4,
+                        4,
+                        5,
+                        4,
+                        8,
+                        7,
+                        3,
+                        7,
+                        3,
+                        6,
+                        4,
+                        5,
+                        5,
+                        2,
+                        6,
+                        3,
+                        3
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        1,
+                        7,
+                        1,
+                        6,
+                        8,
+                        6,
+                        7,
+                        8,
+                        4,
+                        4,
+                        5,
+                        4,
+                        8,
+                        7,
+                        3,
+                        7,
+                        3,
+                        6,
+                        4,
+                        5,
+                        5,
+                        2,
+                        6,
+                        3,
+                        3
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 8,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 4,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        3,
+                        6,
+                        6,
+                        4,
+                        8,
+                        8,
+                        7,
+                        5,
+                        2,
+                        6,
+                        3,
+                        4,
+                        5,
+                        5,
+                        6,
+                        7,
+                        3,
+                        3,
+                        8,
+                        5,
+                        1,
+                        4,
+                        7,
+                        1,
+                        2
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        3,
+                        6,
+                        6,
+                        4,
+                        8,
+                        8,
+                        7,
+                        5,
+                        2,
+                        6,
+                        3,
+                        4,
+                        5,
+                        5,
+                        6,
+                        7,
+                        3,
+                        3,
+                        8,
+                        5,
+                        1,
+                        4,
+                        7,
+                        1,
+                        2
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 7,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 4,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        6,
+                        6,
+                        1,
+                        7,
+                        8,
+                        8,
+                        7,
+                        3,
+                        5,
+                        2,
+                        2,
+                        1,
+                        5,
+                        2,
+                        7,
+                        4,
+                        3,
+                        3,
+                        2,
+                        4,
+                        3,
+                        5,
+                        1,
+                        5,
+                        8
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        6,
+                        6,
+                        1,
+                        7,
+                        8,
+                        8,
+                        7,
+                        3,
+                        5,
+                        2,
+                        2,
+                        1,
+                        5,
+                        2,
+                        7,
+                        4,
+                        3,
+                        3,
+                        2,
+                        4,
+                        3,
+                        5,
+                        1,
+                        5,
+                        8
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 6,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 4,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        3,
+                        5,
+                        5,
+                        7,
+                        6,
+                        8,
+                        7,
+                        8,
+                        7,
+                        8,
+                        3,
+                        1,
+                        4,
+                        6,
+                        1,
+                        6,
+                        3,
+                        8,
+                        2,
+                        6,
+                        7,
+                        1,
+                        5,
+                        5,
+                        1
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        3,
+                        5,
+                        5,
+                        7,
+                        6,
+                        8,
+                        7,
+                        8,
+                        7,
+                        8,
+                        3,
+                        1,
+                        4,
+                        6,
+                        1,
+                        6,
+                        3,
+                        8,
+                        2,
+                        6,
+                        7,
+                        1,
+                        5,
+                        5,
+                        1
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 5,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 4,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        4,
+                        5,
+                        1,
+                        1,
+                        7,
+                        8,
+                        1,
+                        6,
+                        4,
+                        4,
+                        2,
+                        1,
+                        3,
+                        4,
+                        6,
+                        5,
+                        5,
+                        6,
+                        2,
+                        3,
+                        6,
+                        5,
+                        8,
+                        2,
+                        3
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        4,
+                        5,
+                        1,
+                        1,
+                        7,
+                        8,
+                        1,
+                        6,
+                        4,
+                        4,
+                        2,
+                        1,
+                        3,
+                        4,
+                        6,
+                        5,
+                        5,
+                        6,
+                        2,
+                        3,
+                        6,
+                        5,
+                        8,
+                        2,
+                        3
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 4,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 4,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        2,
+                        8,
+                        3,
+                        8,
+                        6,
+                        6,
+                        1,
+                        1,
+                        4,
+                        7,
+                        7,
+                        3,
+                        6,
+                        3,
+                        3,
+                        1,
+                        4,
+                        8,
+                        4,
+                        5,
+                        7,
+                        7,
+                        5,
+                        8,
+                        1
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        2,
+                        8,
+                        3,
+                        8,
+                        6,
+                        6,
+                        1,
+                        1,
+                        4,
+                        7,
+                        7,
+                        3,
+                        6,
+                        3,
+                        3,
+                        1,
+                        4,
+                        8,
+                        4,
+                        5,
+                        7,
+                        7,
+                        5,
+                        8,
+                        1
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 3,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 4,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        3,
+                        5,
+                        6,
+                        1,
+                        5,
+                        2,
+                        8,
+                        7,
+                        5,
+                        2,
+                        3,
+                        3,
+                        8,
+                        7,
+                        2,
+                        5,
+                        1,
+                        1,
+                        3,
+                        8,
+                        7,
+                        8,
+                        2,
+                        7,
+                        6
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        3,
+                        5,
+                        6,
+                        1,
+                        5,
+                        2,
+                        8,
+                        7,
+                        5,
+                        2,
+                        3,
+                        3,
+                        8,
+                        7,
+                        2,
+                        5,
+                        1,
+                        1,
+                        3,
+                        8,
+                        7,
+                        8,
+                        2,
+                        7,
+                        6
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 2,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 4,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        3,
+                        8,
+                        3,
+                        2,
+                        8,
+                        7,
+                        1,
+                        8,
+                        6,
+                        6,
+                        8,
+                        4,
+                        2,
+                        4,
+                        6,
+                        7,
+                        3,
+                        5,
+                        1,
+                        5,
+                        4,
+                        7,
+                        5,
+                        7,
+                        3
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        3,
+                        8,
+                        3,
+                        2,
+                        8,
+                        7,
+                        1,
+                        8,
+                        6,
+                        6,
+                        8,
+                        4,
+                        2,
+                        4,
+                        6,
+                        7,
+                        3,
+                        5,
+                        1,
+                        5,
+                        4,
+                        7,
+                        5,
+                        7,
+                        3
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 1,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 4,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        6,
+                        1,
+                        2,
+                        1,
+                        2,
+                        8,
+                        7,
+                        8,
+                        6,
+                        5,
+                        4,
+                        1,
+                        4,
+                        5,
+                        6,
+                        6,
+                        4,
+                        8,
+                        5,
+                        8,
+                        2,
+                        1,
+                        5,
+                        2,
+                        4
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        6,
+                        1,
+                        2,
+                        1,
+                        2,
+                        8,
+                        7,
+                        8,
+                        6,
+                        5,
+                        4,
+                        1,
+                        4,
+                        5,
+                        6,
+                        6,
+                        4,
+                        8,
+                        5,
+                        8,
+                        2,
+                        1,
+                        5,
+                        2,
+                        4
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 0,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 4,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "coins": "244",
+          "hasMaxWin": false
+        }
+      },
+      "rng": {},
+      "finished": true,
+      "meta": {
+        "private": {
+          "decimalPlace": 2,
+          "baseGameWin": "100",
+          "isCheatTriggered": true
+        },
+        "public": {
+          "betAmount": "20",
+          "spinMode": "commonGame",
+          "freeSpinWin": "144"
+        }
+      },
+      "choices": [],
+      "roundTags": [
+        "regular"
+      ]
+    }
+  },
+  {
+    "request": {
+      "play": {
+        "betAmount": 20,
+        "cashBet": 20,
+        "currencyDec": 2,
+        "stakes": [
+          {
+            "type": "commonGame"
+          }
+        ],
+        "rtpOption": "RTP_97",
+        "spinMode": "commonGame",
+        "gameCode": "LGS-008",
+        "id": "cascading-game-tester"
+      },
+      "testConfig": {
+        "gameCode": "LGS-008",
+        "configId": "cascading-game-tester",
+        "config": {
+          "baseSpin": {
+            "cascade": {
+              "cascadeConfigs": [
+                {
+                  "growCount": 2
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "response": {
+      "step": {
+        "gamePhases": [
+          {
+            "type": "regular",
+            "coins": "100",
+            "playgrounds": [
+              {
+                "type": "basic",
+                "coins": "100",
+                "fields": [
+                  {
+                    "coins": "100",
+                    "symbols": {
+                      "coins": "100",
+                      "final": [
+                        2,
+                        9,
+                        3,
+                        4,
+                        8,
+                        3,
+                        3,
+                        6,
+                        5,
+                        2,
+                        3,
+                        7,
+                        5,
+                        8,
+                        6,
+                        5,
+                        2,
+                        4,
+                        8,
+                        5,
+                        6,
+                        1,
+                        4,
+                        9,
+                        9
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 9,
+                          "coins": "100",
+                          "oak": 3,
+                          "positions": -1
+                        }
+                      ],
+                      "initial": [
+                        2,
+                        9,
+                        3,
+                        4,
+                        8,
+                        3,
+                        3,
+                        6,
+                        5,
+                        2,
+                        3,
+                        7,
+                        5,
+                        8,
+                        6,
+                        5,
+                        2,
+                        4,
+                        8,
+                        5,
+                        6,
+                        1,
+                        4,
+                        9,
+                        9
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": true,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": true
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "freeSpin",
+            "coins": "100",
+            "playgrounds": [
+              {
+                "type": "basic",
+                "coins": "100",
+                "fields": [
+                  {
+                    "coins": "100",
+                    "symbols": {
+                      "coins": "100",
+                      "final": [
+                        5,
+                        6,
+                        2,
+                        8,
+                        8,
+                        3,
+                        4,
+                        1,
+                        4,
+                        2,
+                        2,
+                        8,
+                        1,
+                        1,
+                        5,
+                        4,
+                        9,
+                        4,
+                        3,
+                        8,
+                        1,
+                        9,
+                        9,
+                        3,
+                        7
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 9,
+                          "coins": "100",
+                          "oak": 3,
+                          "positions": -1
+                        }
+                      ],
+                      "initial": [
+                        5,
+                        6,
+                        2,
+                        8,
+                        8,
+                        3,
+                        4,
+                        1,
+                        4,
+                        2,
+                        2,
+                        8,
+                        1,
+                        1,
+                        5,
+                        4,
+                        9,
+                        4,
+                        3,
+                        8,
+                        1,
+                        9,
+                        9,
+                        3,
+                        7
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 14,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": true
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        2,
+                        2,
+                        5,
+                        5,
+                        1,
+                        3,
+                        5,
+                        1,
+                        3,
+                        7,
+                        7,
+                        3,
+                        7,
+                        8,
+                        6,
+                        6,
+                        2,
+                        1,
+                        2,
+                        5,
+                        1,
+                        3,
+                        6,
+                        4,
+                        6
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        2,
+                        2,
+                        5,
+                        5,
+                        1,
+                        3,
+                        5,
+                        1,
+                        3,
+                        7,
+                        7,
+                        3,
+                        7,
+                        8,
+                        6,
+                        6,
+                        2,
+                        1,
+                        2,
+                        5,
+                        1,
+                        3,
+                        6,
+                        4,
+                        6
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 13,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        2,
+                        1,
+                        3,
+                        6,
+                        1,
+                        1,
+                        4,
+                        3,
+                        4,
+                        2,
+                        2,
+                        3,
+                        4,
+                        7,
+                        7,
+                        8,
+                        1,
+                        7,
+                        8,
+                        2,
+                        6,
+                        8,
+                        7,
+                        5,
+                        4
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        2,
+                        1,
+                        3,
+                        6,
+                        1,
+                        1,
+                        4,
+                        3,
+                        4,
+                        2,
+                        2,
+                        3,
+                        4,
+                        7,
+                        7,
+                        8,
+                        1,
+                        7,
+                        8,
+                        2,
+                        6,
+                        8,
+                        7,
+                        5,
+                        4
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 12,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        2,
+                        5,
+                        7,
+                        1,
+                        5,
+                        5,
+                        2,
+                        3,
+                        7,
+                        4,
+                        1,
+                        3,
+                        2,
+                        3,
+                        3,
+                        7,
+                        7,
+                        5,
+                        2,
+                        6,
+                        8,
+                        1,
+                        6,
+                        6,
+                        8
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        2,
+                        5,
+                        7,
+                        1,
+                        5,
+                        5,
+                        2,
+                        3,
+                        7,
+                        4,
+                        1,
+                        3,
+                        2,
+                        3,
+                        3,
+                        7,
+                        7,
+                        5,
+                        2,
+                        6,
+                        8,
+                        1,
+                        6,
+                        6,
+                        8
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 11,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        8,
+                        5,
+                        7,
+                        2,
+                        5,
+                        1,
+                        6,
+                        1,
+                        6,
+                        7,
+                        2,
+                        1,
+                        1,
+                        6,
+                        6,
+                        3,
+                        5,
+                        8,
+                        5,
+                        3,
+                        7,
+                        7,
+                        4,
+                        3,
+                        8
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        8,
+                        5,
+                        7,
+                        2,
+                        5,
+                        1,
+                        6,
+                        1,
+                        6,
+                        7,
+                        2,
+                        1,
+                        1,
+                        6,
+                        6,
+                        3,
+                        5,
+                        8,
+                        5,
+                        3,
+                        7,
+                        7,
+                        4,
+                        3,
+                        8
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 10,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        1,
+                        7,
+                        6,
+                        7,
+                        4,
+                        8,
+                        4,
+                        4,
+                        1,
+                        8,
+                        3,
+                        2,
+                        2,
+                        4,
+                        6,
+                        3,
+                        2,
+                        3,
+                        6,
+                        1,
+                        1,
+                        6,
+                        5,
+                        8,
+                        8
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        1,
+                        7,
+                        6,
+                        7,
+                        4,
+                        8,
+                        4,
+                        4,
+                        1,
+                        8,
+                        3,
+                        2,
+                        2,
+                        4,
+                        6,
+                        3,
+                        2,
+                        3,
+                        6,
+                        1,
+                        1,
+                        6,
+                        5,
+                        8,
+                        8
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 9,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        5,
+                        8,
+                        1,
+                        4,
+                        8,
+                        2,
+                        3,
+                        4,
+                        5,
+                        3,
+                        2,
+                        6,
+                        2,
+                        1,
+                        2,
+                        8,
+                        4,
+                        1,
+                        8,
+                        7,
+                        6,
+                        3,
+                        3,
+                        1,
+                        7
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        5,
+                        8,
+                        1,
+                        4,
+                        8,
+                        2,
+                        3,
+                        4,
+                        5,
+                        3,
+                        2,
+                        6,
+                        2,
+                        1,
+                        2,
+                        8,
+                        4,
+                        1,
+                        8,
+                        7,
+                        6,
+                        3,
+                        3,
+                        1,
+                        7
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 8,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        4,
+                        6,
+                        5,
+                        5,
+                        8,
+                        6,
+                        3,
+                        2,
+                        3,
+                        5,
+                        7,
+                        6,
+                        3,
+                        5,
+                        2,
+                        4,
+                        1,
+                        4,
+                        8,
+                        6,
+                        1,
+                        8,
+                        1,
+                        4,
+                        1
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        4,
+                        6,
+                        5,
+                        5,
+                        8,
+                        6,
+                        3,
+                        2,
+                        3,
+                        5,
+                        7,
+                        6,
+                        3,
+                        5,
+                        2,
+                        4,
+                        1,
+                        4,
+                        8,
+                        6,
+                        1,
+                        8,
+                        1,
+                        4,
+                        1
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 7,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        3,
+                        1,
+                        7,
+                        3,
+                        2,
+                        6,
+                        7,
+                        2,
+                        8,
+                        4,
+                        6,
+                        3,
+                        2,
+                        4,
+                        4,
+                        5,
+                        6,
+                        1,
+                        2,
+                        3,
+                        5,
+                        4,
+                        7,
+                        5,
+                        6
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        3,
+                        1,
+                        7,
+                        3,
+                        2,
+                        6,
+                        7,
+                        2,
+                        8,
+                        4,
+                        6,
+                        3,
+                        2,
+                        4,
+                        4,
+                        5,
+                        6,
+                        1,
+                        2,
+                        3,
+                        5,
+                        4,
+                        7,
+                        5,
+                        6
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 6,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        7,
+                        3,
+                        3,
+                        6,
+                        2,
+                        8,
+                        3,
+                        1,
+                        5,
+                        5,
+                        6,
+                        6,
+                        5,
+                        2,
+                        5,
+                        1,
+                        4,
+                        4,
+                        8,
+                        2,
+                        1,
+                        4,
+                        7,
+                        7,
+                        4
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        7,
+                        3,
+                        3,
+                        6,
+                        2,
+                        8,
+                        3,
+                        1,
+                        5,
+                        5,
+                        6,
+                        6,
+                        5,
+                        2,
+                        5,
+                        1,
+                        4,
+                        4,
+                        8,
+                        2,
+                        1,
+                        4,
+                        7,
+                        7,
+                        4
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 5,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        8,
+                        8,
+                        5,
+                        5,
+                        4,
+                        7,
+                        5,
+                        3,
+                        2,
+                        6,
+                        2,
+                        6,
+                        3,
+                        7,
+                        3,
+                        7,
+                        3,
+                        6,
+                        4,
+                        1,
+                        7,
+                        5,
+                        8,
+                        2,
+                        2
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        8,
+                        8,
+                        5,
+                        5,
+                        4,
+                        7,
+                        5,
+                        3,
+                        2,
+                        6,
+                        2,
+                        6,
+                        3,
+                        7,
+                        3,
+                        7,
+                        3,
+                        6,
+                        4,
+                        1,
+                        7,
+                        5,
+                        8,
+                        2,
+                        2
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 4,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        1,
+                        4,
+                        2,
+                        1,
+                        2,
+                        3,
+                        1,
+                        5,
+                        8,
+                        7,
+                        5,
+                        6,
+                        3,
+                        2,
+                        5,
+                        7,
+                        3,
+                        4,
+                        7,
+                        7,
+                        1,
+                        2,
+                        3,
+                        8,
+                        8
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        1,
+                        4,
+                        2,
+                        1,
+                        2,
+                        3,
+                        1,
+                        5,
+                        8,
+                        7,
+                        5,
+                        6,
+                        3,
+                        2,
+                        5,
+                        7,
+                        3,
+                        4,
+                        7,
+                        7,
+                        1,
+                        2,
+                        3,
+                        8,
+                        8
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 3,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        1,
+                        5,
+                        6,
+                        1,
+                        5,
+                        5,
+                        7,
+                        2,
+                        4,
+                        3,
+                        2,
+                        3,
+                        8,
+                        2,
+                        6,
+                        8,
+                        4,
+                        6,
+                        3,
+                        3,
+                        8,
+                        6,
+                        7,
+                        2,
+                        4
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        1,
+                        5,
+                        6,
+                        1,
+                        5,
+                        5,
+                        7,
+                        2,
+                        4,
+                        3,
+                        2,
+                        3,
+                        8,
+                        2,
+                        6,
+                        8,
+                        4,
+                        6,
+                        3,
+                        3,
+                        8,
+                        6,
+                        7,
+                        2,
+                        4
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 2,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        6,
+                        7,
+                        6,
+                        7,
+                        3,
+                        4,
+                        8,
+                        2,
+                        3,
+                        7,
+                        2,
+                        5,
+                        3,
+                        1,
+                        6,
+                        1,
+                        1,
+                        8,
+                        1,
+                        2,
+                        7,
+                        4,
+                        5,
+                        3,
+                        2
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        6,
+                        7,
+                        6,
+                        7,
+                        3,
+                        4,
+                        8,
+                        2,
+                        3,
+                        7,
+                        2,
+                        5,
+                        3,
+                        1,
+                        6,
+                        1,
+                        1,
+                        8,
+                        1,
+                        2,
+                        7,
+                        4,
+                        5,
+                        3,
+                        2
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 1,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "basic",
+                "coins": "0",
+                "fields": [
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        7,
+                        8,
+                        4,
+                        8,
+                        3,
+                        6,
+                        1,
+                        8,
+                        7,
+                        4,
+                        6,
+                        4,
+                        1,
+                        3,
+                        2,
+                        5,
+                        5,
+                        7,
+                        5,
+                        2,
+                        1,
+                        8,
+                        3,
+                        4,
+                        3
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        7,
+                        8,
+                        4,
+                        8,
+                        3,
+                        6,
+                        1,
+                        8,
+                        7,
+                        4,
+                        6,
+                        4,
+                        1,
+                        3,
+                        2,
+                        5,
+                        5,
+                        7,
+                        5,
+                        2,
+                        1,
+                        8,
+                        3,
+                        4,
+                        3
+                      ]
+                    },
+                    "features": {
+                      "freeSpins": 0,
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "coins": "200",
+          "hasMaxWin": false
+        }
+      },
+      "rng": {},
+      "finished": true,
+      "meta": {
+        "private": {
+          "decimalPlace": 2,
+          "baseGameWin": "100",
+          "isCheatTriggered": true
+        },
+        "public": {
+          "betAmount": "20",
+          "spinMode": "commonGame",
+          "freeSpinWin": "100"
+        }
+      },
+      "choices": [],
+      "roundTags": [
+        "regular"
+      ]
+    }
+  },
+  {
+    "request": {
+      "play": {
+        "betAmount": 20,
+        "cashBet": 20,
+        "currencyDec": 2,
+        "stakes": [
+          {
+            "type": "commonGame"
+          }
+        ],
+        "rtpOption": "RTP_97",
+        "spinMode": "commonGame",
+        "gameCode": "LGS-008",
+        "id": "cascading-game-tester"
+      },
+      "testConfig": {
+        "gameCode": "LGS-008",
+        "configId": "cascading-game-tester",
+        "config": {
+          "baseSpin": {
+            "cascade": {
+              "cascadeConfigs": [
+                {
+                  "growCount": 2
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "response": {
+      "step": {
+        "gamePhases": [
+          {
+            "type": "regular",
+            "coins": "164",
+            "playgrounds": [
+              {
+                "type": "basic",
+                "coins": "164",
+                "fields": [
+                  {
+                    "coins": "120",
+                    "symbols": {
+                      "coins": "120",
+                      "final": [
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        0,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 8,
+                          "coins": "100",
+                          "oak": 19,
+                          "positions": [
+                            0,
+                            1,
+                            2,
+                            3,
+                            8,
+                            4,
+                            13,
+                            9,
+                            18,
+                            14,
+                            23,
+                            19,
+                            17,
+                            24,
+                            22,
+                            16,
+                            21,
+                            15,
+                            20
+                          ]
+                        },
+                        {
+                          "symbol": 1,
+                          "coins": "20",
+                          "oak": 6,
+                          "positions": [
+                            5,
+                            10,
+                            6,
+                            11,
+                            7,
+                            12
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        1,
+                        1,
+                        1,
+                        8,
+                        8,
+                        1,
+                        1,
+                        1,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [
+                        12
+                      ],
+                      "isSettle": true
+                    }
+                  },
+                  {
+                    "coins": "22",
+                    "symbols": {
+                      "coins": "22",
+                      "final": [
+                        10,
+                        10,
+                        10,
+                        5,
+                        10,
+                        10,
+                        5,
+                        5,
+                        5,
+                        10,
+                        1,
+                        1,
+                        0,
+                        10,
+                        10,
+                        10,
+                        1,
+                        1,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 5,
+                          "coins": "6",
+                          "oak": 5,
+                          "positions": [
+                            3,
+                            8,
+                            7,
+                            12,
+                            6
+                          ]
+                        },
+                        {
+                          "symbol": 1,
+                          "coins": "16",
+                          "oak": 5,
+                          "positions": [
+                            10,
+                            11,
+                            16,
+                            12,
+                            17
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        7,
+                        6,
+                        8,
+                        5,
+                        2,
+                        4,
+                        5,
+                        5,
+                        5,
+                        2,
+                        1,
+                        1,
+                        0,
+                        6,
+                        7,
+                        7,
+                        1,
+                        1,
+                        7,
+                        6,
+                        4,
+                        8,
+                        4,
+                        4,
+                        6
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 2,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  },
+                  {
+                    "coins": "22",
+                    "symbols": {
+                      "coins": "22",
+                      "final": [
+                        8,
+                        3,
+                        6,
+                        10,
+                        2,
+                        4,
+                        10,
+                        10,
+                        10,
+                        4,
+                        10,
+                        10,
+                        10,
+                        8,
+                        4,
+                        6,
+                        10,
+                        10,
+                        2,
+                        7,
+                        4,
+                        7,
+                        3,
+                        3,
+                        2
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 5,
+                          "coins": "6",
+                          "oak": 5,
+                          "positions": [
+                            3,
+                            8,
+                            7,
+                            12,
+                            6
+                          ]
+                        },
+                        {
+                          "symbol": 1,
+                          "coins": "16",
+                          "oak": 5,
+                          "positions": [
+                            10,
+                            11,
+                            16,
+                            12,
+                            17
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        8,
+                        3,
+                        6,
+                        5,
+                        2,
+                        4,
+                        5,
+                        5,
+                        5,
+                        4,
+                        1,
+                        1,
+                        0,
+                        8,
+                        4,
+                        6,
+                        1,
+                        1,
+                        2,
+                        7,
+                        4,
+                        7,
+                        3,
+                        3,
+                        2
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 2,
+                      "golden": [],
+                      "isSettle": true
+                    }
+                  },
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        3,
+                        8,
+                        3,
+                        6,
+                        2,
+                        5,
+                        6,
+                        7,
+                        4,
+                        4,
+                        2,
+                        1,
+                        8,
+                        8,
+                        4,
+                        5,
+                        1,
+                        6,
+                        2,
+                        7,
+                        4,
+                        7,
+                        3,
+                        3,
+                        2
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        3,
+                        8,
+                        3,
+                        6,
+                        2,
+                        5,
+                        6,
+                        7,
+                        4,
+                        4,
+                        2,
+                        1,
+                        8,
+                        8,
+                        4,
+                        5,
+                        1,
+                        6,
+                        2,
+                        7,
+                        4,
+                        7,
+                        3,
+                        3,
+                        2
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 2,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "coins": "164",
+          "hasMaxWin": false
+        }
+      },
+      "rng": {},
+      "finished": true,
+      "meta": {
+        "private": {
+          "decimalPlace": 2,
+          "baseGameWin": "164",
+          "isCheatTriggered": true
+        },
+        "public": {
+          "betAmount": "20",
+          "spinMode": "commonGame",
+          "baseGameWin": "164"
+        }
+      },
+      "choices": [],
+      "roundTags": [
+        "regular"
+      ]
+    }
+  },
+  {
+    "request": {
+      "play": {
+        "betAmount": 20,
+        "cashBet": 20,
+        "currencyDec": 2,
+        "stakes": [
+          {
+            "type": "commonGame"
+          }
+        ],
+        "rtpOption": "RTP_97",
+        "spinMode": "commonGame",
+        "gameCode": "LGS-008",
+        "id": "cascading-game-tester"
+      },
+      "testConfig": {
+        "gameCode": "LGS-008",
+        "configId": "cascading-game-tester",
+        "config": {
+          "baseSpin": {
+            "cascade": {
+              "cascadeConfigs": [
+                {
+                  "growCount": 2
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "response": {
+      "step": {
+        "gamePhases": [
+          {
+            "type": "regular",
+            "coins": "120",
+            "playgrounds": [
+              {
+                "type": "basic",
+                "coins": "120",
+                "fields": [
+                  {
+                    "coins": "120",
+                    "symbols": {
+                      "coins": "120",
+                      "final": [
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        0,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 8,
+                          "coins": "100",
+                          "oak": 19,
+                          "positions": [
+                            0,
+                            1,
+                            2,
+                            3,
+                            8,
+                            4,
+                            13,
+                            9,
+                            18,
+                            14,
+                            23,
+                            19,
+                            17,
+                            24,
+                            22,
+                            16,
+                            21,
+                            15,
+                            20
+                          ]
+                        },
+                        {
+                          "symbol": 1,
+                          "coins": "20",
+                          "oak": 6,
+                          "positions": [
+                            5,
+                            10,
+                            6,
+                            11,
+                            7,
+                            12
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        1,
+                        1,
+                        1,
+                        8,
+                        8,
+                        1,
+                        1,
+                        1,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [
+                        12
+                      ],
+                      "isSettle": true
+                    }
+                  },
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        8,
+                        6,
+                        6,
+                        8,
+                        1,
+                        2,
+                        5,
+                        5,
+                        1,
+                        4,
+                        5,
+                        7,
+                        0,
+                        4,
+                        3,
+                        3,
+                        6,
+                        8,
+                        2,
+                        3,
+                        8,
+                        3,
+                        7,
+                        6,
+                        4
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        8,
+                        6,
+                        6,
+                        8,
+                        1,
+                        2,
+                        5,
+                        5,
+                        1,
+                        4,
+                        5,
+                        7,
+                        0,
+                        4,
+                        3,
+                        3,
+                        6,
+                        8,
+                        2,
+                        3,
+                        8,
+                        3,
+                        7,
+                        6,
+                        4
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "coins": "120",
+          "hasMaxWin": false
+        }
+      },
+      "rng": {},
+      "finished": true,
+      "meta": {
+        "private": {
+          "decimalPlace": 2,
+          "baseGameWin": "120",
+          "isCheatTriggered": true
+        },
+        "public": {
+          "betAmount": "20",
+          "spinMode": "commonGame",
+          "baseGameWin": "120"
+        }
+      },
+      "choices": [],
+      "roundTags": [
+        "regular"
+      ]
+    }
+  },
+  {
+    "request": {
+      "play": {
+        "betAmount": 20,
+        "cashBet": 20,
+        "currencyDec": 2,
+        "stakes": [
+          {
+            "type": "commonGame"
+          }
+        ],
+        "rtpOption": "RTP_97",
+        "spinMode": "commonGame",
+        "gameCode": "LGS-008",
+        "id": "cascading-game-tester"
+      },
+      "testConfig": {
+        "gameCode": "LGS-008",
+        "configId": "cascading-game-tester",
+        "config": {
+          "baseSpin": {
+            "cascade": {
+              "cascadeConfigs": [
+                {
+                  "growCount": 2
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "response": {
+      "step": {
+        "gamePhases": [
+          {
+            "type": "regular",
+            "coins": "60",
+            "playgrounds": [
+              {
+                "type": "basic",
+                "coins": "60",
+                "fields": [
+                  {
+                    "coins": "12",
+                    "symbols": {
+                      "coins": "12",
+                      "final": [
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        2,
+                        10,
+                        10,
+                        10,
+                        10,
+                        2,
+                        10,
+                        10,
+                        10,
+                        10,
+                        2,
+                        2,
+                        2
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 2,
+                          "coins": "12",
+                          "oak": 5,
+                          "positions": [
+                            12,
+                            17,
+                            22,
+                            23,
+                            24
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        1,
+                        5,
+                        6,
+                        6,
+                        4,
+                        5,
+                        8,
+                        8,
+                        4,
+                        3,
+                        6,
+                        4,
+                        2,
+                        4,
+                        8,
+                        7,
+                        8,
+                        2,
+                        6,
+                        1,
+                        1,
+                        1,
+                        2,
+                        2,
+                        2
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  },
+                  {
+                    "coins": "16",
+                    "symbols": {
+                      "coins": "16",
+                      "final": [
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        2,
+                        2,
+                        10,
+                        10,
+                        10,
+                        2,
+                        10,
+                        10,
+                        10,
+                        10,
+                        2,
+                        2,
+                        2
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 2,
+                          "coins": "16",
+                          "oak": 6,
+                          "positions": [
+                            12,
+                            17,
+                            13,
+                            22,
+                            23,
+                            24
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        4,
+                        5,
+                        5,
+                        1,
+                        3,
+                        6,
+                        8,
+                        6,
+                        3,
+                        6,
+                        4,
+                        8,
+                        2,
+                        2,
+                        8,
+                        3,
+                        4,
+                        2,
+                        4,
+                        5,
+                        3,
+                        8,
+                        2,
+                        2,
+                        2
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 2,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  },
+                  {
+                    "coins": "20",
+                    "symbols": {
+                      "coins": "20",
+                      "final": [
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        2,
+                        2,
+                        2,
+                        10,
+                        10,
+                        10,
+                        2,
+                        10,
+                        10,
+                        10,
+                        10,
+                        2,
+                        2,
+                        2
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 2,
+                          "coins": "20",
+                          "oak": 7,
+                          "positions": [
+                            11,
+                            12,
+                            17,
+                            13,
+                            22,
+                            23,
+                            24
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        8,
+                        4,
+                        3,
+                        6,
+                        4,
+                        7,
+                        8,
+                        5,
+                        1,
+                        3,
+                        6,
+                        2,
+                        2,
+                        2,
+                        6,
+                        5,
+                        3,
+                        2,
+                        6,
+                        8,
+                        1,
+                        8,
+                        2,
+                        2,
+                        2
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 3,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  },
+                  {
+                    "coins": "20",
+                    "symbols": {
+                      "coins": "20",
+                      "final": [
+                        3,
+                        4,
+                        7,
+                        5,
+                        6,
+                        8,
+                        8,
+                        5,
+                        7,
+                        1,
+                        3,
+                        10,
+                        10,
+                        10,
+                        6,
+                        6,
+                        5,
+                        10,
+                        5,
+                        7,
+                        4,
+                        8,
+                        10,
+                        10,
+                        10
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 2,
+                          "coins": "20",
+                          "oak": 7,
+                          "positions": [
+                            11,
+                            12,
+                            17,
+                            13,
+                            22,
+                            23,
+                            24
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        3,
+                        4,
+                        7,
+                        5,
+                        6,
+                        8,
+                        8,
+                        5,
+                        7,
+                        1,
+                        3,
+                        2,
+                        2,
+                        2,
+                        6,
+                        6,
+                        5,
+                        2,
+                        5,
+                        7,
+                        4,
+                        8,
+                        2,
+                        2,
+                        2
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 3,
+                      "golden": [],
+                      "isSettle": true
+                    }
+                  },
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        3,
+                        4,
+                        7,
+                        5,
+                        6,
+                        8,
+                        8,
+                        5,
+                        7,
+                        1,
+                        4,
+                        1,
+                        1,
+                        3,
+                        6,
+                        3,
+                        6,
+                        5,
+                        5,
+                        7,
+                        8,
+                        1,
+                        3,
+                        4,
+                        8
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        3,
+                        4,
+                        7,
+                        5,
+                        6,
+                        8,
+                        8,
+                        5,
+                        7,
+                        1,
+                        4,
+                        1,
+                        1,
+                        3,
+                        6,
+                        3,
+                        6,
+                        5,
+                        5,
+                        7,
+                        8,
+                        1,
+                        3,
+                        4,
+                        8
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 3,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "coins": "60",
+          "hasMaxWin": false
+        }
+      },
+      "rng": {},
+      "finished": true,
+      "meta": {
+        "private": {
+          "decimalPlace": 2,
+          "baseGameWin": "60",
+          "isCheatTriggered": true
+        },
+        "public": {
+          "betAmount": "20",
+          "spinMode": "commonGame",
+          "baseGameWin": "60"
+        }
+      },
+      "choices": [],
+      "roundTags": [
+        "regular"
+      ]
+    }
+  },
+  {
+    "request": {
+      "play": {
+        "betAmount": 20,
+        "cashBet": 20,
+        "currencyDec": 2,
+        "stakes": [
+          {
+            "type": "commonGame"
+          }
+        ],
+        "rtpOption": "RTP_97",
+        "spinMode": "commonGame",
+        "gameCode": "LGS-008",
+        "id": "cascading-game-tester"
+      },
+      "testConfig": {
+        "gameCode": "LGS-008",
+        "configId": "cascading-game-tester",
+        "config": {
+          "baseSpin": {
+            "cascade": {
+              "cascadeConfigs": [
+                {
+                  "growCount": 2
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "response": {
+      "step": {
+        "gamePhases": [
+          {
+            "type": "regular",
+            "coins": "20",
+            "playgrounds": [
+              {
+                "type": "basic",
+                "coins": "20",
+                "fields": [
+                  {
+                    "coins": "12",
+                    "symbols": {
+                      "coins": "12",
+                      "final": [
+                        10,
+                        2,
+                        2,
+                        10,
+                        10,
+                        10,
+                        10,
+                        2,
+                        2,
+                        2,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 2,
+                          "coins": "12",
+                          "oak": 5,
+                          "positions": [
+                            1,
+                            2,
+                            7,
+                            8,
+                            9
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        3,
+                        2,
+                        2,
+                        6,
+                        3,
+                        6,
+                        8,
+                        2,
+                        2,
+                        2,
+                        7,
+                        4,
+                        5,
+                        6,
+                        1,
+                        3,
+                        6,
+                        3,
+                        7,
+                        5,
+                        7,
+                        4,
+                        1,
+                        1,
+                        4
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  },
+                  {
+                    "coins": "12",
+                    "symbols": {
+                      "coins": "12",
+                      "final": [
+                        7,
+                        10,
+                        10,
+                        6,
+                        5,
+                        7,
+                        8,
+                        10,
+                        10,
+                        10,
+                        3,
+                        4,
+                        3,
+                        1,
+                        7,
+                        5,
+                        5,
+                        5,
+                        4,
+                        6,
+                        4,
+                        6,
+                        6,
+                        1,
+                        4
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 2,
+                          "coins": "12",
+                          "oak": 5,
+                          "positions": [
+                            1,
+                            2,
+                            7,
+                            8,
+                            9
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        7,
+                        2,
+                        2,
+                        6,
+                        5,
+                        7,
+                        8,
+                        2,
+                        2,
+                        2,
+                        3,
+                        4,
+                        3,
+                        1,
+                        7,
+                        5,
+                        5,
+                        5,
+                        4,
+                        6,
+                        4,
+                        6,
+                        6,
+                        1,
+                        4
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": true
+                    }
+                  },
+                  {
+                    "coins": "4",
+                    "symbols": {
+                      "coins": "4",
+                      "final": [
+                        8,
+                        8,
+                        10,
+                        10,
+                        10,
+                        8,
+                        8,
+                        8,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 8,
+                          "coins": "4",
+                          "oak": 5,
+                          "positions": [
+                            0,
+                            5,
+                            1,
+                            6,
+                            7
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        8,
+                        8,
+                        7,
+                        6,
+                        5,
+                        8,
+                        8,
+                        8,
+                        7,
+                        8,
+                        3,
+                        4,
+                        3,
+                        1,
+                        7,
+                        5,
+                        5,
+                        5,
+                        4,
+                        6,
+                        4,
+                        6,
+                        6,
+                        1,
+                        4
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 2,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  },
+                  {
+                    "coins": "4",
+                    "symbols": {
+                      "coins": "4",
+                      "final": [
+                        10,
+                        10,
+                        6,
+                        7,
+                        5,
+                        10,
+                        10,
+                        10,
+                        2,
+                        5,
+                        3,
+                        1,
+                        6,
+                        7,
+                        7,
+                        7,
+                        6,
+                        1,
+                        5,
+                        1,
+                        2,
+                        5,
+                        3,
+                        1,
+                        6
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 8,
+                          "coins": "4",
+                          "oak": 5,
+                          "positions": [
+                            0,
+                            5,
+                            1,
+                            6,
+                            7
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        8,
+                        8,
+                        6,
+                        7,
+                        5,
+                        8,
+                        8,
+                        8,
+                        2,
+                        5,
+                        3,
+                        1,
+                        6,
+                        7,
+                        7,
+                        7,
+                        6,
+                        1,
+                        5,
+                        1,
+                        2,
+                        5,
+                        3,
+                        1,
+                        6
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 2,
+                      "golden": [],
+                      "isSettle": true
+                    }
+                  },
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        2,
+                        4,
+                        6,
+                        7,
+                        5,
+                        2,
+                        8,
+                        3,
+                        2,
+                        5,
+                        3,
+                        1,
+                        6,
+                        7,
+                        7,
+                        7,
+                        6,
+                        1,
+                        5,
+                        1,
+                        2,
+                        5,
+                        3,
+                        1,
+                        6
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        2,
+                        4,
+                        6,
+                        7,
+                        5,
+                        2,
+                        8,
+                        3,
+                        2,
+                        5,
+                        3,
+                        1,
+                        6,
+                        7,
+                        7,
+                        7,
+                        6,
+                        1,
+                        5,
+                        1,
+                        2,
+                        5,
+                        3,
+                        1,
+                        6
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 2,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "coins": "20",
+          "hasMaxWin": false
+        }
+      },
+      "rng": {},
+      "finished": true,
+      "meta": {
+        "private": {
+          "decimalPlace": 2,
+          "baseGameWin": "20",
+          "isCheatTriggered": true
+        },
+        "public": {
+          "betAmount": "20",
+          "spinMode": "commonGame",
+          "baseGameWin": "20"
+        }
+      },
+      "choices": [],
+      "roundTags": [
+        "regular"
+      ]
+    }
+  },
+  {
+    "request": {
+      "play": {
+        "betAmount": 20,
+        "cashBet": 20,
+        "currencyDec": 2,
+        "stakes": [
+          {
+            "type": "commonGame"
+          }
+        ],
+        "rtpOption": "RTP_97",
+        "spinMode": "commonGame",
+        "gameCode": "LGS-008",
+        "id": "cascading-game-tester"
+      },
+      "testConfig": {
+        "gameCode": "LGS-008",
+        "configId": "cascading-game-tester",
+        "config": {
+          "baseSpin": {
+            "cascade": {
+              "cascadeConfigs": [
+                {
+                  "growCount": 2
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "response": {
+      "step": {
+        "gamePhases": [
+          {
+            "type": "regular",
+            "coins": "116",
+            "playgrounds": [
+              {
+                "type": "basic",
+                "coins": "116",
+                "fields": [
+                  {
+                    "coins": "116",
+                    "symbols": {
+                      "coins": "116",
+                      "final": [
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 1,
+                          "coins": "16",
+                          "oak": 5,
+                          "positions": [
+                            0,
+                            1,
+                            2,
+                            3,
+                            4
+                          ]
+                        },
+                        {
+                          "symbol": 8,
+                          "coins": "100",
+                          "oak": 20,
+                          "positions": [
+                            5,
+                            10,
+                            6,
+                            15,
+                            11,
+                            7,
+                            20,
+                            16,
+                            12,
+                            8,
+                            21,
+                            17,
+                            13,
+                            9,
+                            22,
+                            18,
+                            14,
+                            23,
+                            19,
+                            24
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": true
+                    }
+                  },
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        2,
+                        8,
+                        4,
+                        1,
+                        7,
+                        8,
+                        5,
+                        8,
+                        6,
+                        4,
+                        1,
+                        2,
+                        8,
+                        4,
+                        3,
+                        5,
+                        5,
+                        1,
+                        5,
+                        6,
+                        3,
+                        2,
+                        3,
+                        1,
+                        2
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        2,
+                        8,
+                        4,
+                        1,
+                        7,
+                        8,
+                        5,
+                        8,
+                        6,
+                        4,
+                        1,
+                        2,
+                        8,
+                        4,
+                        3,
+                        5,
+                        5,
+                        1,
+                        5,
+                        6,
+                        3,
+                        2,
+                        3,
+                        1,
+                        2
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "coins": "116",
+          "hasMaxWin": false
+        }
+      },
+      "rng": {},
+      "finished": true,
+      "meta": {
+        "private": {
+          "decimalPlace": 2,
+          "baseGameWin": "116",
+          "isCheatTriggered": true
+        },
+        "public": {
+          "betAmount": "20",
+          "spinMode": "commonGame",
+          "baseGameWin": "116"
+        }
+      },
+      "choices": [],
+      "roundTags": [
+        "regular"
+      ]
+    }
+  },
+  {
+    "request": {
+      "play": {
+        "betAmount": 20,
+        "cashBet": 20,
+        "currencyDec": 2,
+        "stakes": [
+          {
+            "type": "commonGame"
+          }
+        ],
+        "rtpOption": "RTP_97",
+        "spinMode": "commonGame",
+        "gameCode": "LGS-008",
+        "id": "cascading-game-tester"
+      },
+      "testConfig": {
+        "gameCode": "LGS-008",
+        "configId": "cascading-game-tester",
+        "config": {
+          "baseSpin": {
+            "cascade": {
+              "cascadeConfigs": [
+                {
+                  "growCount": 2
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "response": {
+      "step": {
+        "gamePhases": [
+          {
+            "type": "regular",
+            "coins": "20",
+            "playgrounds": [
+              {
+                "type": "basic",
+                "coins": "20",
+                "fields": [
+                  {
+                    "coins": "20",
+                    "symbols": {
+                      "coins": "20",
+                      "final": [
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        1,
+                        10,
+                        10,
+                        10,
+                        1,
+                        1,
+                        10,
+                        10,
+                        10,
+                        1,
+                        1,
+                        1,
+                        10,
+                        10
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 1,
+                          "coins": "20",
+                          "oak": 6,
+                          "positions": [
+                            11,
+                            16,
+                            21,
+                            15,
+                            22,
+                            20
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        5,
+                        7,
+                        4,
+                        8,
+                        2,
+                        8,
+                        3,
+                        4,
+                        5,
+                        3,
+                        5,
+                        1,
+                        3,
+                        2,
+                        4,
+                        1,
+                        1,
+                        2,
+                        4,
+                        7,
+                        1,
+                        1,
+                        1,
+                        3,
+                        5
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  },
+                  {
+                    "coins": "20",
+                    "symbols": {
+                      "coins": "20",
+                      "final": [
+                        8,
+                        7,
+                        6,
+                        6,
+                        8,
+                        2,
+                        2,
+                        8,
+                        7,
+                        3,
+                        6,
+                        10,
+                        5,
+                        5,
+                        5,
+                        10,
+                        10,
+                        4,
+                        3,
+                        7,
+                        10,
+                        10,
+                        10,
+                        3,
+                        7
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 1,
+                          "coins": "20",
+                          "oak": 6,
+                          "positions": [
+                            11,
+                            16,
+                            21,
+                            15,
+                            22,
+                            20
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        8,
+                        7,
+                        6,
+                        6,
+                        8,
+                        2,
+                        2,
+                        8,
+                        7,
+                        3,
+                        6,
+                        1,
+                        5,
+                        5,
+                        5,
+                        1,
+                        1,
+                        4,
+                        3,
+                        7,
+                        1,
+                        1,
+                        1,
+                        3,
+                        7
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": true
+                    }
+                  },
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        8,
+                        7,
+                        6,
+                        6,
+                        8,
+                        2,
+                        2,
+                        8,
+                        7,
+                        3,
+                        2,
+                        6,
+                        5,
+                        5,
+                        5,
+                        6,
+                        4,
+                        4,
+                        3,
+                        7,
+                        3,
+                        1,
+                        8,
+                        3,
+                        7
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        8,
+                        7,
+                        6,
+                        6,
+                        8,
+                        2,
+                        2,
+                        8,
+                        7,
+                        3,
+                        2,
+                        6,
+                        5,
+                        5,
+                        5,
+                        6,
+                        4,
+                        4,
+                        3,
+                        7,
+                        3,
+                        1,
+                        8,
+                        3,
+                        7
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "coins": "20",
+          "hasMaxWin": false
+        }
+      },
+      "rng": {},
+      "finished": true,
+      "meta": {
+        "private": {
+          "decimalPlace": 2,
+          "baseGameWin": "20",
+          "isCheatTriggered": true
+        },
+        "public": {
+          "betAmount": "20",
+          "spinMode": "commonGame",
+          "baseGameWin": "20"
+        }
+      },
+      "choices": [],
+      "roundTags": [
+        "regular"
+      ]
+    }
+  },
+  {
+    "request": {
+      "play": {
+        "betAmount": 20,
+        "cashBet": 20,
+        "currencyDec": 2,
+        "stakes": [
+          {
+            "type": "commonGame"
+          }
+        ],
+        "rtpOption": "RTP_97",
+        "spinMode": "commonGame",
+        "gameCode": "LGS-008",
+        "id": "cascading-game-tester"
+      },
+      "testConfig": {
+        "gameCode": "LGS-008",
+        "configId": "cascading-game-tester",
+        "config": {
+          "baseSpin": {
+            "cascade": {
+              "cascadeConfigs": [
+                {
+                  "growCount": 2
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "response": {
+      "step": {
+        "gamePhases": [
+          {
+            "type": "regular",
+            "coins": "100",
+            "playgrounds": [
+              {
+                "type": "basic",
+                "coins": "100",
+                "fields": [
+                  {
+                    "coins": "100",
+                    "symbols": {
+                      "coins": "100",
+                      "final": [
+                        10,
+                        10,
+                        10,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 8,
+                          "coins": "100",
+                          "oak": 22,
+                          "positions": [
+                            3,
+                            8,
+                            4,
+                            13,
+                            9,
+                            7,
+                            18,
+                            14,
+                            12,
+                            6,
+                            23,
+                            19,
+                            17,
+                            11,
+                            5,
+                            24,
+                            22,
+                            16,
+                            10,
+                            21,
+                            15,
+                            20
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        2,
+                        2,
+                        2,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  },
+                  {
+                    "coins": "100",
+                    "symbols": {
+                      "coins": "100",
+                      "final": [
+                        4,
+                        3,
+                        7,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10,
+                        10
+                      ],
+                      "payouts": [
+                        {
+                          "symbol": 8,
+                          "coins": "100",
+                          "oak": 22,
+                          "positions": [
+                            3,
+                            8,
+                            4,
+                            13,
+                            9,
+                            7,
+                            18,
+                            14,
+                            12,
+                            6,
+                            23,
+                            19,
+                            17,
+                            11,
+                            5,
+                            24,
+                            22,
+                            16,
+                            10,
+                            21,
+                            15,
+                            20
+                          ]
+                        }
+                      ],
+                      "initial": [
+                        4,
+                        3,
+                        7,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8,
+                        8
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": true
+                    }
+                  },
+                  {
+                    "coins": "0",
+                    "symbols": {
+                      "coins": "0",
+                      "final": [
+                        7,
+                        4,
+                        4,
+                        3,
+                        7,
+                        8,
+                        2,
+                        1,
+                        8,
+                        2,
+                        2,
+                        6,
+                        5,
+                        1,
+                        7,
+                        2,
+                        6,
+                        8,
+                        8,
+                        5,
+                        1,
+                        5,
+                        1,
+                        3,
+                        6
+                      ],
+                      "payouts": [],
+                      "initial": [
+                        7,
+                        4,
+                        4,
+                        3,
+                        7,
+                        8,
+                        2,
+                        1,
+                        8,
+                        2,
+                        2,
+                        6,
+                        5,
+                        1,
+                        7,
+                        2,
+                        6,
+                        8,
+                        8,
+                        5,
+                        1,
+                        5,
+                        1,
+                        3,
+                        6
+                      ]
+                    },
+                    "features": {
+                      "triggerFreeSpin": false,
+                      "cumulativeMultiplier": 1,
+                      "golden": [],
+                      "isSettle": false
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "coins": "100",
+          "hasMaxWin": false
+        }
+      },
+      "rng": {},
+      "finished": true,
+      "meta": {
+        "private": {
+          "decimalPlace": 2,
+          "baseGameWin": "100",
+          "isCheatTriggered": true
+        },
+        "public": {
+          "betAmount": "20",
+          "spinMode": "commonGame",
+          "baseGameWin": "100"
+        }
+      },
+      "choices": [],
+      "roundTags": [
+        "regular"
+      ]
+    }
+  }
+]

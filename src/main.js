@@ -1910,6 +1910,7 @@ async function sendCheatConfig(jsonStr) {
     const text = await response.text();
     throw new Error(`Cheat config failed (${response.status}): ${text}`);
   }
+  localStorage.setItem('test_config', JSON.stringify(parsed));
 }
 
 // ── Play Modes ───────────────────────────────────────────────────────────────
@@ -2114,7 +2115,7 @@ function renderRawDrawer() {
     `;
     btn.onclick = () => {
       rawDrawerActiveTab = i;
-      lastSelectedTabLabel = tab.label.includes('TUMBLE_') ? 'TUMBLE_X_STATE' : tab.label;
+      lastSelectedTabLabel = tab.label.includes('TUMBLE_') ? 'TUMBLE_X_FIELD' : tab.label;
       renderRawDrawer();
       if (tab.label === 'INITIAL[]') window.selectTumble(gameState.currentIndex, 'initial');
       if (tab.label === 'FINAL[]' || tab.label === 'DIFF') window.selectTumble(gameState.currentIndex, 'final');
@@ -2288,7 +2289,7 @@ function renderRawDrawer() {
 function openRawDrawer(tabs) {
   rawDrawerTabs = tabs;
   let targetIndex = tabs.findIndex((t) => {
-    if (lastSelectedTabLabel === 'STEP_X_STATE' || lastSelectedTabLabel === 'TUMBLE_X_STATE') {
+    if (lastSelectedTabLabel === 'STEP_X_STATE' || lastSelectedTabLabel === 'TUMBLE_X_FIELD') {
       return t.label.includes('STEP_') || t.label.includes('TUMBLE_');
     }
     return t.label === lastSelectedTabLabel;
@@ -2827,12 +2828,13 @@ window.selectTumble = (tIdx, phase) => {
   });
   openRawDrawer(
     [
-      { label: `TUMBLE_${tIdx + 1}_STATE`, data: field },
+      { label: `TUMBLE_${tIdx + 1}_FIELD`, data: field },
       { label: 'DIFF', data: diff },
       { label: 'INITIAL[]', data: field.symbols.initial },
       { label: 'FINAL[]', data: field.symbols.final },
       { label: 'PAYOUTS', data: field.symbols.payouts },
       { label: 'FEATURES', data: field.features },
+      { label: 'TESTCONFIG', data: spin.requestBody?.testConfig || {} },
       { label: 'FULL_JSON', data: spin.rawData },
     ],
     0,
@@ -3558,7 +3560,7 @@ window.openSpinRaw = (historyIndex) => {
     [
       { label: 'FULL_RESPONSE', data: spin.rawData },
       { label: 'SUMMARY', data: spin.summary },
-      { label: 'CONFIG', data: spin.rawData?.step?.config },
+      { label: 'TESTCONFIG', data: spin.requestBody?.testConfig || {} },
     ],
     0,
   );
