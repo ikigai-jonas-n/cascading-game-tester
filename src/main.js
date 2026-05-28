@@ -224,7 +224,7 @@ function syncSpinSettingsUI() {
           delete c.choice;
         }
         c.betAmount = parseFloat(uiBetAmount.value) || 20;
-        c.cashBet = c.betAmount; // assuming cashBet mirrors betAmount
+        c.cashBet = c.betAmount;
         c.spinMode = uiStake.value;
         if (Array.isArray(c.stakes) && c.stakes.length > 0) {
           c.stakes[0].type = uiStake.value;
@@ -237,9 +237,13 @@ function syncSpinSettingsUI() {
       }
     };
 
-    uiSpinType.addEventListener('change', updateConfig);
-    uiBetAmount.addEventListener('input', updateConfig);
-    uiStake.addEventListener('change', updateConfig);
+    // Ensure we don't attach identical event listeners multiple times
+    if (!window._syncSpinBound) {
+      uiSpinType.addEventListener('change', updateConfig);
+      uiBetAmount.addEventListener('input', updateConfig);
+      uiStake.addEventListener('change', updateConfig);
+      window._syncSpinBound = true;
+    }
   } catch (e) {
     console.error('Initial request body is invalid JSON', e);
   }
@@ -3250,26 +3254,25 @@ async function exportDataDirectFromDb(defaultFileName, exportMode, isMapped = fa
 
     let header, footer;
     if (isMapped) {
-      header = '[';
-      footer = ']';
+       header = '['; footer = ']';
     } else {
-      const settingsExport = {
-        playMode: localStorage.getItem('play_mode') || 'single',
-        playCount: localStorage.getItem('play_count') || '10',
-        requestBody: localStorage.getItem('request_body') || '',
-        activeGame: game.id, // Capture the active environment
-        uiSpinType: document.getElementById('uiSpinType')?.value || 'base', // Capture selector
-        uiStake: document.getElementById('uiStake')?.value || 'commonGame', // Capture selector
-      };
-      const v2Format = {
-        v: 2,
-        f: exportMode === 'filtered' ? activeFilters : [],
-        o: localStorage.getItem('sort_field') || 'num_desc',
-        s: settingsExport,
-        h: [],
-      };
-      header = JSON.stringify(v2Format).split('"h":[]')[0] + '"h":[';
-      footer = ']}';
+       const settingsExport = {
+         playMode: localStorage.getItem('play_mode') || 'single',
+         playCount: localStorage.getItem('play_count') || '10',
+         requestBody: localStorage.getItem('request_body') || '',
+         activeGame: game.id, 
+         uiSpinType: document.getElementById('uiSpinType')?.value || 'base', 
+         uiStake: document.getElementById('uiStake')?.value || 'commonGame', 
+       };
+       const v2Format = {
+         v: 2,
+         f: activeFilters, // <--- FIX: ALWAYS export filters to preserve UI state!
+         o: localStorage.getItem('sort_field') || 'num_desc',
+         s: settingsExport,
+         h: [],
+       };
+       header = JSON.stringify(v2Format).split('"h":[]')[0] + '"h":[';
+       footer = ']}';
     }
 
     let writable = null;
@@ -3391,6 +3394,75 @@ if (importMenuBtn) {
   };
 }
 
+// --- UNIFIED IMPORT RESTORER ---
+function restoreSettingsFromImport(settings, filters) {
+  // 1. Restore Filters (Mutate array to preserve global references for the UI!)
+  if (Array.isArray(filters)) {
+    activeFilters.splice(0, activeFilters.length, ...filters);
+    localStorage.setItem('active_filters', JSON.stringify(activeFilters));
+    if (window._renderFilterChips) window._renderFilterChips();
+  }
+
+  if (!settings) return;
+
+  // 2. Restore Game Environment (Without triggering duplicate DB searches)
+  const importGameId = settings.activeGame || localStorage.getItem('active_game_id');
+  if (importGameId) {
+    const gameSelect = document.getElementById('gameSelect');
+    if (gameSelect && gameSelect.value !== importGameId) {
+      gameSelect.value = importGameId;
+      setActiveGame(importGameId);
+      game = getActiveGame();
+      SYMBOLS = game.symbols;
+      EMOJIS = game.emojis;
+      SYMBOL_COLORS = game.colors;
+      const gameLabel = document.getElementById('gameLabel');
+      if (gameLabel) gameLabel.innerText = game.name;
+    }
+  }
+
+  // 3. Restore Request Body JSON
+  if (settings.requestBody) {
+    localStorage.setItem('request_body', settings.requestBody);
+    const reqText = document.getElementById('requestBody');
+    if (reqText) reqText.value = settings.requestBody;
+  }
+
+  // Sync internal state to UI listeners
+  if (typeof syncSpinSettingsUI === 'function') syncSpinSettingsUI();
+
+  // 4. Force Dropdowns to match exported settings and trigger change events
+  if (settings.uiSpinType) {
+    const el = document.getElementById('uiSpinType');
+    if (el) {
+      el.value = settings.uiSpinType;
+      el.dispatchEvent(new Event('change'));
+    }
+  }
+  if (settings.uiStake) {
+    const el = document.getElementById('uiStake');
+    if (el) {
+      el.value = settings.uiStake;
+      el.dispatchEvent(new Event('change'));
+    }
+  }
+
+  // 5. Restore Play Mode
+  if (settings.playMode) {
+    localStorage.setItem('play_mode', settings.playMode);
+    const pm = document.getElementById('playMode');
+    if (pm) {
+      pm.value = settings.playMode;
+      pm.dispatchEvent(new Event('change'));
+    }
+  }
+  if (settings.playCount) {
+    localStorage.setItem('play_count', settings.playCount);
+    const pc = document.getElementById('playCount');
+    if (pc) pc.value = settings.playCount;
+  }
+}
+
 const triggerImport = (mode) => {
   const input = document.createElement('input');
   input.type = 'file';
@@ -3408,56 +3480,14 @@ const triggerImport = (mode) => {
       } else if (rawImport.v === 2 && Array.isArray(rawImport.h)) {
         importedRaw = rawImport.h;
         if (mode === 'replace') {
-          if (Array.isArray(rawImport.f) && rawImport.f.length > 0) {
-            activeFilters = rawImport.f;
-            localStorage.setItem('active_filters', JSON.stringify(activeFilters));
-            window._renderFilterChips?.();
-          }
+          // --- THE FIX: Use unified restorer ---
+          restoreSettingsFromImport(rawImport.s, rawImport.f);
           if (rawImport.o) {
             const sortField = document.getElementById('sortField');
             if (sortField) {
               sortField.value = rawImport.o;
               localStorage.setItem('sort_field', rawImport.o);
             }
-          }
-          if (rawImport.s) {
-            // THE FIX: Fallback to localStorage if the exported JSON doesn't have activeGame
-            const importGameId = rawImport.s.activeGame || localStorage.getItem('active_game_id');
-            
-            if (importGameId) {
-              const gameSelect = document.getElementById('gameSelect');
-              if (gameSelect && gameSelect.value !== importGameId) {
-                gameSelect.value = importGameId;
-                switchGame(importGameId); // Safe to call switchGame here because boot() is already finished
-              }
-            }
-
-            // Restore UI Selectors
-            if (rawImport.s.uiSpinType) {
-              const el = document.getElementById('uiSpinType');
-              if (el) el.value = rawImport.s.uiSpinType;
-            }
-            if (rawImport.s.uiStake) {
-              const el = document.getElementById('uiStake');
-              if (el) el.value = rawImport.s.uiStake;
-            }
-            // Restore Settings
-            if (rawImport.s.playMode) {
-              localStorage.setItem('play_mode', rawImport.s.playMode);
-              if (document.getElementById('playMode'))
-                document.getElementById('playMode').value = rawImport.s.playMode;
-            }
-            if (rawImport.s.playCount) {
-              localStorage.setItem('play_count', rawImport.s.playCount);
-              if (document.getElementById('playCount'))
-                document.getElementById('playCount').value = rawImport.s.playCount;
-            }
-            if (rawImport.s.requestBody) {
-              localStorage.setItem('request_body', rawImport.s.requestBody);
-              document.getElementById('requestBody').value = rawImport.s.requestBody;
-            }
-            // Sync internal state to UI
-            if (typeof syncSpinSettingsUI === 'function') syncSpinSettingsUI();
           }
         }
       } else {
@@ -3471,17 +3501,12 @@ const triggerImport = (mode) => {
       const chunkSize = 1000;
       for (let i = 0; i < importedRaw.length; i += chunkSize) {
         const percent = Math.round((i / importedRaw.length) * 100);
-        showLoading(
-          `Processing ${Math.min(i + chunkSize, importedRaw.length)} / ${importedRaw.length}...`,
-          percent,
-        );
+        showLoading(`Processing ${Math.min(i + chunkSize, importedRaw.length)} / ${importedRaw.length}...`, percent);
         const chunk = importedRaw.slice(i, i + chunkSize);
-        const processed = chunk
-          .map((item) => {
-            // Added item.response to support importing Mapped Data JSONs
+        const processed = chunk.map((item) => {
             const r = item.response || item.rawData || item.r || item;
             if (!r || !r.step) return null;
-
+            
             const fields = [];
             const fieldMetadata = [];
             const playgroundStats = [];
@@ -3496,20 +3521,11 @@ const triggerImport = (mode) => {
                 let pgCascades = 0;
                 (pg.fields || []).forEach((f) => {
                   fields.push(f);
-                  fieldMetadata.push({
-                    playgroundIndex: playgroundCounter,
-                    isFreeSpin: phase.type === 'freeSpin',
-                    roundIndex: roundCounter,
-                  });
+                  fieldMetadata.push({ playgroundIndex: playgroundCounter, isFreeSpin: phase.type === 'freeSpin', roundIndex: roundCounter });
                   pgTumbles++;
                   if (parseFloat(f.coins || 0) > 0) pgCascades++;
                 });
-                playgroundStats.push({
-                  tumbleCount: pgTumbles,
-                  cascadeCount: pgCascades,
-                  headerText:
-                    phase.type === 'freeSpin' ? `FreeSpin #${roundCounter + 1}` : 'BaseSpin',
-                });
+                playgroundStats.push({ tumbleCount: pgTumbles, cascadeCount: pgCascades, headerText: phase.type === 'freeSpin' ? `FreeSpin #${roundCounter + 1}` : 'BaseSpin' });
                 playgroundCounter++;
                 roundCounter++;
               });
@@ -3527,7 +3543,7 @@ const triggerImport = (mode) => {
                 timestamp: ts,
                 gameId: item.gameId || item.g || game.id,
                 rawData: r,
-                isCheatTriggered: r.meta?.private?.isCheatTriggered === true, // <--- ADD THIS HERE
+                isCheatTriggered: r.meta?.private?.isCheatTriggered === true,
                 fields,
                 summary,
                 isWin: item.isWin !== undefined ? item.isWin : parseInt(summary.coins || 0) > 0,
@@ -3552,8 +3568,7 @@ const triggerImport = (mode) => {
                 hasFreeSpin: item.hfs || item.hasFreeSpin || false,
               },
             };
-          })
-          .filter(Boolean);
+          }).filter(Boolean);
         restored.push(...processed);
         await new Promise((r) => setTimeout(r, 0));
       }
@@ -3566,31 +3581,24 @@ const triggerImport = (mode) => {
         await clearAllSpins();
         finalEntries = restored.map((r, i) => ({ ...r.data, num: i + 1 }));
       } else {
-        // MERGE: Deduplicate using Fingerprints
-        const existingFingers = new Set(
-          globalHistory.map((s) => {
-            // Re-generate fingerprint for existing history
-            return `${s.timestamp}_${s.summary.coins}_${s.fields.length}`;
-          }),
-        );
-
+        const existingFingers = new Set(globalHistory.map((s) => `${s.timestamp}_${s.summary.coins}_${s.fields.length}`));
         const filtered = restored.filter((r) => {
-          if (existingFingers.has(r.finger)) {
-            skippedCount++;
-            return false;
-          }
+          if (existingFingers.has(r.finger)) { skippedCount++; return false; }
           return true;
         });
-
         const baseNum = await getNextSpinNum();
         finalEntries = filtered.map((r, i) => ({ ...r.data, num: baseNum + i }));
       }
 
       if (finalEntries.length > 0) {
         await saveAllSpins(finalEntries);
-        globalHistory = await loadAllSpins(game.id, MAX_RAM_HISTORY);
-        renderSpinHistory();
-        if (globalHistory.length > 0) loadSpin(0);
+      }
+
+      // Force the DB search to update memory using the newly imported filters
+      await triggerFilterUpdate();
+
+      if (globalHistory.length > 0 && currentSpinIndex === -1) {
+        loadSpin(globalHistory[0].num);
       }
       hideLoading();
 
@@ -3927,7 +3935,7 @@ async function loadDefaultData(manual = false) {
       console.log(`Transforming ${allHistory.length} spins for IndexedDB...`);
       const mapped = allHistory
         .map((entry, idx) => {
-          const r = entry.rawData || entry.r || entry; 
+          const r = entry.rawData || entry.r || entry;
           if (!r || !r.step) return null;
 
           let spinType = 'basic';
@@ -3972,7 +3980,7 @@ async function loadDefaultData(manual = false) {
             timestamp: entry.timestamp || entry.t || new Date().toISOString(),
             gameId: entry.gameId || entry.g || game.id,
             rawData: r,
-            isCheatTriggered: r.meta?.private?.isCheatTriggered === true, 
+            isCheatTriggered: r.meta?.private?.isCheatTriggered === true,
             fields,
             summary,
             isWin: parseInt(summary.coins || 0) > 0,
@@ -4005,47 +4013,30 @@ async function loadDefaultData(manual = false) {
 
     // --- THE FIX: Smart Fallback & Race-Condition Prevention ---
     const storedGame = localStorage.getItem('active_game_id');
-    
-    // 1. Try JSON settings -> 2. Try LocalStorage -> 3. Try First Item's Game ID
     const defaultGameId = firstData.s?.activeGame || storedGame || (allHistory[0] && (allHistory[0].gameId || allHistory[0].g));
 
-    // Only force a game switch if we are explicitly on the WRONG game
-    if (defaultGameId && defaultGameId !== game.id) {
-       setActiveGame(defaultGameId);
-       game = getActiveGame();
-       SYMBOLS = game.symbols;
-       EMOJIS = game.emojis;
-       SYMBOL_COLORS = game.colors;
-       
-       const gameSelect = document.getElementById('gameSelect');
-       if (gameSelect) gameSelect.value = game.id;
-       const gameLabel = document.getElementById('gameLabel');
-       if (gameLabel) gameLabel.innerText = game.name;
-       
-       // Note: We deliberately DO NOT call switchGame() here during the boot cycle 
-       // to prevent it from firing overlapping IndexedDB requests!
-    }
+    // Consolidate settings object
+    const s = firstData.s || {};
+    if (!s.activeGame) s.activeGame = defaultGameId;
+    
+    // Use the unified function to restore EVERYTHING including Dropdowns and Filters
+    restoreSettingsFromImport(s, firstData.f);
 
-    if (firstData.s && manual) {
-      if (firstData.s.requestBody) {
-        localStorage.setItem('request_body', firstData.s.requestBody);
-        document.getElementById('requestBody').value = firstData.s.requestBody;
-        if (typeof syncSpinSettingsUI === 'function') syncSpinSettingsUI();
-      }
+    if (firstData.o) {
+        localStorage.setItem('sort_field', firstData.o);
     }
 
     localStorage.setItem('default_data_loaded', 'true');
     showLoading('Default history loaded!', 100);
-    
+
     setTimeout(() => {
       hideLoading();
       // If the user manually triggered "Clear All Data" or "Import", reload to sync cleanly.
       // If this was an automatic boot, just let boot() finish its job.
       if (manual) {
-         location.reload();
+        location.reload();
       }
     }, 800);
-    
   } catch (err) {
     console.error('Failed to load default data:', err);
     hideLoading();
