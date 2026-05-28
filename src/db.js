@@ -50,24 +50,62 @@ export async function saveSpin(entry) {
   });
 }
 
-/** Save many spins at once (for import) */
+// Add these native GZIP utilities
+export async function compressData(dataObj) {
+  const stream = new Blob([JSON.stringify(dataObj)])
+    .stream()
+    .pipeThrough(new CompressionStream('gzip'));
+  return await new Response(stream).arrayBuffer();
+}
+
+export async function decompressData(buffer) {
+  if (!buffer) return null;
+  const stream = new Blob([buffer]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return JSON.parse(await new Response(stream).text());
+}
+
+/** * Returns exact disk usage and quota available to the app in MBs.
+ */
+export async function getStorageEstimate() {
+  if (navigator.storage && navigator.storage.estimate) {
+    const { usage, quota } = await navigator.storage.estimate();
+    return {
+      usageMb: (usage / 1024 / 1024).toFixed(2),
+      quotaMb: (quota / 1024 / 1024).toFixed(2),
+      percent: ((usage / quota) * 100).toFixed(2),
+    };
+  }
+  return null;
+}
+
+/** Highly Optimized Bulk Save with GZIP Compression */
 export async function saveAllSpins(entries) {
+  // 1. Offload compression to async microtasks BEFORE opening the DB transaction
+  // We compress `rawData` because it's massive, but keep `fields` uncompressed for fast searching
+  const processedEntries = await Promise.all(
+    entries.map(async (entry) => {
+      if (entry.rawData && !entry._isCompressed) {
+        return {
+          ...entry,
+          rawData: await compressData(entry.rawData),
+          _isCompressed: true,
+        };
+      }
+      return entry;
+    }),
+  );
+
   await open();
+
+  // 2. Max-speed synchronous batch insert
   return new Promise((resolve, reject) => {
-    // Open a single transaction for the entire massive array
     const tx = _db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
 
-    // Performance optimization: don't wait for each put to finish
-    let i = 0;
-    function putNext() {
-      if (i < entries.length) {
-        store.put(entries[i]);
-        i++;
-        putNext();
-      }
+    // A standard 'for' loop guarantees all requests are queued in the same event tick
+    for (let i = 0; i < processedEntries.length; i++) {
+      store.put(processedEntries[i]);
     }
-    putNext();
 
     tx.oncomplete = () => resolve();
     tx.onerror = (e) => reject(e.target.error);

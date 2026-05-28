@@ -1495,6 +1495,7 @@ async function playSingleSpin(overrideConfig = null, description = null) {
     timestamp: new Date().toISOString(),
     gameId: game.id,
     rawData: data,
+    isCheatTriggered: data.meta?.private?.isCheatTriggered === true, // <--- ADD THIS HERE
     fields,
     summary,
     isWin: parseInt(summary.coins || 0) > 0,
@@ -1584,6 +1585,7 @@ async function playConcurrentBatch(config, batchSize) {
       timestamp: new Date().toISOString(),
       gameId: game.id,
       rawData: data,
+      isCheatTriggered: data.meta?.private?.isCheatTriggered === true,
       fields,
       summary,
       isWin: parseInt(summary.coins || 0) > 0,
@@ -1813,6 +1815,8 @@ async function playSpin() {
     setPlayUIBusy(false);
     renderSpinHistory();
     if (globalHistory.length > 0) loadSpin(0);
+
+    updateStorageStats(); // <--- ADD THIS LINE
   }
 }
 
@@ -3314,6 +3318,7 @@ const triggerImport = (mode) => {
                 timestamp: ts,
                 gameId: item.gameId || item.g || game.id,
                 rawData: r,
+                isCheatTriggered: r.meta?.private?.isCheatTriggered === true, // <--- ADD THIS HERE
                 fields,
                 summary,
                 isWin: item.isWin !== undefined ? item.isWin : parseInt(summary.coins || 0) > 0,
@@ -3406,12 +3411,20 @@ if (importReplaceBtn)
 // ── Prev / Next / openSpinRaw ────────────────────────────────────────────────
 document.getElementById('tumbleList')?.remove();
 
-window.openSpinRaw = (historyIndex) => {
+window.openSpinRaw = async (historyIndex) => {
   const spin = globalHistory[historyIndex];
   if (!spin) return;
+
+  // Decompress rawData if it was gzipped
+  let displayRawData = spin.rawData;
+  if (spin._isCompressed && displayRawData instanceof ArrayBuffer) {
+    const { decompressData } = await import('./db.js');
+    displayRawData = await decompressData(displayRawData);
+  }
+
   openRawDrawer(
     [
-      { label: 'FULL_RESPONSE', data: spin.rawData },
+      { label: 'FULL_RESPONSE', data: displayRawData },
       { label: 'SUMMARY', data: spin.summary },
       { label: 'TESTCONFIG', data: spin.requestBody?.testConfig || {} },
     ],
@@ -3581,12 +3594,29 @@ const clearBtn = document.getElementById('clearHistoryBtn');
 if (clearBtn) {
   clearBtn.onclick = async () => {
     if (!confirm('Delete ALL spin history? This cannot be undone.')) return;
-    await clearAllSpins();
-    globalHistory = [];
-    currentSpinIndex = -1;
-    renderSpinHistory();
-    const totalCells = game.grid.rows * game.grid.cols;
-    renderGrid(new Array(totalCells).fill(game.emptySymbolId), [], new Set());
+    
+    // 1. Instantly show the spinner so the UI doesn't feel frozen
+    showLoading('Nuking database...', 50);
+    
+    try {
+      await clearAllSpins();
+      globalHistory = [];
+      currentSpinIndex = -1;
+      
+      renderSpinHistory();
+      const totalCells = game.grid.rows * game.grid.cols;
+      renderGrid(new Array(totalCells).fill(game.emptySymbolId), [], new Set());
+      
+      // 2. Force the storage stats to refresh
+      await updateStorageStats();
+      
+    } catch (err) {
+      console.error(err);
+      alert('Failed to clear history: ' + err.message);
+    } finally {
+      // 3. Hide the spinner
+      hideLoading();
+    }
   };
 }
 
@@ -3703,6 +3733,7 @@ async function loadDefaultData(manual = false) {
             timestamp: entry.timestamp || entry.t || new Date().toISOString(),
             gameId: entry.gameId || entry.g || game.id,
             rawData: r,
+            isCheatTriggered: data.meta?.private?.isCheatTriggered === true,
             fields,
             summary,
             isWin: parseInt(summary.coins || 0) > 0,
@@ -3920,6 +3951,7 @@ async function boot() {
   console.log(`Boot: Loaded ${globalHistory.length} total spins from IndexedDB.`);
 
   renderWinCategoryCheckboxes(); // <--- ADD THIS LINE
+  updateStorageStats(); // <--- ADD THIS LINE
 
   const lastIdx = localStorage.getItem('last_spin_index');
   if (lastIdx !== null && globalHistory[parseInt(lastIdx)]) {
@@ -3941,6 +3973,18 @@ async function boot() {
   if (globalHistory.length === 0) {
     renderGrid(new Array(totalCells).fill(game.emptySymbolId), [], new Set());
   }
+}
+
+async function updateStorageStats() {
+  try {
+    const { getStorageEstimate, getSpinCount } = await import('./db.js');
+    const count = await getSpinCount();
+    const est = await getStorageEstimate();
+    const el = document.getElementById('dbStorageStats');
+    if (el && est) {
+      el.innerText = `DB: ${count.toLocaleString()} records | Disk: ${est.usageMb}MB used / ${est.quotaMb}MB limit (${est.percent}%)`;
+    }
+  } catch (e) {}
 }
 
 function toggleAutoplayOnSelect() {

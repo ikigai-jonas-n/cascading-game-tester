@@ -88,6 +88,7 @@ self.onmessage = async (e) => {
         timestamp: new Date().toISOString(),
         gameId: gameId,
         rawData: data,
+        isCheatTriggered: data.meta?.private?.isCheatTriggered === true, // <--- ADD THIS HERE
         fields,
         summary,
         isWin: parseInt(summary.coins || 0) > 0,

@@ -234,7 +234,8 @@ export const FILTER_DEFS = [
     id: 'isCheatTriggered',
     label: 'Cheat Triggered',
     type: 'toggle',
-    apply: (spin) => spin.rawData?.meta?.private?.isCheatTriggered === true,
+    // Now reads the fast, uncompressed top-level boolean!
+    apply: (spin) => spin.isCheatTriggered === true,
   },
   {
     id: 'winCategory',
