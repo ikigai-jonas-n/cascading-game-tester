@@ -327,6 +327,26 @@ select:focus, input:focus {
   background: rgba(245, 158, 11, 0.1);
 }
 
+/* Win Category Badges */
+.win-category-badge {
+  font-size: 9px;
+  font-weight: 900;
+  padding: 3px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'JetBrains Mono', monospace;
+  border: 1px solid currentColor;
+}
+.win-category-badge.big_win { color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
+.win-category-badge.mega_win { color: #a855f7; background: rgba(168, 85, 247, 0.1); }
+.win-category-badge.huge_win { color: #f43f5e; background: rgba(244, 63, 94, 0.1); }
+.win-category-badge.max_win { 
+  color: #fbbf24; 
+  background: rgba(251, 191, 36, 0.15); 
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.3);
+}
+
 /* Footer */
 .card-footer-v5 {
   display: flex;

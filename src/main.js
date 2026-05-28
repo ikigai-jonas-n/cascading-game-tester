@@ -16,6 +16,22 @@ let SYMBOLS = game.symbols;
 let EMOJIS = game.emojis;
 let SYMBOL_COLORS = game.colors;
 
+function renderWinCategoryCheckboxes() {
+  const container = document.getElementById('targetConditionsCheckboxes');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const cats = game.winCategories || {};
+  Object.keys(cats).forEach((cat) => {
+    const label = document.createElement('label');
+    label.style.cssText = 'display:flex; align-items:center; gap:4px; cursor:pointer; color:#ccc;';
+    // Turns "MEGA_WIN" into "MEGA (50x)"
+    const displayName = cat.replace('_WIN', '') + ` (${cats[cat]}x)`;
+    label.innerHTML = `<input type="checkbox" class="target-cond-cb" value="${cat}"> ${displayName}`;
+    container.appendChild(label);
+  });
+}
+
 function switchGame(id) {
   setActiveGame(id);
   game = getActiveGame();
@@ -24,14 +40,27 @@ function switchGame(id) {
   SYMBOL_COLORS = game.colors;
   document.getElementById('gameLabel').innerText = game.name;
   renderSymbolMap();
+
+  renderWinCategoryCheckboxes();
+  if (typeof renderCheatTemplates === 'function') renderCheatTemplates();
+
   const totalCells = game.grid.rows * game.grid.cols;
   renderGrid(new Array(totalCells).fill(game.emptySymbolId), [], new Set());
+
+  // --- STRICT UI ISOLATION ---
+  // Instantly purge the old game's data from RAM
+  globalHistory = [];
+  currentSpinIndex = -1;
+  localStorage.removeItem('last_spin_index');
+
+  // Re-fetch only this specific game's history from IndexedDB
+  triggerFilterUpdate();
 }
 
 // ── Globals ──────────────────────────────────────────────────────────────────
-let API_URL = localStorage.getItem('api_url') || import.meta.env.VITE_API_URL || 'http://localhost:9000';
+let API_URL =
+  localStorage.getItem('api_url') || import.meta.env.VITE_API_URL || 'http://localhost:9000';
 let PLAYER_ID = localStorage.getItem('player_id') || 'cascading-game-tester';
-
 
 // ── DOM refs ─────────────────────────────────────────────────────────────────
 const spinBtn = document.getElementById('spinBtn');
@@ -72,15 +101,41 @@ const _descTooltip = (() => {
   });
 })();
 
+function parseSmartNumber(val) {
+  if (!val) return 0;
+  const match = String(val)
+    .toLowerCase()
+    .trim()
+    .match(/^(\d+\.?\d*)([km]?)$/);
+  if (!match) return parseInt(val) || 0;
+  const num = parseFloat(match[1]);
+  if (match[2] === 'k') return Math.floor(num * 1000);
+  if (match[2] === 'm') return Math.floor(num * 1000000);
+  return Math.floor(num);
+}
+
+function getWinCategory(win, bet) {
+  if (bet <= 0 || !game.winCategories) return 'NONE';
+  const tb = win / bet;
+
+  // Sort categories by highest threshold first (e.g., 5000 -> 150 -> 50 -> 20)
+  const sortedCats = Object.entries(game.winCategories).sort((a, b) => b[1] - a[1]);
+
+  for (const [catName, threshold] of sortedCats) {
+    if (tb >= threshold) return catName;
+  }
+  return 'NONE';
+}
+
 function setHudValue(el, val, baseEm = 1.6) {
   if (!el) return;
   el.innerText = val;
   const len = String(val).length;
   let scale = 1;
   if (len > 9) scale = 0.55;
-  else if (len > 7) scale = 0.70;
+  else if (len > 7) scale = 0.7;
   else if (len > 5) scale = 0.85;
-  el.style.fontSize = (baseEm * scale) + 'em';
+  el.style.fontSize = baseEm * scale + 'em';
 }
 const exportBtn = document.getElementById('exportBtn');
 const importMenuBtn = document.getElementById('importMenuBtn');
@@ -154,7 +209,7 @@ function syncSpinSettingsUI() {
 
   try {
     const config = JSON.parse(requestBodyTextarea.value);
-    
+
     // Update UI from config
     uiSpinType.value = config.choice === 1 ? 'free' : 'base';
     uiBetAmount.value = config.betAmount || 20;
@@ -169,7 +224,7 @@ function syncSpinSettingsUI() {
           delete c.choice;
         }
         c.betAmount = parseFloat(uiBetAmount.value) || 20;
-        c.cashBet = c.betAmount; // assuming cashBet mirrors betAmount
+        c.cashBet = c.betAmount;
         c.spinMode = uiStake.value;
         if (Array.isArray(c.stakes) && c.stakes.length > 0) {
           c.stakes[0].type = uiStake.value;
@@ -182,9 +237,13 @@ function syncSpinSettingsUI() {
       }
     };
 
-    uiSpinType.addEventListener('change', updateConfig);
-    uiBetAmount.addEventListener('input', updateConfig);
-    uiStake.addEventListener('change', updateConfig);
+    // Ensure we don't attach identical event listeners multiple times
+    if (!window._syncSpinBound) {
+      uiSpinType.addEventListener('change', updateConfig);
+      uiBetAmount.addEventListener('input', updateConfig);
+      uiStake.addEventListener('change', updateConfig);
+      window._syncSpinBound = true;
+    }
   } catch (e) {
     console.error('Initial request body is invalid JSON', e);
   }
@@ -238,7 +297,9 @@ function hideLoading() {
 
 async function clearAllDataAndReload(skipConfirm = false) {
   if (!skipConfirm) {
-    const confirmed = confirm('Are you sure you want to clear ALL data? This will reset all settings, history, and bookmarks. This action cannot be undone.');
+    const confirmed = confirm(
+      'Are you sure you want to clear ALL data? This will reset all settings, history, and bookmarks. This action cannot be undone.',
+    );
     if (!confirmed) return;
   }
 
@@ -246,13 +307,13 @@ async function clearAllDataAndReload(skipConfirm = false) {
     showLoading('Clearing data and updating...');
     // Clear all localStorage
     localStorage.clear();
-    
+
     // Clear IndexedDB spins
     const { clearAllSpins } = await import('./db.js');
     await clearAllSpins();
-    
+
     // app_version will be re-stored on next load from CF header
-    
+
     location.reload(true);
   } catch (err) {
     console.error('Failed to clear data:', err);
@@ -339,7 +400,10 @@ setInterval(checkVersionPeriodic, 10 * 60 * 1000);
 async function checkBackendHealth(url, label = 'custom') {
   const statusEl = document.getElementById('backendHealthStatus');
   if (!statusEl) return;
-  if (!url) { statusEl.textContent = ''; return; }
+  if (!url) {
+    statusEl.textContent = '';
+    return;
+  }
   statusEl.style.color = '#888';
   statusEl.textContent = 'Checking...';
   try {
@@ -380,11 +444,14 @@ openSettingsBtn.onclick = () => {
     apiUrlInput.oninput = () => {
       clearTimeout(healthDebounce);
       const statusEl = document.getElementById('backendHealthStatus');
-      if (statusEl) { statusEl.style.color = '#888'; statusEl.textContent = 'Waiting...'; }
+      if (statusEl) {
+        statusEl.style.color = '#888';
+        statusEl.textContent = 'Waiting...';
+      }
       healthDebounce = setTimeout(() => checkBackendHealth(apiUrlInput.value.trim()), 300);
     };
 
-    document.querySelectorAll('.backend-preset-btn').forEach(btn => {
+    document.querySelectorAll('.backend-preset-btn').forEach((btn) => {
       btn.onclick = () => {
         apiUrlInput.value = btn.dataset.url;
         checkBackendHealth(btn.dataset.url, btn.textContent.trim());
@@ -400,7 +467,12 @@ openSettingsBtn.onclick = () => {
   const syncBtn = document.getElementById('syncHistoryBtn');
   if (syncBtn) {
     syncBtn.onclick = async () => {
-      if (!confirm('Re-sync default history from json_files/default_data.json? Existing data will be merged.')) return;
+      if (
+        !confirm(
+          'Re-sync default history from json_files/default_data.json? Existing data will be merged.',
+        )
+      )
+        return;
       localStorage.removeItem('default_data_loaded');
       await loadDefaultData(true);
     };
@@ -417,7 +489,7 @@ openSettingsBtn.onclick = () => {
 const closeSettings = () => {
   settingsModal.close();
   if (lastFocusedElementBeforeModal) lastFocusedElementBeforeModal.focus();
-}
+};
 
 // ── Shortcuts Modal ──────────────────────────────────────────────────────────
 const shortcutsBtn = document.getElementById('shortcutsBtn');
@@ -443,6 +515,7 @@ const quickCheatError = document.getElementById('quickCheatError');
 const cheatTemplateSelect = document.getElementById('cheatTemplateSelect');
 const cheatTemplateDesc = document.getElementById('cheatTemplateDesc');
 
+let allCheatTemplates = {};
 let cheatTemplates = [];
 
 async function loadCheatTemplates() {
@@ -450,44 +523,55 @@ async function loadCheatTemplates() {
   try {
     const resp = await fetch('/cheat-tool-templates.json');
     if (!resp.ok) return;
-    cheatTemplates = await resp.json();
-
-    cheatTemplates.forEach((template, index) => {
-      const option = document.createElement('option');
-      option.value = index;
-      option.textContent = template.title;
-      cheatTemplateSelect.appendChild(option);
-    });
-
-    cheatTemplateSelect.onchange = (e) => {
-      const index = e.target.value;
-      if (index !== "") {
-        const template = cheatTemplates[index];
-        if (template.description) {
-          cheatTemplateDesc.textContent = template.description;
-          cheatTemplateDesc.style.display = 'block';
-        } else {
-          cheatTemplateDesc.style.display = 'none';
-        }
-        
-        try {
-          const parsed = JSON.parse(template.json);
-          // Auto-inject current IDs to the template
-          if (typeof PLAYER_ID !== 'undefined') parsed.configId = PLAYER_ID;
-          parsed.gameCode = game.gameCode;
-          
-          quickTestConfigInput.value = JSON.stringify(parsed, null, 2);
-          quickCheatError.style.display = 'none';
-        } catch (err) {
-          quickTestConfigInput.value = template.json;
-        }
-      } else {
-        cheatTemplateDesc.style.display = 'none';
-      }
-    };
+    allCheatTemplates = await resp.json();
+    renderCheatTemplates();
   } catch (e) {
     console.warn('Failed to load cheat templates', e);
   }
+}
+
+function renderCheatTemplates() {
+  if (!cheatTemplateSelect) return;
+
+  cheatTemplateSelect.innerHTML = '<option value="">-- Select a Template --</option>';
+  if (cheatTemplateDesc) cheatTemplateDesc.style.display = 'none';
+
+  // Extract templates for the active game (fallback to empty array if none exist)
+  cheatTemplates = allCheatTemplates[game.id] || [];
+
+  cheatTemplates.forEach((template, index) => {
+    const option = document.createElement('option');
+    option.value = index;
+    option.textContent = template.title;
+    cheatTemplateSelect.appendChild(option);
+  });
+
+  cheatTemplateSelect.onchange = (e) => {
+    const index = e.target.value;
+    if (index !== '') {
+      const template = cheatTemplates[index];
+      if (template.description) {
+        cheatTemplateDesc.textContent = template.description;
+        cheatTemplateDesc.style.display = 'block';
+      } else {
+        cheatTemplateDesc.style.display = 'none';
+      }
+
+      try {
+        const parsed = JSON.parse(template.json);
+        // Auto-inject current IDs to the template
+        if (typeof PLAYER_ID !== 'undefined') parsed.configId = PLAYER_ID;
+        parsed.gameCode = game.gameCode;
+
+        quickTestConfigInput.value = JSON.stringify(parsed, null, 2);
+        quickCheatError.style.display = 'none';
+      } catch (err) {
+        quickTestConfigInput.value = template.json;
+      }
+    } else {
+      cheatTemplateDesc.style.display = 'none';
+    }
+  };
 }
 
 loadCheatTemplates();
@@ -495,13 +579,13 @@ loadCheatTemplates();
 if (quickCheatBtn && quickCheatModal) {
   quickCheatBtn.onclick = () => {
     quickCheatError.style.display = 'none';
-    if (cheatTemplateSelect) cheatTemplateSelect.value = "";
-    if (cheatTemplateDesc) cheatTemplateDesc.style.display = "none";
+    if (cheatTemplateSelect) cheatTemplateSelect.value = '';
+    if (cheatTemplateDesc) cheatTemplateDesc.style.display = 'none';
     let savedTestConfig = localStorage.getItem('test_config');
     if (!savedTestConfig && quickTestConfigInput.value) {
-        savedTestConfig = quickTestConfigInput.value;
+      savedTestConfig = quickTestConfigInput.value;
     }
-    
+
     if (savedTestConfig) {
       quickTestConfigInput.value = savedTestConfig;
     } else {
@@ -512,14 +596,12 @@ if (quickCheatBtn && quickCheatModal) {
           baseSpin: {
             initialScreen: {
               clusterCount: 5,
-              symbols: [
-                { symbol: "WILD", count: 10 }
-              ]
+              symbols: [{ symbol: 'WILD', count: 10 }],
             },
             cascadeCount: 6,
-            tumbleCount: 20
-          }
-        }
+            tumbleCount: 20,
+          },
+        },
       };
       quickTestConfigInput.value = JSON.stringify(defaultTestConfig, null, 2);
     }
@@ -532,24 +614,24 @@ if (quickCheatBtn && quickCheatModal) {
     quickCheatError.style.display = 'none';
     const jsonStr = quickTestConfigInput.value;
     const originalText = sendQuickCheatBtn.innerText;
-    
+
     try {
       const parsed = JSON.parse(jsonStr);
       // Automatically inject current IDs if PLAYER_ID exists
       if (typeof PLAYER_ID !== 'undefined') parsed.configId = PLAYER_ID;
       parsed.gameCode = game.gameCode;
-      
+
       sendQuickCheatBtn.innerText = 'SENDING...';
       const response = await fetch(`${API_URL}/v1/test/test-config`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'x-signature': 'rgs-local-signature',
-          'accept': '*/*'
+          accept: '*/*',
         },
         body: JSON.stringify(parsed),
       });
-      
+
       const text = await response.text();
       let result = {};
       if (text) {
@@ -559,9 +641,9 @@ if (quickCheatBtn && quickCheatModal) {
           // Handle cases where response text is not JSON
         }
       }
-      
+
       sendQuickCheatBtn.innerText = originalText;
-      
+
       // The backend may return 200 OK but with an error object inside
       if (response.ok && !result.error && !result.errors) {
         showLoading('Cheat Sent successfully! ✅');
@@ -579,7 +661,7 @@ if (quickCheatBtn && quickCheatModal) {
       quickCheatError.innerText = `Invalid JSON or Request Error: ${err.message}`;
     }
   };
-  
+
   if (clearCheatConfigBtn) {
     clearCheatConfigBtn.onclick = async () => {
       const configId = PLAYER_ID;
@@ -590,7 +672,7 @@ if (quickCheatBtn && quickCheatModal) {
         console.log(`Clearing cheat config for game=${gameCode}, id=${configId}`);
         const response = await fetch(`${API_URL}/v1/test/test-config?${params}`, {
           method: 'DELETE',
-          headers: { 'accept': '*/*', 'x-signature': 'rgs-local-signature' },
+          headers: { accept: '*/*', 'x-signature': 'rgs-local-signature' },
         });
         if (!response.ok) {
           const errorText = await response.text();
@@ -633,7 +715,7 @@ saveSettingsBtn.onclick = () => {
     localStorage.setItem('request_body', requestBodyTextarea.value);
   }
   settingsModal.close();
-  location.reload(); 
+  location.reload();
 };
 
 if (clearDataBtn) {
@@ -742,7 +824,8 @@ if (singleViewModeSelect) {
     localStorage.setItem('single_view_mode', singleViewMode);
     // Re-navigate from start
     gameState.currentFramePhase = singleViewMode === 'initial' ? 'initial' : 'final';
-    if (gameState.fields?.length > 0) showTumble(0, singleViewMode === 'final' ? 'final' : 'initial');
+    if (gameState.fields?.length > 0)
+      showTumble(0, singleViewMode === 'final' ? 'final' : 'initial');
   };
 }
 renderSymbolMap();
@@ -782,6 +865,10 @@ const playIcon = document.getElementById('playIcon');
 const pauseIcon = document.getElementById('pauseIcon');
 const currentSpinIdLabel = document.getElementById('currentSpinIdLabel');
 const playbackAutoplayBtn = document.getElementById('playbackAutoplayBtn');
+const prevRoundBtn = document.getElementById('prevRoundBtn');
+const nextRoundBtn = document.getElementById('nextRoundBtn');
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
 
 if (playbackAutoBtn && isAutoReplay) {
   playbackAutoBtn.classList.add('active-pulse');
@@ -802,6 +889,36 @@ try {
   if (cachedOpts) activeFilters = JSON.parse(cachedOpts) || [];
 } catch (e) {
   activeFilters = [];
+}
+
+async function triggerFilterUpdate() {
+  showLoading('Searching entire database...', 0);
+  try {
+    localStorage.setItem('active_filters', JSON.stringify(activeFilters));
+    const { loadAllSpins, searchEntireDb } = await import('./db.js');
+
+    const hasActiveFilters = activeFilters.some((f) => !f.disabled);
+
+    if (!hasActiveFilters) {
+      // Safely load the newest 10k spins strictly for the active game
+      globalHistory = await loadAllSpins(game.id, MAX_RAM_HISTORY);
+    } else {
+      // Instantly search millions of spins using the IndexedDB cursor
+      globalHistory = await searchEntireDb(activeFilters, game, 5000);
+    }
+
+    // FIX: Use the globally attached function instead of the local scoped one
+    if (window._renderFilterChips) {
+      window._renderFilterChips();
+    }
+
+    renderSpinHistory(true); // Paint the results
+  } catch (err) {
+    console.error('Filter search error:', err);
+    alert('Search failed: ' + err.message);
+  } finally {
+    hideLoading();
+  }
 }
 
 function buildFilterBar() {
@@ -840,19 +957,16 @@ function buildFilterBar() {
         <span class="filter-chip-remove" data-idx="${idx}" role="button" aria-label="Remove filter">&times;</span>
       `;
 
-      // Toggle functionality (OpenSearch style)
-      chip.querySelector('.filter-chip-label').onclick = (e) => {
+      chip.querySelector('.filter-chip-label').onclick = async (e) => {
         e.stopPropagation();
         af.disabled = !af.disabled;
-        renderChips();
-        renderSpinHistory();
+        await triggerFilterUpdate();
       };
 
-      chip.querySelector('.filter-chip-remove').onclick = (e) => {
+      chip.querySelector('.filter-chip-remove').onclick = async (e) => {
         e.stopPropagation();
         activeFilters.splice(idx, 1);
-        renderChips();
-        renderSpinHistory();
+        await triggerFilterUpdate();
       };
 
       const valueEl = chip.querySelector('.filter-chip-value');
@@ -861,7 +975,7 @@ function buildFilterBar() {
         valueEl.title = 'Click to edit';
         valueEl.onclick = (e) => {
           e.stopPropagation();
-          showFilterEditInput(def, af);
+          showFilterInput(def, af); // Open editor
         };
       }
 
@@ -870,12 +984,10 @@ function buildFilterBar() {
 
     const countEl = document.getElementById('filterCount');
     if (countEl) {
-      const filtered = applyFilters(globalHistory, activeFilters, game);
-      countEl.innerText = `${filtered.length} / ${globalHistory.length}`;
+      countEl.innerText = `${globalHistory.length} Results`;
     }
   }
 
-  // Sorting
   const sortField = document.getElementById('sortField');
   if (sortField) {
     const savedSort = localStorage.getItem('sort_field');
@@ -886,223 +998,121 @@ function buildFilterBar() {
     };
   }
 
-  addBtn.setAttribute('aria-haspopup', 'menu');
-
   addBtn.onclick = (e) => {
     e.stopPropagation();
     const isShowing = dropdown.style.display === 'block';
     dropdown.style.display = isShowing ? 'none' : 'block';
-    addBtn.setAttribute('aria-expanded', (!isShowing).toString());
 
     if (isShowing) return;
-
     dropdown.innerHTML = '';
 
     FILTER_DEFS.forEach((def) => {
-      // Allow stacking: winCondition, text, and hasSymbol can be added multiple times
       const stackable = def.id === 'text' || def.id === 'winCondition' || def.id === 'hasSymbol';
       if (!stackable && activeFilters.some((af) => af.id === def.id)) return;
 
       const item = document.createElement('div');
-      item.setAttribute('role', 'menuitem');
-      item.setAttribute('tabindex', '-1');
       item.className = 'dropdown-item';
       item.innerText = def.label;
       item.onclick = (ev) => {
         ev.stopPropagation();
         dropdown.style.display = 'none';
-        addBtn.setAttribute('aria-expanded', 'false');
         showFilterInput(def);
       };
-
-      item.onkeydown = (ev) => {
-        if (ev.key === 'Enter' || ev.key === ' ') {
-          ev.preventDefault();
-          item.click();
-        } else if (ev.key === 'ArrowDown') {
-          ev.preventDefault();
-          const next = item.nextElementSibling;
-          if (next) next.focus();
-        } else if (ev.key === 'ArrowUp') {
-          ev.preventDefault();
-          const prev = item.previousElementSibling;
-          if (prev) prev.focus();
-          else addBtn.focus();
-        } else if (ev.key === 'Escape') {
-          dropdown.style.display = 'none';
-          addBtn.setAttribute('aria-expanded', 'false');
-          addBtn.focus();
-        }
-      };
-
       dropdown.appendChild(item);
     });
-
-    // Focus first item
-    setTimeout(() => {
-      const firstItem = dropdown.querySelector('.dropdown-item');
-      if (firstItem) firstItem.focus();
-    }, 0);
-  };
-
-  addBtn.onkeydown = (e) => {
-    if (e.key === 'ArrowDown' && dropdown.style.display === 'block') {
-      e.preventDefault();
-      dropdown.querySelector('.dropdown-item')?.focus();
-    }
   };
 
   document.addEventListener('click', (e) => {
     if (!dropdown.contains(e.target) && e.target !== addBtn) {
       dropdown.style.display = 'none';
-      addBtn.setAttribute('aria-expanded', 'false');
     }
   });
 
-  /** Remove any pending inline pickers/inputs */
   function clearPendingInputs() {
     chips
-      .querySelectorAll('.filter-inline-picker, .filter-inline-input, .filter-condition-input')
+      .querySelectorAll(
+        '.filter-inline-picker, .filter-inline-input, .filter-condition-input, .filter-date-picker',
+      )
       .forEach((el) => el.remove());
   }
 
-  function showFilterInput(def) {
+  function showFilterInput(def, existingFilter = null) {
     clearPendingInputs();
 
-    // Toggle — instant
+    // Toggle
     if (def.type === 'toggle') {
-      activeFilters.push({ id: def.id, value: true });
-      renderChips();
-      renderSpinHistory();
+      if (!existingFilter) activeFilters.push({ id: def.id, value: true });
+      triggerFilterUpdate();
       return;
     }
 
-    // Condition — operator + number (for Win Amount)
-    if (def.type === 'condition') {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'filter-condition-input';
+    // MULTI-SELECT (For Win Categories)
+    if (def.type === 'multiselect') {
+      const picker = document.createElement('div');
+      picker.className = 'filter-inline-picker';
+      picker.style.flexDirection = 'column';
+      picker.style.alignItems = 'flex-start';
+      picker.style.minWidth = '140px';
 
-      const opSelect = document.createElement('select');
-      opSelect.className = 'filter-input';
-      opSelect.style.width = '55px';
-      WIN_OPERATORS.forEach((o) => {
-        const opt = document.createElement('option');
-        opt.value = o.op;
-        opt.textContent = o.label;
-        opSelect.appendChild(opt);
+      const selected = new Set(existingFilter ? existingFilter.value : []);
+
+      let options = [];
+      if (def.id === 'winCategory') {
+        const cats = game.winCategories || {};
+        options = Object.entries(cats)
+          .sort((a, b) => b[1] - a[1])
+          .map(([k, v]) => ({ label: `${k.replace('_WIN', '')} (${v}x)`, value: k }));
+      }
+
+      options.forEach((opt) => {
+        const lbl = document.createElement('label');
+        lbl.style.cssText =
+          'display:flex; align-items:center; gap:6px; cursor:pointer; font-size:10px; padding:4px; color:#ccc; width:100%;';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = opt.value;
+        cb.style.accentColor = 'var(--bg-accent)';
+        if (selected.has(opt.value)) cb.checked = true;
+
+        lbl.appendChild(cb);
+        lbl.appendChild(document.createTextNode(opt.label));
+        picker.appendChild(lbl);
       });
 
-      const numInput = document.createElement('input');
-      numInput.type = 'number';
-      numInput.placeholder = def.placeholder || '0';
-      numInput.className = 'filter-input';
-      numInput.style.width = '80px';
+      const btnRow = document.createElement('div');
+      btnRow.style.cssText = 'display:flex; gap:8px; margin-top:8px; width:100%;';
 
       const confirmBtn = document.createElement('button');
-      confirmBtn.innerText = '✓';
       confirmBtn.className = 'filter-confirm-btn';
+      confirmBtn.style.flex = '1';
+      confirmBtn.innerText = 'Apply';
 
       const cancelBtn = document.createElement('button');
-      cancelBtn.innerText = '✕';
       cancelBtn.className = 'filter-cancel-btn';
+      cancelBtn.style.flex = '1';
+      cancelBtn.innerText = 'Cancel';
 
-      const commit = () => {
-        if (numInput.value) {
-          activeFilters.push({ id: def.id, value: { op: opSelect.value, num: numInput.value } });
-          renderChips();
-          renderSpinHistory();
+      confirmBtn.onclick = async () => {
+        const checked = Array.from(picker.querySelectorAll('input:checked')).map((cb) => cb.value);
+        if (checked.length > 0) {
+          if (existingFilter) existingFilter.value = checked;
+          else activeFilters.push({ id: def.id, value: checked });
+          picker.remove();
+          await triggerFilterUpdate();
+        } else {
+          picker.remove();
         }
-        wrapper.remove();
-        addBtn.focus();
-      };
-      const cancel = () => {
-        wrapper.remove();
-        addBtn.focus();
       };
 
-      confirmBtn.onclick = commit;
-      cancelBtn.onclick = cancel;
-      numInput.onkeydown = (e) => {
-        if (e.key === 'Enter') commit();
-        if (e.key === 'Escape') cancel();
-      };
-
-      wrapper.appendChild(opSelect);
-      wrapper.appendChild(numInput);
-      wrapper.appendChild(confirmBtn);
-      wrapper.appendChild(cancelBtn);
-      chips.appendChild(wrapper);
-      numInput.focus();
+      cancelBtn.onclick = () => picker.remove();
+      btnRow.appendChild(confirmBtn);
+      btnRow.appendChild(cancelBtn);
+      picker.appendChild(btnRow);
+      chips.appendChild(picker);
       return;
     }
 
-    // SymbolCount — select symbol + input count
-    if (def.type === 'symbolCount') {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'filter-condition-input';
-
-      const symSelect = document.createElement('select');
-      symSelect.className = 'filter-input';
-      Object.entries(game.symbols)
-        .filter(([k]) => parseInt(k) !== game.emptySymbolId)
-        .forEach(([k, v]) => {
-          const opt = document.createElement('option');
-          opt.value = k;
-          opt.textContent = `${v} ${game.emojis[k] || ''}`;
-          symSelect.appendChild(opt);
-        });
-
-      const opLabel = document.createElement('span');
-      opLabel.innerText = ' >= ';
-      opLabel.style.color = '#888';
-      opLabel.style.fontSize = '10px';
-
-      const numInput = document.createElement('input');
-      numInput.type = 'number';
-      numInput.value = '1';
-      numInput.min = '1';
-      numInput.className = 'filter-input';
-      numInput.style.width = '50px';
-
-      const confirmBtn = document.createElement('button');
-      confirmBtn.innerText = '✓';
-      confirmBtn.className = 'filter-confirm-btn';
-
-      const cancelBtn = document.createElement('button');
-      cancelBtn.innerText = '✕';
-      cancelBtn.className = 'filter-cancel-btn';
-
-      const commit = () => {
-        if (numInput.value) {
-          activeFilters.push({
-            id: def.id,
-            value: { symId: symSelect.value, count: parseInt(numInput.value) },
-          });
-          renderChips();
-          renderSpinHistory();
-        }
-        wrapper.remove();
-      };
-      const cancel = () => wrapper.remove();
-
-      confirmBtn.onclick = commit;
-      cancelBtn.onclick = cancel;
-      numInput.onkeydown = (e) => {
-        if (e.key === 'Enter') commit();
-        if (e.key === 'Escape') cancel();
-      };
-
-      wrapper.appendChild(symSelect);
-      wrapper.appendChild(opLabel);
-      wrapper.appendChild(numInput);
-      wrapper.appendChild(confirmBtn);
-      wrapper.appendChild(cancelBtn);
-      chips.appendChild(wrapper);
-      symSelect.focus();
-      return;
-    }
-
-    // Select — inline button picker with cancel
+    // Standard Select
     if (def.type === 'select') {
       let options = def.options || [];
       if (def.optionsFromGame) {
@@ -1118,382 +1128,107 @@ function buildFilterBar() {
       picker.className = 'filter-inline-picker';
       options.forEach((opt) => {
         const btn = document.createElement('button');
-        btn.className = 'filter-inline-option';
+        btn.className = `filter-inline-option ${existingFilter && existingFilter.value === opt.value ? 'active' : ''}`;
         btn.innerText = opt.label;
-        btn.onclick = () => {
-          activeFilters.push({ id: def.id, value: opt.value });
-          renderChips();
-          renderSpinHistory();
+        btn.onclick = async () => {
+          if (existingFilter) existingFilter.value = opt.value;
+          else activeFilters.push({ id: def.id, value: opt.value });
           picker.remove();
+          await triggerFilterUpdate();
         };
         picker.appendChild(btn);
       });
 
-      // Cancel button
       const cancelBtn = document.createElement('button');
       cancelBtn.className = 'filter-cancel-btn';
       cancelBtn.innerText = '✕ Cancel';
       cancelBtn.onclick = () => picker.remove();
       picker.appendChild(cancelBtn);
-
       chips.appendChild(picker);
       return;
     }
 
-    // Date — presets + native date input defaulting to today
-    if (def.type === 'date') {
+    // Condition (Operator + Number)
+    if (def.type === 'condition') {
       const wrapper = document.createElement('div');
-      wrapper.className = 'filter-date-picker';
+      wrapper.className = 'filter-condition-input';
 
-      const today = new Date();
-      const fmt = (d) => d.toISOString().slice(0, 10);
-
-      const presets = document.createElement('div');
-      presets.className = 'filter-date-presets';
-
-      const presetDefs = [
-        { label: 'Today', value: fmt(today) },
-        { label: 'Yesterday', value: fmt(new Date(today.getTime() - 86400000)) },
-        { label: 'Last 7d', value: fmt(new Date(today.getTime() - 7 * 86400000)) },
-        { label: 'Last 30d', value: fmt(new Date(today.getTime() - 30 * 86400000)) },
-      ];
-
-      const commitDate = (val) => {
-        if (val) {
-          activeFilters.push({ id: def.id, value: val });
-          renderChips();
-          renderSpinHistory();
-        }
-        wrapper.remove();
-      };
-
-      presetDefs.forEach((p) => {
-        const btn = document.createElement('button');
-        btn.className = 'filter-inline-option';
-        btn.innerText = p.label;
-        btn.onclick = () => commitDate(p.value);
-        presets.appendChild(btn);
+      const opSelect = document.createElement('select');
+      opSelect.className = 'filter-input';
+      opSelect.style.width = '55px';
+      WIN_OPERATORS.forEach((o) => {
+        const opt = document.createElement('option');
+        opt.value = o.op;
+        opt.textContent = o.label;
+        if (existingFilter && existingFilter.value.op === o.op) opt.selected = true;
+        opSelect.appendChild(opt);
       });
 
-      const inputRow = document.createElement('div');
-      inputRow.className = 'filter-inline-input';
-      inputRow.style.marginTop = '6px';
-
-      const input = document.createElement('input');
-      input.type = 'date';
-      input.className = 'filter-input';
-      input.style.width = '150px';
-      input.value = fmt(today);
+      const numInput = document.createElement('input');
+      numInput.type = 'number';
+      numInput.className = 'filter-input';
+      numInput.style.width = '80px';
+      if (existingFilter) numInput.value = existingFilter.value.num;
 
       const confirmBtn = document.createElement('button');
       confirmBtn.innerText = '✓';
       confirmBtn.className = 'filter-confirm-btn';
-      const cancelBtn = document.createElement('button');
-      cancelBtn.innerText = '✕';
-      cancelBtn.className = 'filter-cancel-btn';
 
-      confirmBtn.onclick = () => commitDate(input.value);
-      cancelBtn.onclick = () => wrapper.remove();
-      input.onkeydown = (e) => {
-        if (e.key === 'Enter') commitDate(input.value);
-        if (e.key === 'Escape') wrapper.remove();
+      const doCommit = async () => {
+        if (numInput.value) {
+          const val = { op: opSelect.value, num: numInput.value };
+          if (existingFilter) existingFilter.value = val;
+          else activeFilters.push({ id: def.id, value: val });
+          wrapper.remove();
+          await triggerFilterUpdate();
+        } else {
+          wrapper.remove();
+        }
       };
 
-      inputRow.appendChild(input);
-      inputRow.appendChild(confirmBtn);
-      inputRow.appendChild(cancelBtn);
-      wrapper.appendChild(presets);
-      wrapper.appendChild(inputRow);
+      confirmBtn.onclick = doCommit;
+      numInput.onkeydown = (e) => {
+        if (e.key === 'Enter') doCommit();
+      };
+
+      wrapper.appendChild(opSelect);
+      wrapper.appendChild(numInput);
+      wrapper.appendChild(confirmBtn);
       chips.appendChild(wrapper);
-      input.focus();
+      numInput.focus();
       return;
     }
 
-    // Number / Text — input with cancel
+    // Default Fallback (Number / Text input)
     const wrapper = document.createElement('div');
     wrapper.className = 'filter-inline-input';
     const input = document.createElement('input');
     input.type = def.type === 'number' ? 'number' : 'text';
-    input.placeholder = def.placeholder || def.label;
     input.className = 'filter-input';
+    if (existingFilter) input.value = existingFilter.value;
+
     const confirmBtn = document.createElement('button');
     confirmBtn.innerText = '✓';
     confirmBtn.className = 'filter-confirm-btn';
-    const cancelBtn = document.createElement('button');
-    cancelBtn.innerText = '✕';
-    cancelBtn.className = 'filter-cancel-btn';
 
-    const commit = () => {
+    const doCommit = async () => {
       if (input.value) {
-        activeFilters.push({ id: def.id, value: input.value });
-        renderChips();
-        renderSpinHistory();
-      }
-      wrapper.remove();
-    };
-    const cancel = () => wrapper.remove();
-
-    confirmBtn.onclick = commit;
-    cancelBtn.onclick = cancel;
-    input.onkeydown = (e) => {
-      if (e.key === 'Enter') commit();
-      if (e.key === 'Escape') cancel();
-    };
-
-    wrapper.appendChild(input);
-    wrapper.appendChild(confirmBtn);
-    wrapper.appendChild(cancelBtn);
-    chips.appendChild(wrapper);
-    input.focus();
-  }
-
-  /** Edit an existing active filter's value in-place */
-  function showFilterEditInput(def, af) {
-    clearPendingInputs();
-
-    if (def.type === 'toggle') return;
-
-    const commit = (newValue) => {
-      af.value = newValue;
-      renderChips();
-      renderSpinHistory();
-    };
-
-    if (def.type === 'condition') {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'filter-condition-input';
-
-      const opSelect = document.createElement('select');
-      opSelect.className = 'filter-input';
-      opSelect.style.width = '55px';
-      WIN_OPERATORS.forEach((o) => {
-        const opt = document.createElement('option');
-        opt.value = o.op;
-        opt.textContent = o.label;
-        if (o.op === af.value?.op) opt.selected = true;
-        opSelect.appendChild(opt);
-      });
-
-      const numInput = document.createElement('input');
-      numInput.type = 'number';
-      numInput.placeholder = def.placeholder || '0';
-      numInput.className = 'filter-input';
-      numInput.style.width = '80px';
-      numInput.value = af.value?.num || '';
-
-      const confirmBtn = document.createElement('button');
-      confirmBtn.innerText = '✓';
-      confirmBtn.className = 'filter-confirm-btn';
-      const cancelBtn = document.createElement('button');
-      cancelBtn.innerText = '✕';
-      cancelBtn.className = 'filter-cancel-btn';
-
-      const doCommit = () => {
-        if (numInput.value) commit({ op: opSelect.value, num: numInput.value });
+        if (existingFilter) existingFilter.value = input.value;
+        else activeFilters.push({ id: def.id, value: input.value });
         wrapper.remove();
-      };
-      const cancel = () => wrapper.remove();
-
-      confirmBtn.onclick = doCommit;
-      cancelBtn.onclick = cancel;
-      numInput.onkeydown = (e) => {
-        if (e.key === 'Enter') doCommit();
-        if (e.key === 'Escape') cancel();
-      };
-
-      wrapper.appendChild(opSelect);
-      wrapper.appendChild(numInput);
-      wrapper.appendChild(confirmBtn);
-      wrapper.appendChild(cancelBtn);
-      chips.appendChild(wrapper);
-      numInput.focus();
-      return;
-    }
-
-    if (def.type === 'symbolCount') {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'filter-condition-input';
-
-      const symSelect = document.createElement('select');
-      symSelect.className = 'filter-input';
-      Object.entries(game.symbols)
-        .filter(([k]) => parseInt(k) !== game.emptySymbolId)
-        .forEach(([k, v]) => {
-          const opt = document.createElement('option');
-          opt.value = k;
-          opt.textContent = `${v} ${game.emojis[k] || ''}`;
-          if (k === String(af.value?.symId)) opt.selected = true;
-          symSelect.appendChild(opt);
-        });
-
-      const opLabel = document.createElement('span');
-      opLabel.innerText = ' >= ';
-      opLabel.style.color = '#888';
-      opLabel.style.fontSize = '10px';
-
-      const numInput = document.createElement('input');
-      numInput.type = 'number';
-      numInput.value = af.value?.count || '1';
-      numInput.min = '1';
-      numInput.className = 'filter-input';
-      numInput.style.width = '50px';
-
-      const confirmBtn = document.createElement('button');
-      confirmBtn.innerText = '✓';
-      confirmBtn.className = 'filter-confirm-btn';
-      const cancelBtn = document.createElement('button');
-      cancelBtn.innerText = '✕';
-      cancelBtn.className = 'filter-cancel-btn';
-
-      const doCommit = () => {
-        if (numInput.value) commit({ symId: symSelect.value, count: parseInt(numInput.value) });
+        await triggerFilterUpdate();
+      } else {
         wrapper.remove();
-      };
-      const cancel = () => wrapper.remove();
-
-      confirmBtn.onclick = doCommit;
-      cancelBtn.onclick = cancel;
-      numInput.onkeydown = (e) => {
-        if (e.key === 'Enter') doCommit();
-        if (e.key === 'Escape') cancel();
-      };
-
-      wrapper.appendChild(symSelect);
-      wrapper.appendChild(opLabel);
-      wrapper.appendChild(numInput);
-      wrapper.appendChild(confirmBtn);
-      wrapper.appendChild(cancelBtn);
-      chips.appendChild(wrapper);
-      symSelect.focus();
-      return;
-    }
-
-    if (def.type === 'select') {
-      let options = def.options || [];
-      if (def.optionsFromGame) {
-        options = Object.entries(game.symbols)
-          .filter(([k]) => parseInt(k) !== game.emptySymbolId)
-          .map(([k, v]) => ({ label: `${v} ${game.emojis[k] || ''}`, value: k }));
       }
-      if (def.optionsFromGames) {
-        options = listGames().map((g) => ({ label: g.name, value: g.id }));
-      }
-
-      const picker = document.createElement('div');
-      picker.className = 'filter-inline-picker';
-      options.forEach((opt) => {
-        const btn = document.createElement('button');
-        btn.className = `filter-inline-option${opt.value === af.value ? ' active' : ''}`;
-        btn.innerText = opt.label;
-        btn.onclick = () => {
-          commit(opt.value);
-          picker.remove();
-        };
-        picker.appendChild(btn);
-      });
-
-      const cancelBtn = document.createElement('button');
-      cancelBtn.className = 'filter-cancel-btn';
-      cancelBtn.innerText = '✕ Cancel';
-      cancelBtn.onclick = () => picker.remove();
-      picker.appendChild(cancelBtn);
-      chips.appendChild(picker);
-      return;
-    }
-
-    if (def.type === 'date') {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'filter-date-picker';
-
-      const today = new Date();
-      const fmt = (d) => d.toISOString().slice(0, 10);
-
-      const presets = document.createElement('div');
-      presets.className = 'filter-date-presets';
-
-      const doCommit = (val) => {
-        if (val) commit(val);
-        wrapper.remove();
-      };
-
-      [
-        { label: 'Today', value: fmt(today) },
-        { label: 'Yesterday', value: fmt(new Date(today.getTime() - 86400000)) },
-        { label: 'Last 7d', value: fmt(new Date(today.getTime() - 7 * 86400000)) },
-        { label: 'Last 30d', value: fmt(new Date(today.getTime() - 30 * 86400000)) },
-      ].forEach((p) => {
-        const btn = document.createElement('button');
-        btn.className = 'filter-inline-option';
-        btn.innerText = p.label;
-        btn.onclick = () => doCommit(p.value);
-        presets.appendChild(btn);
-      });
-
-      const inputRow = document.createElement('div');
-      inputRow.className = 'filter-inline-input';
-      inputRow.style.marginTop = '6px';
-
-      const input = document.createElement('input');
-      input.type = 'date';
-      input.className = 'filter-input';
-      input.style.width = '150px';
-      input.value = af.value || fmt(today);
-
-      const confirmBtn = document.createElement('button');
-      confirmBtn.innerText = '✓';
-      confirmBtn.className = 'filter-confirm-btn';
-      const cancelBtn = document.createElement('button');
-      cancelBtn.innerText = '✕';
-      cancelBtn.className = 'filter-cancel-btn';
-
-      confirmBtn.onclick = () => doCommit(input.value);
-      cancelBtn.onclick = () => wrapper.remove();
-      input.onkeydown = (e) => {
-        if (e.key === 'Enter') doCommit(input.value);
-        if (e.key === 'Escape') wrapper.remove();
-      };
-
-      inputRow.appendChild(input);
-      inputRow.appendChild(confirmBtn);
-      inputRow.appendChild(cancelBtn);
-      wrapper.appendChild(presets);
-      wrapper.appendChild(inputRow);
-      chips.appendChild(wrapper);
-      input.focus();
-      return;
-    }
-
-    // Number / Text
-    const wrapper = document.createElement('div');
-    wrapper.className = 'filter-inline-input';
-    const input = document.createElement('input');
-    input.type = def.type === 'number' ? 'number' : 'text';
-    input.placeholder = def.placeholder || def.label;
-    input.className = 'filter-input';
-    input.value = af.value || '';
-    const confirmBtn = document.createElement('button');
-    confirmBtn.innerText = '✓';
-    confirmBtn.className = 'filter-confirm-btn';
-    const cancelBtn = document.createElement('button');
-    cancelBtn.innerText = '✕';
-    cancelBtn.className = 'filter-cancel-btn';
-
-    const doCommit = () => {
-      if (input.value) commit(input.value);
-      wrapper.remove();
     };
-    const cancel = () => wrapper.remove();
 
     confirmBtn.onclick = doCommit;
-    cancelBtn.onclick = cancel;
     input.onkeydown = (e) => {
       if (e.key === 'Enter') doCommit();
-      if (e.key === 'Escape') cancel();
     };
 
     wrapper.appendChild(input);
     wrapper.appendChild(confirmBtn);
-    wrapper.appendChild(cancelBtn);
     chips.appendChild(wrapper);
     input.focus();
   }
@@ -1589,11 +1324,12 @@ async function fireSpinRequest(config) {
     let allPhases = [...(data.step?.gamePhases || [])];
 
     // If baseSpin triggered freeSpin, include baseGameWin in the first chained request
-    const baseSpinPhases = data.step?.gamePhases ?? data.roundEvents?.playResult?.step?.gamePhases ?? [];
-    const hasTriggerFreeSpin = baseSpinPhases.some(phase =>
-      (phase.playgrounds ?? []).some(pg =>
-        (pg.fields ?? []).some(field => field.features?.triggerFreeSpin === true)
-      )
+    const baseSpinPhases =
+      data.step?.gamePhases ?? data.roundEvents?.playResult?.step?.gamePhases ?? [];
+    const hasTriggerFreeSpin = baseSpinPhases.some((phase) =>
+      (phase.playgrounds ?? []).some((pg) =>
+        (pg.fields ?? []).some((field) => field.features?.triggerFreeSpin === true),
+      ),
     );
     const baseGameWin = hasTriggerFreeSpin
       ? (data.step?.summary?.coins ?? data.roundEvents?.playResult?.step?.summary?.coins ?? 0)
@@ -1641,7 +1377,7 @@ function truncateMiddle(str, maxLen = 32) {
 
 window.startDescEdit = (num, rowEl) => {
   if (rowEl.querySelector('.title-input')) return;
-  const spin = globalHistory.find(s => s.num === num);
+  const spin = globalHistory.find((s) => s.num === num);
   const current = spin?.description || '';
   while (rowEl.firstChild) rowEl.removeChild(rowEl.firstChild);
   const input = document.createElement('input');
@@ -1655,12 +1391,20 @@ window.startDescEdit = (num, rowEl) => {
 
   const save = () => {
     const val = input.value.trim();
-    if (spin) spin.description = val || null;
+    if (spin) {
+      spin.description = val || null;
+      // --- THE FIX: Save the manual edit to IndexedDB immediately ---
+      import('./db.js').then((db) => db.saveSpin(spin));
+    }
     renderSpinHistory(true);
   };
+
   input.addEventListener('blur', save);
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      input.blur();
+    }
     if (e.key === 'Escape') {
       input.removeEventListener('blur', save);
       input.blur();
@@ -1670,9 +1414,13 @@ window.startDescEdit = (num, rowEl) => {
 };
 
 function isSettleField(field) {
-  return field.features?.isSettle === true;
+  // If the game explicitly provides isSettle (like sexy-fruits), respect it.
+  if (field.features && 'isSettle' in field.features) {
+    return field.features.isSettle === true;
+  }
+  // Backward compatibility fallback
+  return true;
 }
-
 function getFieldEffectiveWin(field) {
   const raw = parseFloat(field.coins || 0);
   if (!raw) return 0;
@@ -1692,7 +1440,7 @@ function getSpinStats(fields, wildSymbolId) {
     });
 
     const goldenArray = f.features?.golden || [];
-    goldenArray.forEach(pos => {
+    goldenArray.forEach((pos) => {
       if (payoutPositions.has(pos)) {
         totalGolden++;
       }
@@ -1720,7 +1468,7 @@ function getMappedRequest(config) {
   }
   return {
     play: playReq,
-    testConfig: testConfig
+    testConfig: testConfig,
   };
 }
 
@@ -1734,20 +1482,20 @@ async function playSingleSpin(overrideConfig = null, description = null) {
   let hasBaseSpin = false;
   let hasFreeSpin = false;
   let playgroundCounter = 0;
-  
+
   (data.step?.gamePhases || []).forEach((phase) => {
     if (phase.type === 'baseSpin') hasBaseSpin = true;
     if (phase.type === 'freeSpin') hasFreeSpin = true;
     let roundCounter = 0;
-    (phase.playgrounds || []).forEach(pg => {
+    (phase.playgrounds || []).forEach((pg) => {
       let pgTumbles = 0;
       let pgCascades = 0;
-      (pg.fields || []).forEach(f => {
+      (pg.fields || []).forEach((f) => {
         fields.push(f);
         fieldMetadata.push({
           playgroundIndex: playgroundCounter,
           isFreeSpin: phase.type === 'freeSpin',
-          roundIndex: roundCounter
+          roundIndex: roundCounter,
         });
         pgTumbles++;
         if (parseFloat(f.coins || 0) > 0 && isSettleField(f)) pgCascades++;
@@ -1755,7 +1503,7 @@ async function playSingleSpin(overrideConfig = null, description = null) {
       playgroundStats.push({
         tumbleCount: pgTumbles,
         cascadeCount: pgCascades,
-        headerText: phase.type === 'freeSpin' ? `FreeSpin #${roundCounter + 1}` : 'BaseSpin'
+        headerText: phase.type === 'freeSpin' ? `FreeSpin #${roundCounter + 1}` : 'BaseSpin',
       });
       playgroundCounter++;
       roundCounter++;
@@ -1778,6 +1526,7 @@ async function playSingleSpin(overrideConfig = null, description = null) {
     timestamp: new Date().toISOString(),
     gameId: game.id,
     rawData: data,
+    isCheatTriggered: data.meta?.private?.isCheatTriggered === true, // <--- ADD THIS HERE
     fields,
     summary,
     isWin: parseInt(summary.coins || 0) > 0,
@@ -1803,7 +1552,7 @@ async function playSingleSpin(overrideConfig = null, description = null) {
 
   // Internal storage is kept detailed for UI performance,
   // but Export/Import is now barebone for transport efficiency.
-  await import('./db.js').then(db => db.saveSpin(entry));
+  await import('./db.js').then((db) => db.saveSpin(entry));
   globalHistory.unshift(entry);
   return entry;
 }
@@ -1824,20 +1573,20 @@ async function playConcurrentBatch(config, batchSize) {
     let hasBaseSpin = false;
     let hasFreeSpin = false;
     let playgroundCounter = 0;
-    
+
     (data.step?.gamePhases || []).forEach((phase) => {
       if (phase.type === 'baseSpin') hasBaseSpin = true;
       if (phase.type === 'freeSpin') hasFreeSpin = true;
       let roundCounter = 0;
-      (phase.playgrounds || []).forEach(pg => {
+      (phase.playgrounds || []).forEach((pg) => {
         let pgTumbles = 0;
         let pgCascades = 0;
-        (pg.fields || []).forEach(f => {
+        (pg.fields || []).forEach((f) => {
           fields.push(f);
           fieldMetadata.push({
             playgroundIndex: playgroundCounter,
             isFreeSpin: phase.type === 'freeSpin',
-            roundIndex: roundCounter
+            roundIndex: roundCounter,
           });
           pgTumbles++;
           if (parseFloat(f.coins || 0) > 0 && isSettleField(f)) pgCascades++;
@@ -1845,7 +1594,7 @@ async function playConcurrentBatch(config, batchSize) {
         playgroundStats.push({
           tumbleCount: pgTumbles,
           cascadeCount: pgCascades,
-          headerText: phase.type === 'freeSpin' ? `FreeSpin #${roundCounter + 1}` : 'BaseSpin'
+          headerText: phase.type === 'freeSpin' ? `FreeSpin #${roundCounter + 1}` : 'BaseSpin',
         });
         playgroundCounter++;
         roundCounter++;
@@ -1867,6 +1616,7 @@ async function playConcurrentBatch(config, batchSize) {
       timestamp: new Date().toISOString(),
       gameId: game.id,
       rawData: data,
+      isCheatTriggered: data.meta?.private?.isCheatTriggered === true,
       fields,
       summary,
       isWin: parseInt(summary.coins || 0) > 0,
@@ -1903,7 +1653,11 @@ async function sendCheatConfig(jsonStr) {
   parsed.gameCode = game.gameCode;
   const response = await fetch(`${API_URL}/v1/test/test-config`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-signature': 'rgs-local-signature', 'accept': '*/*' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-signature': 'rgs-local-signature',
+      accept: '*/*',
+    },
     body: JSON.stringify(parsed),
   });
   if (!response.ok) {
@@ -1914,20 +1668,20 @@ async function sendCheatConfig(jsonStr) {
 }
 
 // ── Play Modes ───────────────────────────────────────────────────────────────
-const CONCURRENCY = 1000; // requests in-flight per batch
+const MAX_RAM_HISTORY = 10000; // Protects browser from crashing
 
 async function playSpin() {
   if (gameState.isAnimating || autoPlayRunning) return;
   const mode = playModeSelect.value;
+  const config = JSON.parse(requestBodyTextarea.value);
 
   if (mode === 'single') {
     setPlayUIBusy(true);
     try {
-      await playSingleSpin();
+      await playSingleSpin(config);
       renderSpinHistory();
       loadSpin(0);
     } catch (err) {
-      console.error(err);
       alert('Error: ' + err.message);
     } finally {
       setPlayUIBusy(false);
@@ -1935,117 +1689,261 @@ async function playSpin() {
     return;
   }
 
+  // --- PLAY ALL CHEAT TEMPLATES ---
   if (mode === 'allCheatTemplates') {
-    if (!cheatTemplates.length) {
-      alert('No cheat templates loaded.');
+    if (!cheatTemplates || cheatTemplates.length === 0) {
+      alert('Cheat templates not loaded yet!');
       return;
     }
-    autoPlayRunning = true;
-    stopAutoBtn.style.display = 'inline-block';
     setPlayUIBusy(true);
     const statusEl = document.getElementById('autoStatus');
-    let lastIdx = 0;
+    const originalTestConfig = localStorage.getItem('test_config');
+
     try {
       for (let i = 0; i < cheatTemplates.length; i++) {
-        if (!autoPlayRunning) break;
-        const template = cheatTemplates[i];
-        if (statusEl) statusEl.innerText = `Template ${i + 1}/${cheatTemplates.length}: ${truncateMiddle(template.title, 28)}`;
-        await sendCheatConfig(template.json);
-        const entry = await playSingleSpin(null, template.title);
-        lastIdx = globalHistory.indexOf(entry);
-        renderSpinHistory();
-        await new Promise(r => setTimeout(r, 0));
+        const t = cheatTemplates[i];
+        if (statusEl)
+          statusEl.innerText = `Running cheat ${i + 1}/${cheatTemplates.length}: ${t.title}`;
+
+        let parsed;
+        try {
+          parsed = JSON.parse(t.json);
+        } catch (e) {
+          continue;
+        }
+
+        // Auto-inject current IDs
+        if (typeof PLAYER_ID !== 'undefined') parsed.configId = PLAYER_ID;
+        parsed.gameCode = game.gameCode;
+
+        // 1. Arm the backend via the test-config endpoint
+        const cheatRes = await fetch(`${API_URL}/v1/test/test-config`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-signature': 'rgs-local-signature',
+            accept: '*/*',
+          },
+          body: JSON.stringify(parsed),
+        });
+
+        if (!cheatRes.ok) {
+          console.error(`Skipping ${t.title} - Failed to set cheat config`);
+          continue;
+        }
+
+        // 2. Set local storage so the Audit Drawer saves the correct testConfig metadata
+        localStorage.setItem('test_config', JSON.stringify(parsed));
+
+        // 3. Fire the normal spin! (The backend will intercept and apply the cheat)
+        await playSingleSpin(config, t.title);
       }
+      if (statusEl) statusEl.innerText = `Done: ${cheatTemplates.length} cheat templates`;
     } catch (err) {
-      console.error(err);
-      alert('Error: ' + err.message);
+      alert('Error running templates: ' + err.message);
     } finally {
-      autoPlayRunning = false;
-      stopAutoBtn.style.display = 'none';
-      if (statusEl) {
-        statusEl.innerText = `Done: ${cheatTemplates.length} templates`;
-        setTimeout(() => { statusEl.innerText = ''; }, 4000);
+      // 4. Cleanup: Delete the cheat config from the server so normal spins aren't affected
+      const params = new URLSearchParams({
+        gameCode: game.gameCode,
+        configId: PLAYER_ID,
+        playerId: PLAYER_ID,
+      });
+      fetch(`${API_URL}/v1/test/test-config?${params}`, {
+        method: 'DELETE',
+        headers: { 'x-signature': 'rgs-local-signature' },
+      }).catch((e) => console.warn(e));
+
+      // Restore user's previous cheat config state (or clear it)
+      if (originalTestConfig) {
+        localStorage.setItem('test_config', originalTestConfig);
+      } else {
+        localStorage.removeItem('test_config');
       }
+
       setPlayUIBusy(false);
       renderSpinHistory();
-      if (globalHistory.length > 0) loadSpin(lastIdx !== -1 ? lastIdx : 0);
+      loadSpin(0);
+      updateStorageStats();
     }
     return;
   }
 
-  // Auto-play modes
+  // --- LIGHTNING SPEED WORKER PIPELINE ---
   autoPlayRunning = true;
   stopAutoBtn.style.display = 'inline-block';
   setPlayUIBusy(true);
 
-  const maxSpins = mode === 'count' ? parseInt(playCountInput.value) || 10 : 100000;
+  // FIX: Single declaration using the smart parser
+  const maxSpins = mode === 'count' ? parseSmartNumber(playCountInput.value) : 100000000;
+
+  // Setup for "Until Target N Times"
+  const targetConditions = Array.from(document.querySelectorAll('.target-cond-cb:checked')).map(
+    (cb) => cb.value,
+  );
+  const targetConditionLogic = document.getElementById('targetConditionLogic')?.value || 'OR';
+  const targetCountLimit = parseInt(document.getElementById('targetConditionCount')?.value) || 1;
+
+  let targetHitCount = 0; // Tracks OR
+  let targetHitMap = {}; // Tracks AND
+  targetConditions.forEach((c) => (targetHitMap[c] = 0));
+
   let count = 0;
-  let matchedEntryId = null;
   const statusEl = document.getElementById('autoStatus');
-  const config = JSON.parse(requestBodyTextarea.value);
   const startTime = performance.now();
 
   try {
+    const { getNextSpinNum, saveAllSpins } = await import('./db.js');
+    let baseNum = await getNextSpinNum();
+
+    // Utilize all CPU Cores
+    const coreCount = navigator.hardwareConcurrency || 4;
+    const workers = Array.from(
+      { length: coreCount },
+      () => new Worker(new URL('./spin-worker.js', import.meta.url), { type: 'module' }),
+    );
+
+    let activeWorkers = 0;
     let lastRenderTime = performance.now();
-    if (mode === 'count') {
-      // Concurrent batch mode
-      while (autoPlayRunning && count < maxSpins) {
-        const remaining = maxSpins - count;
-        const batchSize = Math.min(CONCURRENCY, remaining);
-        const entries = await playConcurrentBatch(config, batchSize);
-        count += entries.length;
+    let limitReached = false; // Safe stop flag
 
-        const now = performance.now();
-        const elapsed = ((now - startTime) / 1000).toFixed(1);
-        const rps = (count / ((now - startTime) / 1000)).toFixed(1);
-        if (statusEl) statusEl.innerText = `${count}/${maxSpins} (${rps}/s)`;
-
-        // Yield to UI, but only update heavy DOM max 4 times a second
-        if (now - lastRenderTime > 250) {
-          renderSpinHistory();
-          lastRenderTime = now;
-        }
-        await new Promise((r) => setTimeout(r, 0));
-      }
-    } else {
-      // Concurrent batch for untilWin / untilLoss / untilFilter
-      const batchSize = 5;
-      while (autoPlayRunning && count < maxSpins) {
-        const remaining = maxSpins - count;
-        const currentBatch = Math.min(batchSize, remaining);
-        
-        const entries = await playConcurrentBatch(config, currentBatch);
-        count += entries.length;
-
-        const now = performance.now();
-        const rps = (count / ((now - startTime) / 1000)).toFixed(1);
-        if (statusEl) statusEl.innerText = `Auto: ${count} (${rps}/s)`;
-
-        // Check if any entry matches the condition
-        for (const entry of entries) {
-          if (mode === 'untilWin' && entry.isWin) {
-            matchedEntryId = entry.num;
-            break;
-          }
-          if (mode === 'untilLoss' && !entry.isWin) {
-            matchedEntryId = entry.num;
-            break;
-          }
-          if (mode === 'untilFilter' && applyFilters([entry], activeFilters, game).length > 0) {
-            matchedEntryId = entry.num;
-            break;
-          }
+    await new Promise((resolve) => {
+      const dispatchWork = () => {
+        if (!autoPlayRunning || count >= maxSpins || limitReached) {
+          if (activeWorkers === 0) resolve();
+          return;
         }
 
-        if (now - lastRenderTime > 250 || matchedEntryId) {
-          renderSpinHistory();
-          lastRenderTime = now;
-        }
+        while (activeWorkers < coreCount && count < maxSpins && autoPlayRunning && !limitReached) {
+          const worker = workers[activeWorkers % coreCount];
+          const remaining = maxSpins - count;
+          const currentBatchSize = Math.min(remaining, 50); // Balance payload size vs thread locking
 
-        if (matchedEntryId) break;
-        await new Promise((r) => setTimeout(r, 0));
-      }
-    }
+          worker.postMessage({
+            apiUrl: API_URL,
+            config: config,
+            gameCode: game.gameCode,
+            playerId: PLAYER_ID,
+            gameId: game.id,
+            wildSymbolId: game.wildSymbolId,
+            startNum: baseNum,
+            batchSize: currentBatchSize,
+          });
+
+          baseNum += currentBatchSize;
+          count += currentBatchSize;
+          activeWorkers++;
+        }
+      };
+
+      // Handle worker responses
+      workers.forEach((worker) => {
+        worker.onmessage = async (e) => {
+          activeWorkers--;
+          const { results } = e.data;
+
+          if (results && results.length > 0) {
+            await saveAllSpins(results);
+
+            // --- AND / OR Win Category Logic ---
+            if (mode === 'untilConditionN' && targetConditions.length > 0) {
+              for (const entry of results) {
+                const category = getWinCategory(entry.totalWin, entry.betAmount);
+                if (targetConditions.includes(category)) {
+                  if (targetConditionLogic === 'OR') {
+                    targetHitCount++;
+                    if (targetHitCount >= targetCountLimit) {
+                      limitReached = true;
+                      autoPlayRunning = false;
+                      break;
+                    }
+                  } else {
+                    targetHitMap[category]++;
+                    const allMet = targetConditions.every(
+                      (c) => targetHitMap[c] >= targetCountLimit,
+                    );
+                    if (allMet) {
+                      limitReached = true;
+                      autoPlayRunning = false;
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+
+            // --- NEW: Until Filter Logic ---
+            if (mode === 'untilFilter' && activeFilters.some((f) => !f.disabled)) {
+              for (const entry of results) {
+                const isMatch = activeFilters.every((af) => {
+                  if (af.disabled) return true;
+                  const def = FILTER_DEFS.find((d) => d.id === af.id);
+                  if (!def) return true;
+                  return def.apply(entry, af.value, game);
+                });
+
+                if (isMatch) {
+                  limitReached = true;
+                  autoPlayRunning = false;
+                  break;
+                }
+              }
+            }
+
+            // --- NEW: Until Win / Loss Logic ---
+            if (mode === 'untilWin') {
+              if (results.some((entry) => entry.isWin)) {
+                limitReached = true;
+                autoPlayRunning = false;
+              }
+            }
+            if (mode === 'untilLoss') {
+              if (results.some((entry) => !entry.isWin)) {
+                limitReached = true;
+                autoPlayRunning = false;
+              }
+            }
+
+            // OOM Protection
+            globalHistory.unshift(...results.reverse());
+            if (globalHistory.length > MAX_RAM_HISTORY) {
+              globalHistory.length = MAX_RAM_HISTORY;
+            }
+          }
+
+          // Throttle UI Paints
+          const now = performance.now();
+          const rps = (count / ((now - startTime) / 1000)).toFixed(1);
+
+          if (mode === 'untilConditionN') {
+            const activeLabels = targetConditions
+              .map((c) => c.split('_')[0])
+              .join(targetConditionLogic === 'OR' ? '|' : '&');
+            if (targetConditionLogic === 'OR') {
+              if (statusEl)
+                statusEl.innerText = `${count} spins | Found ${targetHitCount}/${targetCountLimit} [${activeLabels}] (${rps}/s)`;
+            } else {
+              const minHit = targetConditions.length ? Math.min(...Object.values(targetHitMap)) : 0;
+              if (statusEl)
+                statusEl.innerText = `${count} spins | Found ${minHit}/${targetCountLimit} [${activeLabels}] (${rps}/s)`;
+            }
+          } else {
+            if (statusEl) statusEl.innerText = `${count}/${maxSpins} (${rps}/s)`;
+          }
+
+          if (now - lastRenderTime > 300) {
+            renderSpinHistory();
+            lastRenderTime = now;
+          }
+
+          dispatchWork();
+        };
+      });
+
+      dispatchWork(); // Kickoff
+    });
+
+    // Cleanup Workers
+    workers.forEach((w) => w.terminate());
   } catch (err) {
     console.error(err);
     alert('Error during auto-play: ' + err.message);
@@ -2054,20 +1952,12 @@ async function playSpin() {
     stopAutoBtn.style.display = 'none';
     const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
     if (statusEl) statusEl.innerText = `Done: ${count} in ${elapsed}s`;
-    setTimeout(() => {
-      if (statusEl) statusEl.innerText = '';
-    }, 6000);
+
     setPlayUIBusy(false);
     renderSpinHistory();
-    
-    if (globalHistory.length > 0) {
-      if (matchedEntryId) {
-        const idx = globalHistory.findIndex(e => e.num === matchedEntryId);
-        loadSpin(idx !== -1 ? idx : 0);
-      } else {
-        loadSpin(0);
-      }
-    }
+    if (globalHistory.length > 0) loadSpin(0);
+
+    updateStorageStats(); // <--- ADD THIS LINE
   }
 }
 
@@ -2081,9 +1971,15 @@ stopAutoBtn.onclick = () => {
 };
 
 playModeSelect.onchange = () => {
-  playCountInput.style.display = playModeSelect.value === 'count' ? 'inline-block' : 'none';
-};
+  const mode = playModeSelect.value;
+  if (playCountInput) playCountInput.style.display = mode === 'count' ? 'inline-block' : 'none';
 
+  const tgGroup = document.getElementById('targetConditionsGroup');
+  if (tgGroup) tgGroup.style.display = mode === 'untilConditionN' ? 'flex' : 'none';
+
+  const tgCount = document.getElementById('targetConditionCount');
+  if (tgCount) tgCount.style.display = mode === 'untilConditionN' ? 'inline-block' : 'none';
+};
 spinBtn.onclick = playSpin;
 
 // ── Raw JSON Drawer ──────────────────────────────────────────────────────────
@@ -2118,7 +2014,8 @@ function renderRawDrawer() {
       lastSelectedTabLabel = tab.label.includes('TUMBLE_') ? 'TUMBLE_X_FIELD' : tab.label;
       renderRawDrawer();
       if (tab.label === 'INITIAL[]') window.selectTumble(gameState.currentIndex, 'initial');
-      if (tab.label === 'FINAL[]' || tab.label === 'DIFF') window.selectTumble(gameState.currentIndex, 'final');
+      if (tab.label === 'FINAL[]' || tab.label === 'DIFF')
+        window.selectTumble(gameState.currentIndex, 'final');
       setTimeout(() => document.querySelector('#rawTabs button[aria-selected="true"]')?.focus(), 0);
     };
 
@@ -2159,8 +2056,8 @@ function renderRawDrawer() {
     let finalArr = null;
 
     if (isDiff) {
-      initialArr = rawDrawerTabs.find(t => t.label === 'INITIAL[]')?.data;
-      finalArr = rawDrawerTabs.find(t => t.label === 'FINAL[]')?.data;
+      initialArr = rawDrawerTabs.find((t) => t.label === 'INITIAL[]')?.data;
+      finalArr = rawDrawerTabs.find((t) => t.label === 'FINAL[]')?.data;
     } else {
       finalArr = active.data;
     }
@@ -2170,7 +2067,7 @@ function renderRawDrawer() {
       const cols = game.grid.cols;
       const container = document.createElement('div');
       container.className = 'audit-matrix-container';
-      
+
       const grid = document.createElement('div');
       grid.className = 'audit-matrix';
       // Column-major: index = col * rows + row
@@ -2192,9 +2089,9 @@ function renderRawDrawer() {
           grid.appendChild(cell);
         }
       }
-      
+
       container.appendChild(grid);
-      
+
       // Prevent selection on matrix and hint
       grid.style.userSelect = 'none';
       grid.style.webkitUserSelect = 'none';
@@ -2207,7 +2104,7 @@ function renderRawDrawer() {
       copyHint.style.webkitUserSelect = 'none';
       copyHint.innerText = 'RAW DATA (COPY-PASTEABLE):';
       container.appendChild(copyHint);
-      
+
       const pre = document.createElement('pre');
       pre.style.margin = '0';
       pre.style.fontSize = '10px';
@@ -2215,7 +2112,7 @@ function renderRawDrawer() {
       pre.style.color = '#ccc';
       // User requested vertical 1D array: use JSON pretty-print
       pre.innerText = JSON.stringify(finalArr, null, 2);
-      
+
       // Support selective Ctrl+A for this data
       pre.tabIndex = 0;
       pre.addEventListener('keydown', (e) => {
@@ -2230,7 +2127,7 @@ function renderRawDrawer() {
       });
 
       container.appendChild(pre);
-      
+
       contentEl.appendChild(container);
       return;
     }
@@ -2265,10 +2162,10 @@ function renderRawDrawer() {
     pre.style.margin = '0';
     pre.style.whiteSpace = 'pre-wrap';
     pre.style.wordBreak = 'break-all';
-    
+
     // Pure JSON display without recursive filtering bottleneck
     pre.innerText = JSON.stringify(active.data, null, 2);
-    
+
     // Support selective Ctrl+A
     pre.tabIndex = 0;
     pre.addEventListener('keydown', (e) => {
@@ -2281,7 +2178,7 @@ function renderRawDrawer() {
         sel.addRange(range);
       }
     });
-    
+
     contentEl.appendChild(pre);
   }
 }
@@ -2362,12 +2259,13 @@ function renderSpinHistory(preventAutoSelect = false) {
         </div>`;
       setTimeout(() => {
         const btn = document.getElementById('clearFiltersBtn');
-        if (btn) btn.onclick = () => {
-          activeFilters = [];
-          localStorage.setItem('active_filters', '[]');
-          if (window._renderFilterChips) window._renderFilterChips();
-          renderSpinHistory();
-        };
+        if (btn)
+          btn.onclick = async () => {
+            activeFilters = [];
+            localStorage.setItem('active_filters', '[]');
+            if (window._renderFilterChips) window._renderFilterChips();
+            await triggerFilterUpdate(); // <--- This runs the global reset
+          };
       }, 0);
     } else {
       spinHistoryEl.innerHTML = `<p style="color:#444;text-align:center;font-size:0.8em;margin-top:40px;">No history available</p>`;
@@ -2414,12 +2312,12 @@ function setupListObserver() {
   listObserver = new IntersectionObserver(
     (entries) => {
       if (entries[0].isIntersecting) {
-        const start = currentRenderLimit;
-        currentRenderLimit += renderChunkSize;
+        const nextLimit = Math.min(currentRenderLimit + renderChunkSize, currentSortedList.length);
 
         spinHistoryEl.removeChild(sentinel);
-        appendSpinHistoryCards(start, currentRenderLimit);
+        appendSpinHistoryCards(currentRenderLimit, nextLimit);
 
+        currentRenderLimit = nextLimit;
         if (currentRenderLimit < currentSortedList.length) {
           spinHistoryEl.appendChild(sentinel);
         } else {
@@ -2456,6 +2354,8 @@ function appendSpinHistoryCards(startIndex, endIndex) {
     const ratio = bet > 0 ? (win / bet).toFixed(2).replace(/\.?0+$/, '') : '0';
     const hasMaxWin = !!spin.hasMaxWin;
 
+    const winCategory = getWinCategory(win, bet);
+
     card.innerHTML = `
       <div class="card-title-v5 ${spin.description ? '' : 'title-empty'}" data-desc="${spin.description ? spin.description.replace(/"/g, '&quot;') : ''}" data-desc-num="${spin.num}">
         <span class="title-text">${spin.description ? truncateMiddle(spin.description, 44) : '+ Add title…'}</span>
@@ -2466,7 +2366,7 @@ function appendSpinHistoryCards(startIndex, endIndex) {
           <span class="status-dot ${spin.isWin ? 'winner' : 'no-win'}"></span>
           <span class="status-text">${spin.isWin ? 'WINNER' : 'NO WIN'}</span>
           <span class="card-num-v5">#${spin.num}</span>
-          ${hasMaxWin ? '<span class="max-win-badge-v5">MAX</span>' : ''}
+          ${hasMaxWin && winCategory !== 'MAX_WIN' ? '<span class="max-win-badge-v5">MAX</span>' : ''}
         </div>
         <div class="header-right">
           <div class="meta-time">${formatTimestamp(spin.timestamp).split(' ')[1]}</div>
@@ -2484,8 +2384,11 @@ function appendSpinHistoryCards(startIndex, endIndex) {
           <span class="win-val">${win}</span>
           <span class="win-lbl">COINS</span>
         </div>
-        <div class="ratio-display-v5 ${parseFloat(ratio) >= 1 ? 'gold' : ''}">
-          ${ratio}x TB
+        <div style="display: flex; align-items: center; gap: 6px;">
+          ${winCategory !== 'NONE' ? `<span class="win-category-badge ${winCategory.toLowerCase()}">${winCategory.replace('_WIN', '')} (${game.winCategories?.[winCategory] || 0}x)</span>` : ''}
+          <div class="ratio-display-v5 ${parseFloat(ratio) >= 1 ? 'gold' : ''}">
+            ${ratio}x TB
+          </div>
         </div>
       </div>
 
@@ -2512,24 +2415,37 @@ function appendSpinHistoryCards(startIndex, endIndex) {
           let headerHtml = '';
           if (meta.playgroundIndex !== undefined && meta.playgroundIndex !== currentPlayground) {
             const isFirst = currentPlayground === -1;
-            const prevStats = currentPlayground !== -1 && spin.playgroundStats ? spin.playgroundStats[currentPlayground] : null;
-            const summaryHtml = prevStats ? `
+            const prevStats =
+              currentPlayground !== -1 && spin.playgroundStats
+                ? spin.playgroundStats[currentPlayground]
+                : null;
+            const summaryHtml = prevStats
+              ? `
               <div class="round-summary-v5" style="margin:8px 0; padding:6px 10px; background:rgba(34,197,94,0.05); border-radius:6px; border:1px solid rgba(34,197,94,0.1); display:flex; justify-content:space-between; align-items:center;">
                 <span style="font-size:9px; color:#4ade80; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">Round Summary</span>
                 <span style="font-size:10px; color:#fff; font-weight:800; font-family:monospace;">${prevStats.tumbleCount} Tumbles · ${prevStats.cascadeCount} Cascades</span>
-              </div>` : '';
+              </div>`
+              : '';
 
             currentPlayground = meta.playgroundIndex;
             localTumbleIdx = 1; // Reset local index for new playground
-            
+
             const stats = spin.playgroundStats ? spin.playgroundStats[currentPlayground] : null;
-            const headerText = stats ? stats.headerText : (meta.isFreeSpin ? `FreeSpin #${meta.roundIndex + 1}` : 'BaseSpin');
-            const statsHtml = stats ? `<span style="font-size: 9px; opacity: 0.7; font-weight: normal; margin-left: auto; margin-right: 12px;">(${stats.tumbleCount} Tumbles, ${stats.cascadeCount} Cascades)</span>` : '';
-            
+            const headerText = stats
+              ? stats.headerText
+              : meta.isFreeSpin
+                ? `FreeSpin #${meta.roundIndex + 1}`
+                : 'BaseSpin';
+            const statsHtml = stats
+              ? `<span style="font-size: 9px; opacity: 0.7; font-weight: normal; margin-left: auto; margin-right: 12px;">(${stats.tumbleCount} Tumbles, ${stats.cascadeCount} Cascades)</span>`
+              : '';
+
             const closeDiv = isFirst ? '' : `${summaryHtml}</div>`;
-            
+
             let isActiveRound = false;
-            const currentMeta = spin.fieldMetadata ? spin.fieldMetadata[gameState.currentIndex] : null;
+            const currentMeta = spin.fieldMetadata
+              ? spin.fieldMetadata[gameState.currentIndex]
+              : null;
             if (currentMeta && currentMeta.playgroundIndex === currentPlayground) {
               isActiveRound = true;
             }
@@ -2553,7 +2469,11 @@ function appendSpinHistoryCards(startIndex, endIndex) {
           // cascadeNum = group this tumble belongs to WITHIN the same playground
           const payingBefore = spin.fields.slice(0, tIdx).filter((f2, idx2) => {
             const m2 = spin.fieldMetadata ? spin.fieldMetadata[idx2] : {};
-            return parseFloat(f2.coins || 0) > 0 && isSettleField(f2) && m2.playgroundIndex === meta.playgroundIndex;
+            return (
+              parseFloat(f2.coins || 0) > 0 &&
+              isSettleField(f2) &&
+              m2.playgroundIndex === meta.playgroundIndex
+            );
           }).length;
           const cascadeNum = payingBefore + 1;
           const badgeBg = isWinStep ? 'rgba(59,130,246,0.18)' : 'rgba(255,255,255,0.03)';
@@ -2565,17 +2485,18 @@ function appendSpinHistoryCards(startIndex, endIndex) {
           // Generate tallies for this tumble
           const payoutMap = new Map();
           const payoutPositions = new Set();
-          (f.symbols.payouts || []).forEach(p => {
-            const sid = p.symbolId !== undefined ? p.symbolId : p.symbol !== undefined ? p.symbol : p.id;
+          (f.symbols.payouts || []).forEach((p) => {
+            const sid =
+              p.symbolId !== undefined ? p.symbolId : p.symbol !== undefined ? p.symbol : p.id;
             payoutMap.set(sid, p);
             if (Array.isArray(p.positions)) {
-              p.positions.forEach(pos => payoutPositions.add(pos));
+              p.positions.forEach((pos) => payoutPositions.add(pos));
             }
           });
 
           // 1. Identify "Winning Golden" symbols for the audit listing
           const winningGoldenTallies = new Map(); // sid -> count
-          goldenPositions.forEach(pos => {
+          goldenPositions.forEach((pos) => {
             if (payoutPositions.has(pos)) {
               const sid = f.symbols.initial[pos];
               winningGoldenTallies.set(sid, (winningGoldenTallies.get(sid) || 0) + 1);
@@ -2583,7 +2504,7 @@ function appendSpinHistoryCards(startIndex, endIndex) {
           });
 
           let linesHtml = '';
-          
+
           // 1a. Golden Wins (Listed specifically)
           winningGoldenTallies.forEach((count, sid) => {
             const name = SYMBOLS[sid] || sid;
@@ -2601,7 +2522,9 @@ function appendSpinHistoryCards(startIndex, endIndex) {
 
           // 2. Wild Line (count Wilds in initial grid that were part of a win)
           const wildId = game.wildSymbolId;
-          const winningWildCount = f.symbols.initial.filter((id, pos) => id === wildId && payoutPositions.has(pos)).length;
+          const winningWildCount = f.symbols.initial.filter(
+            (id, pos) => id === wildId && payoutPositions.has(pos),
+          ).length;
           if (winningWildCount > 0) {
             linesHtml += `
               <div style="display: flex; justify-content: space-between; align-items: center; padding: 2px 0;">
@@ -2615,12 +2538,13 @@ function appendSpinHistoryCards(startIndex, endIndex) {
           }
 
           // 3. Regular Payout Lines (Total count as per photo)
-          (f.symbols.payouts || []).forEach(p => {
-             const sid = p.symbolId !== undefined ? p.symbolId : p.symbol !== undefined ? p.symbol : p.id;
-             const name = SYMBOLS[sid] || sid;
-             const emoji = EMOJIS[sid] || '';
-             const color = game?.colors?.[sid] || '#fff';
-             linesHtml += `
+          (f.symbols.payouts || []).forEach((p) => {
+            const sid =
+              p.symbolId !== undefined ? p.symbolId : p.symbol !== undefined ? p.symbol : p.id;
+            const name = SYMBOLS[sid] || sid;
+            const emoji = EMOJIS[sid] || '';
+            const color = game?.colors?.[sid] || '#fff';
+            linesHtml += `
               <div style="display: flex; justify-content: space-between; align-items: center; padding: 2px 0;">
                 <div style="display: flex; align-items: center; gap: 6px;">
                   <span style="color:${color}; font-weight: 800; font-size: 10px; font-family: monospace;">${name}</span>
@@ -2634,7 +2558,9 @@ function appendSpinHistoryCards(startIndex, endIndex) {
              `;
           });
 
-          return headerHtml + `
+          return (
+            headerHtml +
+            `
             <div data-tumble="${tIdx}" class="glass" style="padding: 8px; border-radius: 8px; background: ${isTumbleActive ? 'rgba(255,255,255,0.05)' : 'transparent'};
                 border: 1px solid ${isTumbleActive ? 'var(--bg-accent)' : 'transparent'};
                 cursor: pointer; margin-top: 4px;">
@@ -2649,18 +2575,24 @@ function appendSpinHistoryCards(startIndex, endIndex) {
                 </div>
               </div>
               ${linesHtml ? `<div style="margin-top:6px; border-top:1px dashed rgba(255,255,255,0.05); padding-top:4px;">${linesHtml}</div>` : ''}
-            </div>`;
+            </div>`
+          );
         })
         .join('');
-      
-      const lastStats = currentPlayground !== -1 && spin.playgroundStats ? spin.playgroundStats[currentPlayground] : null;
-      const lastSummaryHtml = lastStats ? `
+
+      const lastStats =
+        currentPlayground !== -1 && spin.playgroundStats
+          ? spin.playgroundStats[currentPlayground]
+          : null;
+      const lastSummaryHtml = lastStats
+        ? `
         <div class="round-summary-v5" style="margin:8px 0; padding:6px 10px; background:rgba(34,197,94,0.05); border-radius:6px; border:1px solid rgba(34,197,94,0.1); display:flex; justify-content:space-between; align-items:center;">
           <span style="font-size:9px; color:#4ade80; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">Round Summary</span>
           <span style="font-size:10px; color:#fff; font-weight:800; font-family:monospace;">${lastStats.tumbleCount} Tumbles · ${lastStats.cascadeCount} Cascades</span>
-        </div>` : '';
+        </div>`
+        : '';
       const tumblesHtml = tumbles + (spin.fields.length > 0 ? lastSummaryHtml + '</div>' : '');
-      
+
       const auditContainer = document.createElement('div');
       auditContainer.style.marginTop = '10px';
       auditContainer.innerHTML = `
@@ -2668,7 +2600,7 @@ function appendSpinHistoryCards(startIndex, endIndex) {
         ${tumblesHtml}
       `;
       card.appendChild(auditContainer);
-      
+
       auditContainer.onclick = (e) => {
         const header = e.target.closest('.round-header');
         if (header) {
@@ -2678,23 +2610,31 @@ function appendSpinHistoryCards(startIndex, endIndex) {
           const isExpanded = content.style.display === 'block';
 
           // Collapse all rounds
-          auditContainer.querySelectorAll('.round-content').forEach(el => el.style.display = 'none');
-          auditContainer.querySelectorAll('.round-toggle-icon').forEach(el => el.style.transform = 'rotate(0deg)');
-          
+          auditContainer
+            .querySelectorAll('.round-content')
+            .forEach((el) => (el.style.display = 'none'));
+          auditContainer
+            .querySelectorAll('.round-toggle-icon')
+            .forEach((el) => (el.style.transform = 'rotate(0deg)'));
+
           if (!isExpanded) {
             // Expand clicked round
             content.style.display = 'block';
             icon.style.transform = 'rotate(180deg)';
-            
+
             // Auto-select the first tumble of this round if not already in it
-            const firstTumbleIdx = (spin.fieldMetadata || []).findIndex(m => m.playgroundIndex === roundIdx);
+            const firstTumbleIdx = (spin.fieldMetadata || []).findIndex(
+              (m) => m.playgroundIndex === roundIdx,
+            );
             if (firstTumbleIdx !== -1) {
-              const currentMeta = spin.fieldMetadata ? spin.fieldMetadata[gameState.currentIndex] : null;
+              const currentMeta = spin.fieldMetadata
+                ? spin.fieldMetadata[gameState.currentIndex]
+                : null;
               if (!currentMeta || currentMeta.playgroundIndex !== roundIdx) {
                 window.selectTumble(firstTumbleIdx);
               }
             }
-            
+
             // Scroll header into view
             setTimeout(() => {
               header.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2710,11 +2650,13 @@ function appendSpinHistoryCards(startIndex, endIndex) {
         e.stopPropagation();
         const num = parseInt(bookmarkBtn.dataset.num);
         const newState = !bookmarkBtn.classList.contains('active');
-        import('./db.js').then(db => db.toggleBookmark(num, newState)).then(() => {
-          const spin = globalHistory.find(s => s.num === num);
-          if (spin) spin.bookmarked = newState;
-          renderSpinHistory(true);
-        });
+        import('./db.js')
+          .then((db) => db.toggleBookmark(num, newState))
+          .then(() => {
+            const spin = globalHistory.find((s) => s.num === num);
+            if (spin) spin.bookmarked = newState;
+            renderSpinHistory(true);
+          });
         return;
       }
 
@@ -2723,19 +2665,21 @@ function appendSpinHistoryCards(startIndex, endIndex) {
         e.stopPropagation();
         const num = parseInt(deleteBtn.dataset.num);
         if (!confirm(`Are you sure you want to delete spin #${num}?`)) return;
-        
-        import('./db.js').then(db => db.deleteSpin(num)).then(() => {
-          const idx = globalHistory.findIndex(s => s.num === num);
-          if (idx !== -1) {
-            globalHistory.splice(idx, 1);
-            if (currentSpinIndex === idx) {
-              currentSpinIndex = -1;
-            } else if (currentSpinIndex > idx) {
-              currentSpinIndex--;
+
+        import('./db.js')
+          .then((db) => db.deleteSpin(num))
+          .then(() => {
+            const idx = globalHistory.findIndex((s) => s.num === num);
+            if (idx !== -1) {
+              globalHistory.splice(idx, 1);
+              if (currentSpinIndex === idx) {
+                currentSpinIndex = -1;
+              } else if (currentSpinIndex > idx) {
+                currentSpinIndex--;
+              }
             }
-          }
-          renderSpinHistory();
-        });
+            renderSpinHistory();
+          });
         return;
       }
 
@@ -2778,8 +2722,8 @@ function appendSpinHistoryCards(startIndex, endIndex) {
             prev.focus();
             window.selectTumble(parseInt(prev.dataset.tumble), 'initial');
           } else {
-             // Wrap back to card focus
-             card.focus();
+            // Wrap back to card focus
+            card.focus();
           }
         }
       }
@@ -2875,15 +2819,15 @@ function loadSpin(historyIndex) {
   // ── Golden Symbols Logic ──────────────────────────────────────────────────
   // We use the golden array from the API response to highlight golden symbols.
   const fields = spin.fields;
-  const persistentGolden = fields.map(f => new Set(f.features?.golden || []));
+  const persistentGolden = fields.map((f) => new Set(f.features?.golden || []));
   gameState.goldenCandidates = persistentGolden;
 
   // Calculate hasGolden for the spin summary
-  spin.hasGolden = gameState.goldenCandidates.some(set => set.size > 0);
+  spin.hasGolden = gameState.goldenCandidates.some((set) => set.size > 0);
 
   renderSpinHistory();
   updateGlobalSummary();
-  
+
   // startSpinPlayback() was added earlier in loadSpin
 
   window.openSpinRaw(historyIndex);
@@ -2919,13 +2863,15 @@ function updatePlaybackLabels() {
 // ── Summary ──────────────────────────────────────────────────────────────────
 function updateGlobalSummary() {
   setHudValue(totalWinEl, gameState.summary.coins, 1.0); // Uses base size since its parent is tiny font
-  
+
   const tumbleCountEl = document.getElementById('tumbleCount');
   if (tumbleCountEl) tumbleCountEl.innerText = gameState.fields.length;
 
   const cascadeCountEl = document.getElementById('cascadeCountTop');
   if (cascadeCountEl) {
-    cascadeCountEl.innerText = gameState.fields.filter((f) => parseFloat(f.coins || 0) > 0 && isSettleField(f)).length;
+    cascadeCountEl.innerText = gameState.fields.filter(
+      (f) => parseFloat(f.coins || 0) > 0 && isSettleField(f),
+    ).length;
   }
 }
 
@@ -2935,7 +2881,7 @@ function showTumble(index, phase) {
   // Determine phase: explicit arg > singleViewMode default
   const resolvedPhase = showDoubleGrid
     ? 'final' // double view always renders final (initial handled separately)
-    : phase ?? (singleViewMode === 'initial' ? 'initial' : 'final');
+    : (phase ?? (singleViewMode === 'initial' ? 'initial' : 'final'));
   gameState.currentFramePhase = resolvedPhase;
 
   const field = gameState.fields[index];
@@ -2951,12 +2897,12 @@ function showTumble(index, phase) {
         const idx = parseInt(t.dataset.tumble);
         const isActive = idx === index;
         if (isActive) activeTumbleEl = t;
-        
+
         t.style.background = isActive ? 'rgba(34, 197, 94, 0.12)' : 'transparent';
         t.style.border = isActive ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid transparent';
         t.setAttribute('aria-pressed', isActive.toString());
         t.setAttribute('tabindex', isActive ? '0' : '-1');
-        
+
         const stepLabel = t.querySelector('.step-label');
         if (stepLabel) {
           stepLabel.style.color = isActive ? '#fff' : 'var(--text-muted)';
@@ -2972,14 +2918,18 @@ function showTumble(index, phase) {
           const header = spinHistoryEl.querySelector(`.round-header[data-round="${roundIdx}"]`);
           if (header) {
             // Expand this round, collapse others
-            spinHistoryEl.querySelectorAll('.round-content').forEach(el => el.style.display = 'none');
-            spinHistoryEl.querySelectorAll('.round-toggle-icon').forEach(el => el.style.transform = 'rotate(0deg)');
+            spinHistoryEl
+              .querySelectorAll('.round-content')
+              .forEach((el) => (el.style.display = 'none'));
+            spinHistoryEl
+              .querySelectorAll('.round-toggle-icon')
+              .forEach((el) => (el.style.transform = 'rotate(0deg)'));
             roundContent.style.display = 'block';
             const icon = header.querySelector('.round-toggle-icon');
             if (icon) icon.style.transform = 'rotate(180deg)';
           }
         }
-        
+
         activeTumbleEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     } else {
@@ -2993,9 +2943,10 @@ function showTumble(index, phase) {
 
   const isInitialPhase = resolvedPhase === 'initial';
   const prevAccWin = index > 0 ? gameState.accumulatedWins[index - 1] : 0;
-  
-  const displayCoins = (isInitialPhase || !isSettleField(field)) ? 0 : getFieldEffectiveWin(field);
-  const displayAccWin = (isInitialPhase || !isSettleField(field)) ? prevAccWin : gameState.accumulatedWins[index];
+
+  const displayCoins = isInitialPhase || !isSettleField(field) ? 0 : getFieldEffectiveWin(field);
+  const displayAccWin =
+    isInitialPhase || !isSettleField(field) ? prevAccWin : gameState.accumulatedWins[index];
 
   setHudValue(multDisplay, (field.features?.cumulativeMultiplier || 1) + 'x');
   setHudValue(currentTumbleWinEl, displayCoins);
@@ -3005,14 +2956,16 @@ function showTumble(index, phase) {
   const totalTumbles = gameState.fields.length;
   const tumbleNavLabel = document.getElementById('tumbleNavLabel');
   const cascadeNavLabel = document.getElementById('cascadeNavLabel');
-  
+
   const spin = globalHistory[currentSpinIndex];
   const meta = spin && spin.fieldMetadata ? spin.fieldMetadata[index] : null;
 
   if (tumbleNavLabel) {
     if (meta && meta.playgroundIndex !== undefined) {
       // Find local index
-      const localIdx = spin.fieldMetadata.slice(0, index + 1).filter(m => m.playgroundIndex === meta.playgroundIndex).length;
+      const localIdx = spin.fieldMetadata
+        .slice(0, index + 1)
+        .filter((m) => m.playgroundIndex === meta.playgroundIndex).length;
       const stats = spin.playgroundStats ? spin.playgroundStats[meta.playgroundIndex] : null;
       const totalLocal = stats ? stats.tumbleCount : '?';
       tumbleNavLabel.innerText = `TUMBLE ${localIdx} / ${totalLocal}`;
@@ -3021,17 +2974,21 @@ function showTumble(index, phase) {
     }
   }
   if (cascadeNavLabel) {
-    const payingBefore = gameState.fields.slice(0, index).filter(f => parseInt(f.coins || 0) > 0 && isSettleField(f)).length;
+    const payingBefore = gameState.fields
+      .slice(0, index)
+      .filter((f) => parseInt(f.coins || 0) > 0 && isSettleField(f)).length;
     const cascadeNum = payingBefore + 1;
     const isPayingTumble = parseInt(field.coins || 0) > 0 && isSettleField(field);
-    cascadeNavLabel.innerText = isPayingTumble ? `· CASCADE ${cascadeNum} ↓` : `· CASCADE ${cascadeNum}`;
+    cascadeNavLabel.innerText = isPayingTumble
+      ? `· CASCADE ${cascadeNum} ↓`
+      : `· CASCADE ${cascadeNum}`;
     cascadeNavLabel.style.display = 'inline';
     cascadeNavLabel.style.opacity = isPayingTumble ? '1' : '0.45';
 
     const phaseStatusText = document.getElementById('phaseStatusText');
     if (phaseStatusText) {
-      const isLastTumble = (index === totalTumbles - 1);
-      
+      const isLastTumble = index === totalTumbles - 1;
+
       if (isInitialPhase) {
         phaseStatusText.innerText = 'GROW';
         phaseStatusText.style.color = 'var(--bg-accent)';
@@ -3048,7 +3005,9 @@ function showTumble(index, phase) {
   const wrapper = document.getElementById('grid-main-wrapper');
   const initialContainer = document.getElementById('grid-container-initial');
   const finalLabel = document.getElementById('grid-final-label');
-  const hasChanges = field.symbols.initial && field.symbols.final &&
+  const hasChanges =
+    field.symbols.initial &&
+    field.symbols.final &&
     !field.symbols.initial.every((v, i) => v === field.symbols.final[i]);
 
   // Golden set logic:
@@ -3056,7 +3015,7 @@ function showTumble(index, phase) {
   // - Final phase:   goldenCandidates[N+1] = golden state AFTER tumble N's transformation
   //                  (winning golden positions turned into wilds, so they're no longer golden)
   const goldenInitial = gameState.goldenCandidates[index] || new Set();
-  const goldenFinal   = gameState.goldenCandidates[index + 1] || new Set();
+  const goldenFinal = gameState.goldenCandidates[index + 1] || new Set();
 
   // Grow phase cluster payout overlay
   const growOverlay = document.getElementById('growPayoutOverlay');
@@ -3068,19 +3027,23 @@ function showTumble(index, phase) {
     if (isGrow) {
       // Grow-phase payouts have coins=0; look ahead to the next settle field for actual coins
       const nextField = gameState.fields[index + 1];
-      const settlePayouts = (nextField && isSettleField(nextField)) ? (nextField.symbols?.payouts || []) : [];
-      payouts.forEach(p => {
-        const sid = p.symbolId !== undefined ? p.symbolId : p.symbol !== undefined ? p.symbol : p.id;
+      const settlePayouts =
+        nextField && isSettleField(nextField) ? nextField.symbols?.payouts || [] : [];
+      payouts.forEach((p) => {
+        const sid =
+          p.symbolId !== undefined ? p.symbolId : p.symbol !== undefined ? p.symbol : p.id;
         const name = SYMBOLS[sid] || String(sid);
         const emoji = EMOJIS[sid] || '';
         const count = p.oak || p.count || 0;
-        const settleP = settlePayouts.find(sp => {
-          const spid = sp.symbolId !== undefined ? sp.symbolId : sp.symbol !== undefined ? sp.symbol : sp.id;
+        const settleP = settlePayouts.find((sp) => {
+          const spid =
+            sp.symbolId !== undefined ? sp.symbolId : sp.symbol !== undefined ? sp.symbol : sp.id;
           return spid === sid;
         });
         const rawWin = parseFloat((settleP || p).coins || 0);
         const row = document.createElement('div');
-        row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:12px;';
+        row.style.cssText =
+          'display:flex; justify-content:space-between; align-items:center; gap:12px;';
         const leftSpan = document.createElement('span');
         leftSpan.style.cssText = 'display:flex; align-items:center; gap:4px; white-space:nowrap;';
         const emojiSpan = document.createElement('span');
@@ -3115,14 +3078,13 @@ function showTumble(index, phase) {
       gridInitialEl.innerHTML = '';
       gridInitialEl.style.cssText = `display:grid;grid-template-columns:repeat(${cols},76px);grid-template-rows:repeat(${rows},76px);gap:8px;`;
     }
-    if (showDouble && initialContainer && gridInitialEl) {
+    if (showDoubleGrid && initialContainer && gridInitialEl) {
       initialContainer.style.display = 'flex';
       renderGrid(field.symbols.initial, field.symbols.payouts, goldenInitial, 'grid-initial');
     }
 
     // --- Final panel: show symbols.final, NO win lines, golden AFTER transformation ---
     renderGrid(field.symbols.final, [], goldenFinal, 'grid');
-
   } else {
     wrapper?.classList.remove('double-view');
     if (initialContainer) initialContainer.style.display = 'none';
@@ -3177,7 +3139,7 @@ function renderGrid(symbols, payouts, goldenSet, targetId = 'grid') {
         border = '#fbbf24'; // Golden border overrides
         shadow = '0 0 15px rgba(251, 191, 36, 0.3)';
         if (!isWin) {
-          bg = 'rgba(251, 191, 36, 0.15)'; 
+          bg = 'rgba(251, 191, 36, 0.15)';
         }
       }
 
@@ -3283,81 +3245,145 @@ function getOptimizedData(history) {
   };
 }
 
-// ── Chunked Export ──────────────────────────────────────────────────────────
-async function exportMappedData(dataList, fileName) {
-  showLoading('Preparing mapped export...', 0);
-  
-  const mapped = dataList.map(s => ({
-    request: s.requestBody || {},
-    response: s.rawData || {}
-  }));
+// --- SSD Direct Streaming Exporter ---
+async function exportDataDirectFromDb(defaultFileName, exportMode, isMapped = false) {
+  showLoading(`Preparing Export...`, 0);
+  try {
+    const { decompressData, iterateDb } = await import('./db.js');
+    let processedCount = 0;
 
-  const blob = new Blob([JSON.stringify(mapped, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  a.click();
-  URL.revokeObjectURL(url);
-  hideLoading();
-}
+    let header, footer;
+    if (isMapped) {
+       header = '['; footer = ']';
+    } else {
+       const settingsExport = {
+         playMode: localStorage.getItem('play_mode') || 'single',
+         playCount: localStorage.getItem('play_count') || '10',
+         requestBody: localStorage.getItem('request_body') || '',
+         activeGame: game.id, 
+         uiSpinType: document.getElementById('uiSpinType')?.value || 'base', 
+         uiStake: document.getElementById('uiStake')?.value || 'commonGame', 
+       };
+       const v2Format = {
+         v: 2,
+         f: activeFilters, // <--- FIX: ALWAYS export filters to preserve UI state!
+         o: localStorage.getItem('sort_field') || 'num_desc',
+         s: settingsExport,
+         h: [],
+       };
+       header = JSON.stringify(v2Format).split('"h":[]')[0] + '"h":[';
+       footer = ']}';
+    }
 
-async function exportDataChunked(dataList, fileName) {
-  showLoading('Preparing Export...');
-  const chunks = [];
-  const chunkSize = 1000;
-  for (let i = 0; i < dataList.length; i += chunkSize) {
-    const percent = Math.round((i / dataList.length) * 100);
-    showLoading(`Exporting ${Math.min(i + chunkSize, dataList.length)} / ${dataList.length}...`, percent);
-    const chunk = getOptimizedData(dataList.slice(i, i + chunkSize));
-    let str = JSON.stringify(chunk.h);
-    chunks.push(str.slice(1, -1));
-    await new Promise(r => setTimeout(r, 0));
+    let writable = null;
+    let blobParts = [];
+    // Use modern FileSystem API if available (streams direct to disk)
+    let useFileSystem = !!window.showSaveFilePicker;
+
+    try {
+      if (useFileSystem) {
+        const handle = await window.showSaveFilePicker({ suggestedName: defaultFileName });
+        writable = await handle.createWritable();
+        await writable.write(header);
+      } else {
+        blobParts.push(header); // Fallback for Firefox/Safari
+      }
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        hideLoading();
+        return;
+      } // User cancelled save dialog
+      useFileSystem = false;
+      blobParts.push(header);
+    }
+
+    let hasData = false;
+
+    // Scan the DB using the new isolated iterateDb logic
+    await iterateDb(exportMode, activeFilters, game, async (chunkData) => {
+      processedCount += chunkData.length;
+      showLoading(`Exporting ${processedCount} records...`, 50);
+
+      const decompressedSlice = await Promise.all(
+        chunkData.map(async (spin) => {
+          if (spin._isCompressed && spin.rawData instanceof ArrayBuffer) {
+            return { ...spin, rawData: await decompressData(spin.rawData), _isCompressed: false };
+          }
+          return spin;
+        }),
+      );
+
+      let chunkStr = '';
+      if (isMapped) {
+        const mapped = decompressedSlice.map((s) => ({
+          request: s.requestBody || {},
+          response: s.rawData || {},
+        }));
+        chunkStr = JSON.stringify(mapped).slice(1, -1);
+      } else {
+        const optChunk = getOptimizedData(decompressedSlice);
+        chunkStr = JSON.stringify(optChunk.h).slice(1, -1);
+      }
+
+      if (chunkStr.length > 0) {
+        if (hasData) {
+          if (useFileSystem) await writable.write(',');
+          else blobParts.push(',');
+        }
+        if (useFileSystem) await writable.write(chunkStr);
+        else blobParts.push(chunkStr);
+        hasData = true;
+      }
+    });
+
+    if (useFileSystem) {
+      await writable.write(footer);
+      await writable.close();
+    } else {
+      blobParts.push(footer);
+      const blob = new Blob(blobParts, { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = defaultFileName;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    showLoading('Export Complete! ✅', 100);
+    setTimeout(hideLoading, 1500);
+  } catch (e) {
+    console.error('Export failed', e);
+    alert('Export failed: ' + e.message);
+    hideLoading();
   }
-  
-  const settingsExport = {
-    playMode: localStorage.getItem('play_mode') || 'single',
-    playCount: localStorage.getItem('play_count') || '10',
-    requestBody: localStorage.getItem('request_body') || ''
-  };
-  
-  const v2Format = {
-    v: 2,
-    f: activeFilters,
-    o: localStorage.getItem('sort_field') || 'num_desc',
-    s: settingsExport,
-    h: []
-  };
-  const header = JSON.stringify(v2Format).split('"h":[]')[0] + '"h":[';
-  const footer = ']}';
-  
-  const blob = new Blob([header, chunks.filter(c => c.length > 0).join(','), footer], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  a.click();
-  URL.revokeObjectURL(url);
-  hideLoading();
 }
 
-exportFilteredBtn.onclick = () => {
-  const filtered = applyFilters(globalHistory, activeFilters, game);
-  exportDataChunked(filtered, `slot-filtered-${game.id}-${new Date().toISOString().slice(0, 10)}.json`);
-};
-
-exportAllBtn.onclick = () => {
-  exportDataChunked(globalHistory, `slot-all-${game.id}-${new Date().toISOString().slice(0, 10)}.json`);
-};
-
-exportMappedFilteredBtn.onclick = () => {
-  const filtered = applyFilters(globalHistory, activeFilters, game);
-  exportMappedData(filtered, `mapped-filtered-${game.id}-${new Date().toISOString().slice(0, 10)}.json`);
-};
-
-exportMappedAllBtn.onclick = () => {
-  exportMappedData(globalHistory, `mapped-all-${game.id}-${new Date().toISOString().slice(0, 10)}.json`);
-};
+// Bind all 4 buttons to the unified DB Exporter
+exportFilteredBtn.onclick = () =>
+  exportDataDirectFromDb(
+    `slot-filtered-${game.id}-${new Date().toISOString().slice(0, 10)}.json`,
+    'filtered',
+    false,
+  );
+exportAllBtn.onclick = () =>
+  exportDataDirectFromDb(
+    `slot-all-${game.id}-${new Date().toISOString().slice(0, 10)}.json`,
+    'all',
+    false,
+  );
+exportMappedFilteredBtn.onclick = () =>
+  exportDataDirectFromDb(
+    `mapped-filtered-${game.id}-${new Date().toISOString().slice(0, 10)}.json`,
+    'filtered',
+    true,
+  );
+exportMappedAllBtn.onclick = () =>
+  exportDataDirectFromDb(
+    `mapped-all-${game.id}-${new Date().toISOString().slice(0, 10)}.json`,
+    'all',
+    true,
+  );
 
 // ── Import Handler ───────────────────────────────────────────────────────────
 if (importMenuBtn) {
@@ -3366,6 +3392,75 @@ if (importMenuBtn) {
     const isVisible = importDropdown.style.display === 'block';
     importDropdown.style.display = isVisible ? 'none' : 'block';
   };
+}
+
+// --- UNIFIED IMPORT RESTORER ---
+function restoreSettingsFromImport(settings, filters) {
+  // 1. Restore Filters (Mutate array to preserve global references for the UI!)
+  if (Array.isArray(filters)) {
+    activeFilters.splice(0, activeFilters.length, ...filters);
+    localStorage.setItem('active_filters', JSON.stringify(activeFilters));
+    if (window._renderFilterChips) window._renderFilterChips();
+  }
+
+  if (!settings) return;
+
+  // 2. Restore Game Environment (Without triggering duplicate DB searches)
+  const importGameId = settings.activeGame || localStorage.getItem('active_game_id');
+  if (importGameId) {
+    const gameSelect = document.getElementById('gameSelect');
+    if (gameSelect && gameSelect.value !== importGameId) {
+      gameSelect.value = importGameId;
+      setActiveGame(importGameId);
+      game = getActiveGame();
+      SYMBOLS = game.symbols;
+      EMOJIS = game.emojis;
+      SYMBOL_COLORS = game.colors;
+      const gameLabel = document.getElementById('gameLabel');
+      if (gameLabel) gameLabel.innerText = game.name;
+    }
+  }
+
+  // 3. Restore Request Body JSON
+  if (settings.requestBody) {
+    localStorage.setItem('request_body', settings.requestBody);
+    const reqText = document.getElementById('requestBody');
+    if (reqText) reqText.value = settings.requestBody;
+  }
+
+  // Sync internal state to UI listeners
+  if (typeof syncSpinSettingsUI === 'function') syncSpinSettingsUI();
+
+  // 4. Force Dropdowns to match exported settings and trigger change events
+  if (settings.uiSpinType) {
+    const el = document.getElementById('uiSpinType');
+    if (el) {
+      el.value = settings.uiSpinType;
+      el.dispatchEvent(new Event('change'));
+    }
+  }
+  if (settings.uiStake) {
+    const el = document.getElementById('uiStake');
+    if (el) {
+      el.value = settings.uiStake;
+      el.dispatchEvent(new Event('change'));
+    }
+  }
+
+  // 5. Restore Play Mode
+  if (settings.playMode) {
+    localStorage.setItem('play_mode', settings.playMode);
+    const pm = document.getElementById('playMode');
+    if (pm) {
+      pm.value = settings.playMode;
+      pm.dispatchEvent(new Event('change'));
+    }
+  }
+  if (settings.playCount) {
+    localStorage.setItem('play_count', settings.playCount);
+    const pc = document.getElementById('playCount');
+    if (pc) pc.value = settings.playCount;
+  }
 }
 
 const triggerImport = (mode) => {
@@ -3381,34 +3476,17 @@ const triggerImport = (mode) => {
 
       let importedRaw = [];
       if (Array.isArray(rawImport)) {
-        importedRaw = rawImport; 
+        importedRaw = rawImport;
       } else if (rawImport.v === 2 && Array.isArray(rawImport.h)) {
         importedRaw = rawImport.h;
         if (mode === 'replace') {
-          if (Array.isArray(rawImport.f) && rawImport.f.length > 0) {
-            activeFilters = rawImport.f;
-            localStorage.setItem('active_filters', JSON.stringify(activeFilters));
-            window._renderFilterChips?.();
-          }
+          // --- THE FIX: Use unified restorer ---
+          restoreSettingsFromImport(rawImport.s, rawImport.f);
           if (rawImport.o) {
             const sortField = document.getElementById('sortField');
             if (sortField) {
               sortField.value = rawImport.o;
               localStorage.setItem('sort_field', rawImport.o);
-            }
-          }
-          if (rawImport.s) {
-            if (rawImport.s.playMode) {
-              localStorage.setItem('play_mode', rawImport.s.playMode);
-              if (document.getElementById('playMode')) document.getElementById('playMode').value = rawImport.s.playMode;
-            }
-            if (rawImport.s.playCount) {
-              localStorage.setItem('play_count', rawImport.s.playCount);
-              if (document.getElementById('playCount')) document.getElementById('playCount').value = rawImport.s.playCount;
-            }
-            if (rawImport.s.requestBody) {
-              localStorage.setItem('request_body', rawImport.s.requestBody);
-              if (typeof syncSpinSettingsUI === 'function') syncSpinSettingsUI();
             }
           }
         }
@@ -3426,80 +3504,73 @@ const triggerImport = (mode) => {
         showLoading(`Processing ${Math.min(i + chunkSize, importedRaw.length)} / ${importedRaw.length}...`, percent);
         const chunk = importedRaw.slice(i, i + chunkSize);
         const processed = chunk.map((item) => {
-          const r = item.rawData || item.r || item;
-          if (!r || !r.step) return null;
-          
-          const fields = [];
-          const fieldMetadata = [];
-          const playgroundStats = [];
-          let spinType = 'basic';
-          let playgroundCounter = 0;
-          
-          (r.step?.gamePhases || []).forEach((phase) => {
-            if (phase.type === 'freeSpin') spinType = 'freeSpin';
-            let roundCounter = 0;
-            (phase.playgrounds || []).forEach(pg => {
-              let pgTumbles = 0;
-              let pgCascades = 0;
-              (pg.fields || []).forEach(f => {
-                fields.push(f);
-                fieldMetadata.push({
-                  playgroundIndex: playgroundCounter,
-                  isFreeSpin: phase.type === 'freeSpin',
-                  roundIndex: roundCounter
+            const r = item.response || item.rawData || item.r || item;
+            if (!r || !r.step) return null;
+            
+            const fields = [];
+            const fieldMetadata = [];
+            const playgroundStats = [];
+            let spinType = 'basic';
+            let playgroundCounter = 0;
+
+            (r.step?.gamePhases || []).forEach((phase) => {
+              if (phase.type === 'freeSpin') spinType = 'freeSpin';
+              let roundCounter = 0;
+              (phase.playgrounds || []).forEach((pg) => {
+                let pgTumbles = 0;
+                let pgCascades = 0;
+                (pg.fields || []).forEach((f) => {
+                  fields.push(f);
+                  fieldMetadata.push({ playgroundIndex: playgroundCounter, isFreeSpin: phase.type === 'freeSpin', roundIndex: roundCounter });
+                  pgTumbles++;
+                  if (parseFloat(f.coins || 0) > 0) pgCascades++;
                 });
-                pgTumbles++;
-                if (parseFloat(f.coins || 0) > 0) pgCascades++;
+                playgroundStats.push({ tumbleCount: pgTumbles, cascadeCount: pgCascades, headerText: phase.type === 'freeSpin' ? `FreeSpin #${roundCounter + 1}` : 'BaseSpin' });
+                playgroundCounter++;
+                roundCounter++;
               });
-              playgroundStats.push({ 
-                tumbleCount: pgTumbles, 
-                cascadeCount: pgCascades,
-                headerText: phase.type === 'freeSpin' ? `FreeSpin #${roundCounter + 1}` : 'BaseSpin'
-              });
-              playgroundCounter++;
-              roundCounter++;
             });
-          });
 
-          const summary = r.step.summary;
-          const ts = item.timestamp || item.t || new Date().toISOString();
-          const metaPublic = r.meta?.public || r.step?.meta?.public || {};
-          const stats = getSpinStats(fields, game.wildSymbolId);
+            const summary = r.step.summary;
+            const ts = item.timestamp || item.t || new Date().toISOString();
+            const metaPublic = r.meta?.public || r.step?.meta?.public || {};
+            const stats = getSpinStats(fields, game.wildSymbolId);
 
-          return {
-            finger: `${ts}_${summary.coins}_${fields.length}`,
-            data: {
-              num: item.num || item.n || undefined,
-              timestamp: ts,
-              gameId: item.gameId || item.g || game.id,
-              rawData: r,
-              fields,
-              summary,
-              isWin: item.isWin !== undefined ? item.isWin : parseInt(summary.coins || 0) > 0,
-              totalWin: item.totalWin !== undefined ? item.totalWin : summary.coins || 0,
-              tumbleCount: fields.length,
-              cascadeCount: fields.filter((f) => parseInt(f.coins || 0) > 0).length,
-              betAmount: metaPublic.betAmount || 0,
-              spinMode: metaPublic.spinMode || 'std',
-              spinType,
-              playgroundCount: playgroundCounter,
-              roundTags: r.roundTags || r.step?.roundTags || [],
-              choices: r.choices || r.step?.choices || [],
-              hasMaxWin: !!(summary.hasMaxWin || r.hasMaxWin),
-              goldenTransformed: stats.goldenTransformed,
-              maxMultiplier: stats.maxMultiplier,
-              fieldMetadata,
-              playgroundStats,
-              bookmarked: item.b || item.bookmarked || false,
-              description: item.desc || item.description || null,
-              hasGolden: item.hg || item.hasGolden || false,
-              hasBaseSpin: item.hbs || item.hasBaseSpin || false,
-              hasFreeSpin: item.hfs || item.hasFreeSpin || false,
-            }
-          };
-        }).filter(Boolean);
+            return {
+              finger: `${ts}_${summary.coins}_${fields.length}`,
+              data: {
+                num: item.num || item.n || undefined,
+                timestamp: ts,
+                gameId: item.gameId || item.g || game.id,
+                rawData: r,
+                isCheatTriggered: r.meta?.private?.isCheatTriggered === true,
+                fields,
+                summary,
+                isWin: item.isWin !== undefined ? item.isWin : parseInt(summary.coins || 0) > 0,
+                totalWin: item.totalWin !== undefined ? item.totalWin : summary.coins || 0,
+                tumbleCount: fields.length,
+                cascadeCount: fields.filter((f) => parseInt(f.coins || 0) > 0).length,
+                betAmount: metaPublic.betAmount || 0,
+                spinMode: metaPublic.spinMode || 'std',
+                spinType,
+                playgroundCount: playgroundCounter,
+                roundTags: r.roundTags || r.step?.roundTags || [],
+                choices: r.choices || r.step?.choices || [],
+                hasMaxWin: !!(summary.hasMaxWin || r.hasMaxWin),
+                goldenTransformed: stats.goldenTransformed,
+                maxMultiplier: stats.maxMultiplier,
+                fieldMetadata,
+                playgroundStats,
+                bookmarked: item.b || item.bookmarked || false,
+                description: item.desc || item.description || null,
+                hasGolden: item.hg || item.hasGolden || false,
+                hasBaseSpin: item.hbs || item.hasBaseSpin || false,
+                hasFreeSpin: item.hfs || item.hasFreeSpin || false,
+              },
+            };
+          }).filter(Boolean);
         restored.push(...processed);
-        await new Promise(r => setTimeout(r, 0)); 
+        await new Promise((r) => setTimeout(r, 0));
       }
 
       showLoading('Saving... (Finalizing)', 100);
@@ -3510,35 +3581,31 @@ const triggerImport = (mode) => {
         await clearAllSpins();
         finalEntries = restored.map((r, i) => ({ ...r.data, num: i + 1 }));
       } else {
-        // MERGE: Deduplicate using Fingerprints
-        const existingFingers = new Set(globalHistory.map(s => {
-          // Re-generate fingerprint for existing history
-          return `${s.timestamp}_${s.summary.coins}_${s.fields.length}`;
-        }));
-        
-        const filtered = restored.filter(r => {
-          if (existingFingers.has(r.finger)) {
-            skippedCount++;
-            return false;
-          }
+        const existingFingers = new Set(globalHistory.map((s) => `${s.timestamp}_${s.summary.coins}_${s.fields.length}`));
+        const filtered = restored.filter((r) => {
+          if (existingFingers.has(r.finger)) { skippedCount++; return false; }
           return true;
         });
-
         const baseNum = await getNextSpinNum();
         finalEntries = filtered.map((r, i) => ({ ...r.data, num: baseNum + i }));
       }
 
       if (finalEntries.length > 0) {
         await saveAllSpins(finalEntries);
-        globalHistory = await loadAllSpins();
-        renderSpinHistory();
-        if (globalHistory.length > 0) loadSpin(0);
+      }
+
+      // Force the DB search to update memory using the newly imported filters
+      await triggerFilterUpdate();
+
+      if (globalHistory.length > 0 && currentSpinIndex === -1) {
+        loadSpin(globalHistory[0].num);
       }
       hideLoading();
 
-      const msg = mode === 'replace' 
-        ? `Replaced session with ${finalEntries.length} spins.` 
-        : `Merged ${finalEntries.length} new spins${skippedCount > 0 ? ` (skipped ${skippedCount} duplicates)` : ''}.`;
+      const msg =
+        mode === 'replace'
+          ? `Replaced session with ${finalEntries.length} spins.`
+          : `Merged ${finalEntries.length} new spins${skippedCount > 0 ? ` (skipped ${skippedCount} duplicates)` : ''}.`;
       alert(msg);
     } catch (err) {
       alert('Import failed: ' + err.message);
@@ -3547,18 +3614,34 @@ const triggerImport = (mode) => {
   input.click();
 };
 
-if (importMergeBtn) importMergeBtn.onclick = () => { importDropdown.style.display = 'none'; triggerImport('merge'); };
-if (importReplaceBtn) importReplaceBtn.onclick = () => { importDropdown.style.display = 'none'; triggerImport('replace'); };
+if (importMergeBtn)
+  importMergeBtn.onclick = () => {
+    importDropdown.style.display = 'none';
+    triggerImport('merge');
+  };
+if (importReplaceBtn)
+  importReplaceBtn.onclick = () => {
+    importDropdown.style.display = 'none';
+    triggerImport('replace');
+  };
 
 // ── Prev / Next / openSpinRaw ────────────────────────────────────────────────
 document.getElementById('tumbleList')?.remove();
 
-window.openSpinRaw = (historyIndex) => {
+window.openSpinRaw = async (historyIndex) => {
   const spin = globalHistory[historyIndex];
   if (!spin) return;
+
+  // Decompress rawData if it was gzipped
+  let displayRawData = spin.rawData;
+  if (spin._isCompressed && displayRawData instanceof ArrayBuffer) {
+    const { decompressData } = await import('./db.js');
+    displayRawData = await decompressData(displayRawData);
+  }
+
   openRawDrawer(
     [
-      { label: 'FULL_RESPONSE', data: spin.rawData },
+      { label: 'FULL_RESPONSE', data: displayRawData },
       { label: 'SUMMARY', data: spin.summary },
       { label: 'TESTCONFIG', data: spin.requestBody?.testConfig || {} },
     ],
@@ -3618,17 +3701,19 @@ document.getElementById('nextBtn').onclick = () => navigateFrame(1);
 function navigateRound(direction) {
   const spin = globalHistory[currentSpinIndex];
   if (!spin || spin.fields.length === 0 || gameState.currentIndex < 0) return;
-  
+
   const meta = spin.fieldMetadata ? spin.fieldMetadata[gameState.currentIndex] : null;
   const currentRound = meta ? meta.playgroundIndex : 0;
   const playgroundCount = spin.playgroundStats ? spin.playgroundStats.length : 1;
-  
+
   let targetRound = currentRound + direction;
   if (targetRound < 0) targetRound = 0;
   if (targetRound >= playgroundCount) targetRound = playgroundCount - 1;
-  
+
   if (targetRound !== currentRound) {
-    const firstTumbleIdx = (spin.fieldMetadata || []).findIndex(m => m.playgroundIndex === targetRound);
+    const firstTumbleIdx = (spin.fieldMetadata || []).findIndex(
+      (m) => m.playgroundIndex === targetRound,
+    );
     if (firstTumbleIdx !== -1) {
       window.selectTumble(firstTumbleIdx);
     }
@@ -3638,18 +3723,18 @@ function navigateRound(direction) {
 function navigateSpinCard(direction) {
   const cards = Array.from(document.querySelectorAll('.spin-history-card'));
   if (cards.length === 0) return;
-  const activeIdx = cards.findIndex(c => c.classList.contains('active'));
-  
+  const activeIdx = cards.findIndex((c) => c.classList.contains('active'));
+
   if (activeIdx === -1) {
     cards[0].click();
     cards[0].focus();
     return;
   }
-  
+
   let targetIdx = activeIdx + direction;
   if (targetIdx < 0) targetIdx = 0;
   if (targetIdx >= cards.length) targetIdx = cards.length - 1;
-  
+
   if (targetIdx !== activeIdx) {
     cards[targetIdx].click();
     cards[targetIdx].focus();
@@ -3662,7 +3747,7 @@ document.addEventListener('keydown', (e) => {
   const isInTablist =
     document.activeElement?.getAttribute('role') === 'tab' ||
     document.activeElement?.closest('#rawTabs');
-  
+
   if (!isInput && !isInTablist) {
     if (e.key === ' ') {
       e.preventDefault();
@@ -3722,16 +3807,94 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ── Clear History ────────────────────────────────────────────────────────────
-const clearBtn = document.getElementById('clearHistoryBtn');
-if (clearBtn) {
-  clearBtn.onclick = async () => {
+const clearMenuBtn = document.getElementById('clearMenuBtn');
+const clearDropdown = document.getElementById('clearDropdown');
+const clearAllBtnUI = document.getElementById('clearAllBtn');
+const clearFilteredBtnUI = document.getElementById('clearFilteredBtn');
+
+if (clearMenuBtn) {
+  clearMenuBtn.onclick = (e) => {
+    e.stopPropagation();
+    const isVisible = clearDropdown.style.display === 'block';
+    clearDropdown.style.display = isVisible ? 'none' : 'block';
+  };
+  document.addEventListener('click', () => {
+    if (clearDropdown) clearDropdown.style.display = 'none';
+  });
+}
+
+if (clearAllBtnUI) {
+  clearAllBtnUI.onclick = async () => {
     if (!confirm('Delete ALL spin history? This cannot be undone.')) return;
-    await clearAllSpins();
-    globalHistory = [];
-    currentSpinIndex = -1;
-    renderSpinHistory();
-    const totalCells = game.grid.rows * game.grid.cols;
-    renderGrid(new Array(totalCells).fill(game.emptySymbolId), [], new Set());
+
+    showLoading('Nuking entire database...', 50);
+    try {
+      const { clearAllSpins } = await import('./db.js');
+      await clearAllSpins();
+      globalHistory = [];
+      currentSpinIndex = -1;
+
+      renderSpinHistory();
+      const totalCells = game.grid.rows * game.grid.cols;
+      renderGrid(new Array(totalCells).fill(game.emptySymbolId), [], new Set());
+
+      await updateStorageStats();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to clear history: ' + err.message);
+    } finally {
+      hideLoading();
+    }
+  };
+}
+
+if (clearFilteredBtnUI) {
+  clearFilteredBtnUI.onclick = async () => {
+    // 1. Get the items currently visible in the UI
+    const filtered = applyFilters(globalHistory, activeFilters, game);
+
+    if (filtered.length === 0) {
+      alert('No filtered results to clear.');
+      return;
+    }
+
+    if (!confirm(`Delete ${filtered.length} filtered spins? This cannot be undone.`)) return;
+
+    showLoading(`Deleting ${filtered.length} spins...`, 50);
+    try {
+      const { deleteSpinsBatch } = await import('./db.js');
+      const numsToDelete = filtered.map((s) => s.num);
+
+      // 2. Erase them from the IndexedDB hard drive
+      await deleteSpinsBatch(numsToDelete);
+
+      // 3. Purge them from the RAM array
+      const numsSet = new Set(numsToDelete);
+      globalHistory = globalHistory.filter((s) => !numsSet.has(s.num));
+
+      // 4. Safely deselect if the current spin was part of the purge
+      if (currentSpinIndex !== -1) {
+        const currentSpin = globalHistory.find((s) => s.num === currentSpinIndex);
+        if (!currentSpin || numsSet.has(currentSpinIndex)) {
+          currentSpinIndex = -1;
+        }
+      }
+
+      renderSpinHistory(true);
+
+      // If we wiped everything we were looking at, clear the center grid
+      if (currentSpinIndex === -1) {
+        const totalCells = game.grid.rows * game.grid.cols;
+        renderGrid(new Array(totalCells).fill(game.emptySymbolId), [], new Set());
+      }
+
+      await updateStorageStats();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to clear filtered history: ' + err.message);
+    } finally {
+      hideLoading();
+    }
   };
 }
 
@@ -3749,21 +3912,16 @@ async function loadDefaultData(manual = false) {
 
   showLoading('Loading default history...', 0);
   try {
-    let allHistory = [];
-    const partsPrefix = '/history-parts/default-history-';
-    
-    // 1. Try multipart first
-    const firstResp = await fetch(`${partsPrefix}1.json`);
-    if (!firstResp.ok) {
-      console.warn('Default history parts not found in /history-parts/');
-      return; // Silently exit or handle as empty
+    const resp = await fetch('/json_files/default_data.json');
+    if (!resp.ok) {
+      console.warn('Default data not found.');
+      hideLoading();
+      return;
     }
 
-    const firstData = await firstResp.json();
-    const totalParts = firstData.total_parts || 1;
-    allHistory = firstData.h || [];
-    
-    // Load metadata from part 1
+    const firstData = await resp.json();
+    const allHistory = firstData.h || [];
+
     if (firstData.f && (activeFilters.length === 0 || manual)) {
       activeFilters = firstData.f;
       localStorage.setItem('active_filters', JSON.stringify(activeFilters));
@@ -3772,111 +3930,113 @@ async function loadDefaultData(manual = false) {
       localStorage.setItem('sort_field', firstData.o);
     }
 
-    // Load remaining parts in parallel
-    if (totalParts > 1) {
-      let finishedParts = 1;
-      const remainingParts = Array.from({ length: totalParts - 1 }, (_, i) => i + 2);
-      
-      const partsData = await Promise.all(remainingParts.map(async (p) => {
-        const resp = await fetch(`${partsPrefix}${p}.json`);
-        finishedParts++;
-        showLoading(`Loading default history (${finishedParts}/${totalParts})...`, Math.floor((finishedParts / totalParts) * 80));
-        if (resp.ok) {
-          const partData = await resp.json();
-          return partData.h || [];
-        }
-        return [];
-      }));
-      
-      partsData.forEach(chunk => {
-        allHistory = allHistory.concat(chunk);
-      });
-    }
-    
     if (allHistory.length > 0) {
       showLoading(`Importing ${allHistory.length} spins...`, 80);
       console.log(`Transforming ${allHistory.length} spins for IndexedDB...`);
-      const mapped = allHistory.map((entry, idx) => {
-        const r = entry.rawData || entry.r || entry; // Legacy fallback kept very brief
-        if (!r || !r.step) return null;
-        
-        let spinType = 'basic';
-        const fields = [];
-        const fieldMetadata = [];
-        const playgroundStats = [];
-        let playgroundCounter = 0;
+      const mapped = allHistory
+        .map((entry, idx) => {
+          const r = entry.rawData || entry.r || entry;
+          if (!r || !r.step) return null;
 
-        (r.step.gamePhases || []).forEach((phase) => {
-          if (phase.type === 'freeSpin') spinType = 'freeSpin';
-          let roundCounter = 0;
-          (phase.playgrounds || []).forEach(pg => {
-            let pgTumbles = 0;
-            let pgCascades = 0;
-            (pg.fields || []).forEach(f => {
-              fields.push(f);
-              fieldMetadata.push({
-                playgroundIndex: playgroundCounter,
-                isFreeSpin: phase.type === 'freeSpin',
-                roundIndex: roundCounter
+          let spinType = 'basic';
+          const fields = [];
+          const fieldMetadata = [];
+          const playgroundStats = [];
+          let playgroundCounter = 0;
+
+          (r.step.gamePhases || []).forEach((phase) => {
+            if (phase.type === 'freeSpin') spinType = 'freeSpin';
+            let roundCounter = 0;
+            (phase.playgrounds || []).forEach((pg) => {
+              let pgTumbles = 0;
+              let pgCascades = 0;
+              (pg.fields || []).forEach((f) => {
+                fields.push(f);
+                fieldMetadata.push({
+                  playgroundIndex: playgroundCounter,
+                  isFreeSpin: phase.type === 'freeSpin',
+                  roundIndex: roundCounter,
+                });
+                pgTumbles++;
+                if (parseInt(f.coins || 0) > 0) pgCascades++;
               });
-              pgTumbles++;
-              if (parseInt(f.coins || 0) > 0) pgCascades++;
+              playgroundStats.push({
+                tumbleCount: pgTumbles,
+                cascadeCount: pgCascades,
+                headerText:
+                  phase.type === 'freeSpin' ? `FreeSpin #${roundCounter + 1}` : 'BaseSpin',
+              });
+              playgroundCounter++;
+              roundCounter++;
             });
-            playgroundStats.push({ 
-              tumbleCount: pgTumbles, 
-              cascadeCount: pgCascades,
-              headerText: phase.type === 'freeSpin' ? `FreeSpin #${roundCounter + 1}` : 'BaseSpin'
-            });
-            playgroundCounter++;
-            roundCounter++;
           });
-        });
 
-        const summary = r.step.summary;
-        const metaPublic = r.meta?.public || r.step?.meta?.public || {};
-        const stats = getSpinStats(fields, game.wildSymbolId);
+          const summary = r.step.summary;
+          const metaPublic = r.meta?.public || r.step?.meta?.public || {};
+          const stats = getSpinStats(fields, game.wildSymbolId);
 
-        return {
-          num: entry.num || entry.n || (idx + 1),
-          timestamp: entry.timestamp || entry.t || new Date().toISOString(),
-          gameId: entry.gameId || entry.g || game.id,
-          rawData: r,
-          fields,
-          summary,
-          isWin: parseInt(summary.coins || 0) > 0,
-          totalWin: summary.coins || 0,
-          tumbleCount: fields.length,
-          cascadeCount: fields.filter((f) => parseInt(f.coins || 0) > 0).length,
-          betAmount: metaPublic.betAmount || 0,
-          spinMode: metaPublic.spinMode || 'std',
-          spinType,
-          playgroundCount: playgroundCounter,
-          roundTags: r.roundTags || r.step?.roundTags || [],
-          choices: r.choices || r.step?.choices || [],
-          bookmarked: entry.b || entry.bookmarked || false,
-          description: entry.desc || entry.description || null,
-          hasGolden: entry.hg || entry.hasGolden || false,
-          hasBaseSpin: entry.hbs || entry.hasBaseSpin || false,
-          hasFreeSpin: entry.hfs || entry.hasFreeSpin || false,
-          hasMaxWin: !!(summary.hasMaxWin || r.hasMaxWin),
-          goldenTransformed: stats.goldenTransformed,
-          maxMultiplier: stats.maxMultiplier,
-          fieldMetadata,
-          playgroundStats
-        };
-      }).filter(Boolean);
+          return {
+            num: entry.num || entry.n || idx + 1,
+            timestamp: entry.timestamp || entry.t || new Date().toISOString(),
+            gameId: entry.gameId || entry.g || game.id,
+            rawData: r,
+            isCheatTriggered: r.meta?.private?.isCheatTriggered === true,
+            fields,
+            summary,
+            isWin: parseInt(summary.coins || 0) > 0,
+            totalWin: summary.coins || 0,
+            tumbleCount: fields.length,
+            cascadeCount: fields.filter((f) => parseInt(f.coins || 0) > 0).length,
+            betAmount: metaPublic.betAmount || 0,
+            spinMode: metaPublic.spinMode || 'std',
+            spinType,
+            playgroundCount: playgroundCounter,
+            roundTags: r.roundTags || r.step?.roundTags || [],
+            choices: r.choices || r.step?.choices || [],
+            bookmarked: entry.b || entry.bookmarked || false,
+            description: entry.desc || entry.description || null,
+            hasGolden: entry.hg || entry.hasGolden || false,
+            hasBaseSpin: entry.hbs || entry.hasBaseSpin || false,
+            hasFreeSpin: entry.hfs || entry.hasFreeSpin || false,
+            hasMaxWin: !!(summary.hasMaxWin || r.hasMaxWin),
+            goldenTransformed: stats.goldenTransformed,
+            maxMultiplier: stats.maxMultiplier,
+            fieldMetadata,
+            playgroundStats,
+          };
+        })
+        .filter(Boolean);
 
-      console.log(`Importing ${mapped.length} mapped spins into IndexedDB...`);
       await saveAllSpins(mapped);
       console.log('Import complete.');
     }
+
+    // --- THE FIX: Smart Fallback & Race-Condition Prevention ---
+    const storedGame = localStorage.getItem('active_game_id');
+    const defaultGameId = firstData.s?.activeGame || storedGame || (allHistory[0] && (allHistory[0].gameId || allHistory[0].g));
+
+    // Consolidate settings object
+    const s = firstData.s || {};
+    if (!s.activeGame) s.activeGame = defaultGameId;
     
+    // Use the unified function to restore EVERYTHING including Dropdowns and Filters
+    restoreSettingsFromImport(s, firstData.f);
+
+    if (firstData.o) {
+        localStorage.setItem('sort_field', firstData.o);
+    }
+
     localStorage.setItem('default_data_loaded', 'true');
     showLoading('Default history loaded!', 100);
+
     setTimeout(() => {
       hideLoading();
-      location.reload(); 
-    }, 1000);
+      // If the user manually triggered "Clear All Data" or "Import", reload to sync cleanly.
+      // If this was an automatic boot, just let boot() finish its job.
+      if (manual) {
+        location.reload();
+      }
+    }, 800);
   } catch (err) {
     console.error('Failed to load default data:', err);
     hideLoading();
@@ -3889,13 +4049,13 @@ function startSpinPlayback() {
   gameState.currentIndex = 0;
   gameState.currentFramePhase = 'initial';
   window.selectTumble(0, 'initial');
-  
+
   // Start the interval with dynamic speed
   const delay = 800 / playbackSpeed;
   playbackInterval = setInterval(() => {
     stepPlayback(1);
   }, delay);
-  
+
   syncPlaybackUI();
 }
 
@@ -3912,7 +4072,9 @@ function togglePlayback() {
     stopPlayback();
   } else {
     // If we are at the end, replay
-    const isAtEnd = gameState.currentIndex >= (gameState.fields?.length || 0) - 1 && gameState.currentFramePhase === 'final';
+    const isAtEnd =
+      gameState.currentIndex >= (gameState.fields?.length || 0) - 1 &&
+      gameState.currentFramePhase === 'final';
     if (isAtEnd) {
       replaySpin();
     } else {
@@ -3954,9 +4116,9 @@ function stepPlayback(direction = 1) {
       }
     }
   }
-  
+
   window.selectTumble(gameState.currentIndex, gameState.currentFramePhase);
-  
+
   updatePlaybackLabels();
   syncPlaybackUI();
 }
@@ -3965,7 +4127,7 @@ function handleSpeedChange(e) {
   playbackSpeed = parseFloat(e.target.value);
   localStorage.setItem('playback_speed', playbackSpeed);
   if (speedValueLabel) speedValueLabel.innerText = playbackSpeed.toFixed(2) + 'x';
-  
+
   // If playing, restart interval with new speed
   if (playbackInterval) {
     stopPlayback();
@@ -3988,7 +4150,7 @@ function toggleAutoReplay() {
 function syncPlaybackUI() {
   if (!playbackPlayBtn) return;
   const isPlaying = !!playbackInterval;
-  
+
   if (isPlaying) {
     playbackPlayBtn.classList.add('playing');
     if (playIcon) playIcon.style.display = 'none';
@@ -4009,7 +4171,7 @@ function navigateSpinFiltered(direction) {
 
   // Find where the current spin is in the filtered list
   const currentIndexInFiltered = currentSortedList.findIndex(
-    (spin) => globalHistory.indexOf(spin) === currentSpinIndex
+    (spin) => globalHistory.indexOf(spin) === currentSpinIndex,
   );
 
   let nextIndex = 0;
@@ -4051,8 +4213,11 @@ if (playbackSpeedSlider) playbackSpeedSlider.oninput = handleSpeedChange;
 async function boot() {
   await migrateFromLocalStorage();
   await loadDefaultData();
-  globalHistory = await loadAllSpins();
+  globalHistory = await loadAllSpins(game.id, MAX_RAM_HISTORY);
   console.log(`Boot: Loaded ${globalHistory.length} total spins from IndexedDB.`);
+
+  renderWinCategoryCheckboxes(); // <--- ADD THIS LINE
+  updateStorageStats(); // <--- ADD THIS LINE
 
   const lastIdx = localStorage.getItem('last_spin_index');
   if (lastIdx !== null && globalHistory[parseInt(lastIdx)]) {
@@ -4074,6 +4239,18 @@ async function boot() {
   if (globalHistory.length === 0) {
     renderGrid(new Array(totalCells).fill(game.emptySymbolId), [], new Set());
   }
+}
+
+async function updateStorageStats() {
+  try {
+    const { getStorageEstimate, getSpinCount } = await import('./db.js');
+    const count = await getSpinCount();
+    const est = await getStorageEstimate();
+    const el = document.getElementById('dbStorageStats');
+    if (el && est) {
+      el.innerText = `DB: ${count.toLocaleString()} records | Disk: ${est.usageMb}MB used / ${est.quotaMb}MB limit (${est.percent}%)`;
+    }
+  } catch (e) {}
 }
 
 function toggleAutoplayOnSelect() {

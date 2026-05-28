@@ -4,17 +4,33 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "vite src",
+    "build": "vite build src --outDir ../dist --emptyOutDir",
     "preview": "vite preview",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "split-history": "node scripts/split-history.js",
-    "deploy": "npm run build && npx wrangler deploy"
+    "test": "bun test && bunx bats tests/",
+    "deploy": "npm run build && npx wrangler deploy",
+    "lint": "bun run type:check && bun run prettier:check && bun run lint:code",
+    "lint:fix": "bun run prettier:fix && bun run lint:code --fix",
+    "type:check": "tsc --noEmit",
+    "lint:code": "eslint \"./**/*.{js,ts}\" --quiet",
+    "prettier:check": "prettier --check \"**/*.{ts,js}\"",
+    "prettier:fix": "prettier --write \"**/*.{ts,js}\"",
+    "pretest": "bun run lint",
+    "test:cov": "bun test --coverage && bunx bats tests/",
+    "precommit": "bun run lint:fix && bun run test:cov"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "vite": "^8.0.1"
-  }
+    "@cloudflare/workers-types": "^4.20260528.1",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.4.0",
+    "globals": "^17.6.0",
+    "prettier": "^3.8.3",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.1",
+    "wrangler": "^4.95.0"
+  },
+  "type": "module"
 }

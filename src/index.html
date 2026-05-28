@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Slot Studio</title>
-    <link rel="stylesheet" href="/src/index.css">
+    <link rel="stylesheet" href="/index.css">
 </head>
 <body class="dark-mode">
     <!-- LEFT COLUMN: History & Filters -->
@@ -51,10 +51,17 @@
                         <div class="dropdown-item" id="importReplaceBtn">Totally replace</div>
                       </div>
                     </div>
-                    <button id="clearHistoryBtn" class="header-btn-v5" title="Clear All History" style="color: var(--error);">
+                    <div id="clearWrapper" style="display: contents;">
+                      <button id="clearMenuBtn" class="header-btn-v5" title="Clear Options" style="color: var(--error);">
                         <span class="icon">🗑️</span>
                         <span class="label">Clear</span>
-                    </button>
+                      </button>
+                      <div id="clearDropdown" class="dropdown-menu" style="display: none; top: 100%; right: 0;">
+                        <div class="dropdown-item" id="clearFilteredBtn" style="color: var(--bg-accent);">Clear Filtered Results</div>
+                        <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
+                        <div class="dropdown-item" id="clearAllBtn" style="color: var(--error);">Clear All History</div>
+                      </div>
+                    </div>
                 </div>
             </div>
 
@@ -74,20 +81,34 @@
                 </select>
             </section>
 
-            <section class="play-controls" style="display: flex; gap: 8px;">
-                <button id="spinBtn" class="btn-primary" style="flex: 1;">▶ SPIN</button>
-                <select id="playMode" style="width: 100px;">
-                    <option value="single">Single</option>
-                    <option value="untilWin">Until Win</option>
-                    <option value="untilLoss">Until Loss</option>
-                    <option value="count">Play N</option>
-                    <option value="untilFilter">Until Filter</option>
-                    <option value="allCheatTemplates">All Cheat Templates</option>
-                </select>
-                <input type="number" id="playCount" value="10" min="1" max="10000" style="width: 50px; display: none;">
-                <button id="stopAutoBtn" class="btn-danger" style="display: none;">STOP</button>
-            </section>
+           <section class="play-controls" style="display: flex; gap: 8px; align-items: center;">
+    <button id="spinBtn" class="btn-primary" style="flex: 1;">▶ SPIN</button>
+    <select id="playMode" style="width: 120px;">
+        <option value="single">Single</option>
+        <option value="count">Play N</option>
+        <option value="allCheatTemplates">All Cheats</option> <option value="untilWin">Until Win</option>
+        <option value="untilLoss">Until Loss</option>
+        <option value="untilFilter">Until Filter</option>
+        <option value="untilConditionN">Until Targets</option>
+    </select>
+    
+    <input type="text" id="playCount" value="10k" placeholder="e.g. 100k" style="width: 65px; display: none;">
+    
+    <div id="targetConditionsGroup" style="display: none; align-items: center; gap: 8px; font-size: 11px; background: rgba(255,255,255,0.03); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border-color);">
+        <select id="targetConditionLogic" style="background: transparent; border: none; color: var(--bg-accent); font-weight: 800; font-size: 10px; padding: 0; outline: none; cursor: pointer;">
+            <option value="OR">ANY (OR)</option>
+            <option value="AND">ALL (AND)</option>
+        </select>
+        <div style="width:1px; height:12px; background:var(--border-color);"></div>
+        <div id="targetConditionsCheckboxes" style="display: flex; gap: 8px; align-items: center;"></div>
+    </div>
+    
+    <input type="number" id="targetConditionCount" value="1" min="1" placeholder="N times" style="width: 50px; display: none;" title="Total times ANY of the selected targets must be hit">
+    
+    <button id="stopAutoBtn" class="btn-danger" style="display: none;">STOP</button>
+</section>
             <span id="autoStatus" style="font-size: 10px; color: var(--bg-accent);"></span>
+            <div id="dbStorageStats" style="font-size: 9px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; margin-top: 4px;">Storage: Calculating...</div>
             <!-- Filter Bar -->
             <section aria-labelledby="filtersHeading">
                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -460,7 +481,7 @@
         </div>
     </dialog>
 
-    <script type="module" src="/src/main.js"></script>
+    <script type="module" src="/main.js"></script>
     <!-- Background Task Toast -->
     <div id="loadingOverlay">
         <div class="spinner" style="width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--bg-accent); border-radius: 50%; animation: spin 1s linear infinite; flex-shrink: 0;"></div>

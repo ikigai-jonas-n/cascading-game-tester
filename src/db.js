@@ -50,28 +50,127 @@ export async function saveSpin(entry) {
   });
 }
 
-/** Save many spins at once (for import) */
+// Add these native GZIP utilities
+export async function compressData(dataObj) {
+  const stream = new Blob([JSON.stringify(dataObj)])
+    .stream()
+    .pipeThrough(new CompressionStream('gzip'));
+  return await new Response(stream).arrayBuffer();
+}
+
+export async function decompressData(buffer) {
+  if (!buffer) return null;
+  const stream = new Blob([buffer]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return JSON.parse(await new Response(stream).text());
+}
+
+/** * Returns exact disk usage and quota available to the app in MBs.
+ */
+export async function getStorageEstimate() {
+  if (navigator.storage && navigator.storage.estimate) {
+    const { usage, quota } = await navigator.storage.estimate();
+    return {
+      usageMb: (usage / 1024 / 1024).toFixed(2),
+      quotaMb: (quota / 1024 / 1024).toFixed(2),
+      percent: ((usage / quota) * 100).toFixed(2),
+    };
+  }
+  return null;
+}
+
+/** Highly Optimized Bulk Save with GZIP Compression */
 export async function saveAllSpins(entries) {
+  // 1. Offload compression to async microtasks BEFORE opening the DB transaction
+  // We compress `rawData` because it's massive, but keep `fields` uncompressed for fast searching
+  const processedEntries = await Promise.all(
+    entries.map(async (entry) => {
+      if (entry.rawData && !entry._isCompressed) {
+        return {
+          ...entry,
+          rawData: await compressData(entry.rawData),
+          _isCompressed: true,
+        };
+      }
+      return entry;
+    }),
+  );
+
   await open();
+
+  // 2. Max-speed synchronous batch insert
   return new Promise((resolve, reject) => {
     const tx = _db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
-    entries.forEach((entry) => store.put(entry));
+
+    // A standard 'for' loop guarantees all requests are queued in the same event tick
+    for (let i = 0; i < processedEntries.length; i++) {
+      store.put(processedEntries[i]);
+    }
+
     tx.oncomplete = () => resolve();
     tx.onerror = (e) => reject(e.target.error);
   });
 }
 
-/** Load all spins, newest first */
-export async function loadAllSpins() {
+/** Load initial batch of spins ONLY for the active game */
+export async function loadAllSpins(gameId, limit = 10000) {
   await open();
   return new Promise((resolve, reject) => {
     const store = getStore();
-    const req = store.getAll();
-    req.onsuccess = () => {
-      const result = req.result || [];
-      result.sort((a, b) => b.num - a.num);
-      resolve(result);
+    const req = store.openCursor(null, 'prev');
+    const results = [];
+
+    req.onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (!cursor) {
+        resolve(results);
+        return;
+      }
+
+      // STRICT ISOLATION: Only load into RAM if it belongs to the current game
+      if (cursor.value.gameId === gameId) {
+        results.push(cursor.value);
+      }
+
+      if (results.length < limit) {
+        cursor.continue();
+      } else {
+        resolve(results);
+      }
+    };
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+/** Load a specific page of spins using a cursor (Newest First) */
+export async function loadSpinsPage(limit = 30, offset = 0) {
+  await open();
+  return new Promise((resolve, reject) => {
+    const store = getStore();
+    const req = store.openCursor(null, 'prev'); // Descending order
+    const results = [];
+    let advanced = false;
+
+    req.onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (!cursor) {
+        resolve(results); // No more records
+        return;
+      }
+
+      // Skip records for the offset
+      if (offset > 0 && !advanced) {
+        advanced = true;
+        cursor.advance(offset);
+        return;
+      }
+
+      results.push(cursor.value);
+      if (results.length < limit) {
+        cursor.continue();
+      } else {
+        resolve(results);
+      }
     };
     req.onerror = (e) => reject(e.target.error);
   });
@@ -99,6 +198,23 @@ export async function clearAllSpins() {
     const req = store.clear();
     req.onsuccess = () => resolve();
     req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+/** Delete a batch of spins by their numbers (Fast Transaction) */
+export async function deleteSpinsBatch(nums) {
+  await open();
+  return new Promise((resolve, reject) => {
+    // Open a single transaction for maximum speed
+    const tx = _db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+
+    for (let i = 0; i < nums.length; i++) {
+      store.delete(nums[i]);
+    }
+
+    tx.oncomplete = () => resolve();
+    tx.onerror = (e) => reject(e.target.error);
   });
 }
 
@@ -167,5 +283,86 @@ export async function toggleBookmark(num, state) {
     };
     tx.oncomplete = () => resolve();
     tx.onerror = (e) => reject(e.target.error);
+  });
+}
+
+/** Search the database ONLY for the active game */
+export async function searchEntireDb(filters, gameConfig, limit = 1000) {
+  await open();
+  const { FILTER_DEFS } = await import('./filters.js');
+
+  return new Promise((resolve, reject) => {
+    const store = getStore();
+    const req = store.openCursor(null, 'prev');
+    const results = [];
+
+    req.onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (!cursor) return resolve(results);
+
+      const spin = cursor.value;
+
+      // STRICT ISOLATION
+      if (spin.gameId === gameConfig.id) {
+        const isMatch = filters.every((af) => {
+          if (af.disabled) return true;
+          const def = FILTER_DEFS.find((d) => d.id === af.id);
+          if (!def) return true;
+          return def.apply(spin, af.value, gameConfig);
+        });
+
+        if (isMatch) results.push(spin);
+      }
+
+      if (results.length < limit) cursor.continue();
+      else resolve(results);
+    };
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+/** Iterate DB for streaming. Supports 'filtered' (active game) or 'all' (entire DB) */
+export async function iterateDb(exportMode, filters, gameConfig, callback) {
+  await open();
+  const { FILTER_DEFS } = await import('./filters.js');
+
+  return new Promise((resolve, reject) => {
+    const store = getStore('readonly');
+    const req = store.openCursor(null, 'prev');
+    const chunk = [];
+
+    req.onsuccess = async (e) => {
+      const cursor = e.target.result;
+      if (!cursor) {
+        if (chunk.length > 0) await callback(chunk);
+        return resolve();
+      }
+
+      const spin = cursor.value;
+      let isMatch = true;
+
+      if (exportMode === 'filtered') {
+        // Enforce Game Isolation for filtered exports
+        if (spin.gameId !== gameConfig.id) {
+          isMatch = false;
+        } else if (filters && filters.length > 0) {
+          isMatch = filters.every((af) => {
+            if (af.disabled) return true;
+            const def = FILTER_DEFS.find((d) => d.id === af.id);
+            return def ? def.apply(spin, af.value, gameConfig) : true;
+          });
+        }
+      } // If exportMode === 'all', isMatch remains true for EVERY game!
+
+      if (isMatch) chunk.push(spin);
+
+      if (chunk.length >= 500) {
+        await callback([...chunk]);
+        chunk.length = 0;
+      }
+
+      cursor.continue();
+    };
+    req.onerror = (e) => reject(e.target.error);
   });
 }
