@@ -41,10 +41,20 @@ function switchGame(id) {
   document.getElementById('gameLabel').innerText = game.name;
   renderSymbolMap();
 
-  renderWinCategoryCheckboxes(); // <--- ADD THIS LINE
+  renderWinCategoryCheckboxes();
+  if (typeof renderCheatTemplates === 'function') renderCheatTemplates();
 
   const totalCells = game.grid.rows * game.grid.cols;
   renderGrid(new Array(totalCells).fill(game.emptySymbolId), [], new Set());
+
+  // --- STRICT UI ISOLATION ---
+  // Instantly purge the old game's data from RAM
+  globalHistory = [];
+  currentSpinIndex = -1;
+  localStorage.removeItem('last_spin_index');
+
+  // Re-fetch only this specific game's history from IndexedDB
+  triggerFilterUpdate();
 }
 
 // ── Globals ──────────────────────────────────────────────────────────────────
@@ -518,7 +528,7 @@ async function loadCheatTemplates() {
 
 function renderCheatTemplates() {
   if (!cheatTemplateSelect) return;
-  
+
   cheatTemplateSelect.innerHTML = '<option value="">-- Select a Template --</option>';
   if (cheatTemplateDesc) cheatTemplateDesc.style.display = 'none';
 
@@ -886,8 +896,8 @@ async function triggerFilterUpdate() {
     const hasActiveFilters = activeFilters.some((f) => !f.disabled);
 
     if (!hasActiveFilters) {
-      // If no filters, safely load the newest 10k spins
-      globalHistory = await loadAllSpins(MAX_RAM_HISTORY);
+      // Safely load the newest 10k spins strictly for the active game
+      globalHistory = await loadAllSpins(game.id, MAX_RAM_HISTORY);
     } else {
       // Instantly search millions of spins using the IndexedDB cursor
       globalHistory = await searchEntireDb(activeFilters, game, 5000);
@@ -1380,11 +1390,11 @@ window.startDescEdit = (num, rowEl) => {
     if (spin) {
       spin.description = val || null;
       // --- THE FIX: Save the manual edit to IndexedDB immediately ---
-      import('./db.js').then(db => db.saveSpin(spin)); 
+      import('./db.js').then((db) => db.saveSpin(spin));
     }
     renderSpinHistory(true);
   };
-  
+
   input.addEventListener('blur', save);
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
@@ -3232,7 +3242,7 @@ function getOptimizedData(history) {
 }
 
 // --- SSD Direct Streaming Exporter ---
-async function exportDataDirectFromDb(defaultFileName, useFilters, isMapped = false) {
+async function exportDataDirectFromDb(defaultFileName, exportMode, isMapped = false) {
   showLoading(`Preparing Export...`, 0);
   try {
     const { decompressData, iterateDb } = await import('./db.js');
@@ -3240,22 +3250,26 @@ async function exportDataDirectFromDb(defaultFileName, useFilters, isMapped = fa
 
     let header, footer;
     if (isMapped) {
-       header = '['; footer = ']';
+      header = '[';
+      footer = ']';
     } else {
-       const settingsExport = {
-         playMode: localStorage.getItem('play_mode') || 'single',
-         playCount: localStorage.getItem('play_count') || '10',
-         requestBody: localStorage.getItem('request_body') || '',
-       };
-       const v2Format = {
-         v: 2,
-         f: useFilters ? activeFilters : [],
-         o: localStorage.getItem('sort_field') || 'num_desc',
-         s: settingsExport,
-         h: [],
-       };
-       header = JSON.stringify(v2Format).split('"h":[]')[0] + '"h":[';
-       footer = ']}';
+      const settingsExport = {
+        playMode: localStorage.getItem('play_mode') || 'single',
+        playCount: localStorage.getItem('play_count') || '10',
+        requestBody: localStorage.getItem('request_body') || '',
+        activeGame: game.id, // Capture the active environment
+        uiSpinType: document.getElementById('uiSpinType')?.value || 'base', // Capture selector
+        uiStake: document.getElementById('uiStake')?.value || 'commonGame', // Capture selector
+      };
+      const v2Format = {
+        v: 2,
+        f: exportMode === 'filtered' ? activeFilters : [],
+        o: localStorage.getItem('sort_field') || 'num_desc',
+        s: settingsExport,
+        h: [],
+      };
+      header = JSON.stringify(v2Format).split('"h":[]')[0] + '"h":[';
+      footer = ']}';
     }
 
     let writable = null;
@@ -3265,81 +3279,108 @@ async function exportDataDirectFromDb(defaultFileName, useFilters, isMapped = fa
 
     try {
       if (useFileSystem) {
-         const handle = await window.showSaveFilePicker({ suggestedName: defaultFileName });
-         writable = await handle.createWritable();
-         await writable.write(header);
+        const handle = await window.showSaveFilePicker({ suggestedName: defaultFileName });
+        writable = await handle.createWritable();
+        await writable.write(header);
       } else {
-         blobParts.push(header); // Fallback for Firefox/Safari
+        blobParts.push(header); // Fallback for Firefox/Safari
       }
     } catch (e) {
-      if (e.name === 'AbortError') { hideLoading(); return; } // User cancelled save dialog
+      if (e.name === 'AbortError') {
+        hideLoading();
+        return;
+      } // User cancelled save dialog
       useFileSystem = false;
       blobParts.push(header);
     }
 
     let hasData = false;
 
-    // Scan the DB and write chunks instantly to the file
-    await iterateDb(useFilters ? activeFilters : [], game, async (chunkData) => {
-       processedCount += chunkData.length;
-       showLoading(`Exporting ${processedCount} records...`, 50);
+    // Scan the DB using the new isolated iterateDb logic
+    await iterateDb(exportMode, activeFilters, game, async (chunkData) => {
+      processedCount += chunkData.length;
+      showLoading(`Exporting ${processedCount} records...`, 50);
 
-       const decompressedSlice = await Promise.all(chunkData.map(async (spin) => {
-         if (spin._isCompressed && spin.rawData instanceof ArrayBuffer) {
-           return { ...spin, rawData: await decompressData(spin.rawData), _isCompressed: false };
-         }
-         return spin;
-       }));
+      const decompressedSlice = await Promise.all(
+        chunkData.map(async (spin) => {
+          if (spin._isCompressed && spin.rawData instanceof ArrayBuffer) {
+            return { ...spin, rawData: await decompressData(spin.rawData), _isCompressed: false };
+          }
+          return spin;
+        }),
+      );
 
-       let chunkStr = '';
-       if (isMapped) {
-          const mapped = decompressedSlice.map(s => ({ request: s.requestBody || {}, response: s.rawData || {} }));
-          chunkStr = JSON.stringify(mapped).slice(1, -1);
-       } else {
-          const optChunk = getOptimizedData(decompressedSlice);
-          chunkStr = JSON.stringify(optChunk.h).slice(1, -1);
-       }
+      let chunkStr = '';
+      if (isMapped) {
+        const mapped = decompressedSlice.map((s) => ({
+          request: s.requestBody || {},
+          response: s.rawData || {},
+        }));
+        chunkStr = JSON.stringify(mapped).slice(1, -1);
+      } else {
+        const optChunk = getOptimizedData(decompressedSlice);
+        chunkStr = JSON.stringify(optChunk.h).slice(1, -1);
+      }
 
-       if (chunkStr.length > 0) {
-         if (hasData) {
-           if (useFileSystem) await writable.write(',');
-           else blobParts.push(',');
-         }
-         if (useFileSystem) await writable.write(chunkStr);
-         else blobParts.push(chunkStr);
-         hasData = true;
-       }
+      if (chunkStr.length > 0) {
+        if (hasData) {
+          if (useFileSystem) await writable.write(',');
+          else blobParts.push(',');
+        }
+        if (useFileSystem) await writable.write(chunkStr);
+        else blobParts.push(chunkStr);
+        hasData = true;
+      }
     });
 
     if (useFileSystem) {
-       await writable.write(footer);
-       await writable.close();
+      await writable.write(footer);
+      await writable.close();
     } else {
-       blobParts.push(footer);
-       const blob = new Blob(blobParts, { type: 'application/json' });
-       const url = URL.createObjectURL(blob);
-       const a = document.createElement('a');
-       a.href = url;
-       a.download = defaultFileName;
-       a.click();
-       URL.revokeObjectURL(url);
+      blobParts.push(footer);
+      const blob = new Blob(blobParts, { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = defaultFileName;
+      a.click();
+      URL.revokeObjectURL(url);
     }
-    
+
     showLoading('Export Complete! ✅', 100);
     setTimeout(hideLoading, 1500);
-
   } catch (e) {
-    console.error("Export failed", e);
-    alert("Export failed: " + e.message);
+    console.error('Export failed', e);
+    alert('Export failed: ' + e.message);
     hideLoading();
   }
 }
 
 // Bind all 4 buttons to the unified DB Exporter
-exportFilteredBtn.onclick = () => exportDataDirectFromDb(`slot-filtered-${game.id}-${new Date().toISOString().slice(0, 10)}.json`, true, false);
-exportAllBtn.onclick = () => exportDataDirectFromDb(`slot-all-${game.id}-${new Date().toISOString().slice(0, 10)}.json`, false, false);
-exportMappedFilteredBtn.onclick = () => exportDataDirectFromDb(`mapped-filtered-${game.id}-${new Date().toISOString().slice(0, 10)}.json`, true, true);
-exportMappedAllBtn.onclick = () => exportDataDirectFromDb(`mapped-all-${game.id}-${new Date().toISOString().slice(0, 10)}.json`, false, true);
+exportFilteredBtn.onclick = () =>
+  exportDataDirectFromDb(
+    `slot-filtered-${game.id}-${new Date().toISOString().slice(0, 10)}.json`,
+    'filtered',
+    false,
+  );
+exportAllBtn.onclick = () =>
+  exportDataDirectFromDb(
+    `slot-all-${game.id}-${new Date().toISOString().slice(0, 10)}.json`,
+    'all',
+    false,
+  );
+exportMappedFilteredBtn.onclick = () =>
+  exportDataDirectFromDb(
+    `mapped-filtered-${game.id}-${new Date().toISOString().slice(0, 10)}.json`,
+    'filtered',
+    true,
+  );
+exportMappedAllBtn.onclick = () =>
+  exportDataDirectFromDb(
+    `mapped-all-${game.id}-${new Date().toISOString().slice(0, 10)}.json`,
+    'all',
+    true,
+  );
 
 // ── Import Handler ───────────────────────────────────────────────────────────
 if (importMenuBtn) {
@@ -3380,6 +3421,27 @@ const triggerImport = (mode) => {
             }
           }
           if (rawImport.s) {
+            // THE FIX: Fallback to localStorage if the exported JSON doesn't have activeGame
+            const importGameId = rawImport.s.activeGame || localStorage.getItem('active_game_id');
+            
+            if (importGameId) {
+              const gameSelect = document.getElementById('gameSelect');
+              if (gameSelect && gameSelect.value !== importGameId) {
+                gameSelect.value = importGameId;
+                switchGame(importGameId); // Safe to call switchGame here because boot() is already finished
+              }
+            }
+
+            // Restore UI Selectors
+            if (rawImport.s.uiSpinType) {
+              const el = document.getElementById('uiSpinType');
+              if (el) el.value = rawImport.s.uiSpinType;
+            }
+            if (rawImport.s.uiStake) {
+              const el = document.getElementById('uiStake');
+              if (el) el.value = rawImport.s.uiStake;
+            }
+            // Restore Settings
             if (rawImport.s.playMode) {
               localStorage.setItem('play_mode', rawImport.s.playMode);
               if (document.getElementById('playMode'))
@@ -3392,8 +3454,10 @@ const triggerImport = (mode) => {
             }
             if (rawImport.s.requestBody) {
               localStorage.setItem('request_body', rawImport.s.requestBody);
-              if (typeof syncSpinSettingsUI === 'function') syncSpinSettingsUI();
+              document.getElementById('requestBody').value = rawImport.s.requestBody;
             }
+            // Sync internal state to UI
+            if (typeof syncSpinSettingsUI === 'function') syncSpinSettingsUI();
           }
         }
       } else {
@@ -3524,7 +3588,7 @@ const triggerImport = (mode) => {
 
       if (finalEntries.length > 0) {
         await saveAllSpins(finalEntries);
-        globalHistory = await loadAllSpins();
+        globalHistory = await loadAllSpins(game.id, MAX_RAM_HISTORY);
         renderSpinHistory();
         if (globalHistory.length > 0) loadSpin(0);
       }
@@ -3754,18 +3818,18 @@ if (clearMenuBtn) {
 if (clearAllBtnUI) {
   clearAllBtnUI.onclick = async () => {
     if (!confirm('Delete ALL spin history? This cannot be undone.')) return;
-    
+
     showLoading('Nuking entire database...', 50);
     try {
       const { clearAllSpins } = await import('./db.js');
       await clearAllSpins();
       globalHistory = [];
       currentSpinIndex = -1;
-      
+
       renderSpinHistory();
       const totalCells = game.grid.rows * game.grid.cols;
       renderGrid(new Array(totalCells).fill(game.emptySymbolId), [], new Set());
-      
+
       await updateStorageStats();
     } catch (err) {
       console.error(err);
@@ -3780,42 +3844,42 @@ if (clearFilteredBtnUI) {
   clearFilteredBtnUI.onclick = async () => {
     // 1. Get the items currently visible in the UI
     const filtered = applyFilters(globalHistory, activeFilters, game);
-    
+
     if (filtered.length === 0) {
       alert('No filtered results to clear.');
       return;
     }
-    
+
     if (!confirm(`Delete ${filtered.length} filtered spins? This cannot be undone.`)) return;
-    
+
     showLoading(`Deleting ${filtered.length} spins...`, 50);
     try {
       const { deleteSpinsBatch } = await import('./db.js');
-      const numsToDelete = filtered.map(s => s.num);
-      
+      const numsToDelete = filtered.map((s) => s.num);
+
       // 2. Erase them from the IndexedDB hard drive
       await deleteSpinsBatch(numsToDelete);
-      
+
       // 3. Purge them from the RAM array
       const numsSet = new Set(numsToDelete);
-      globalHistory = globalHistory.filter(s => !numsSet.has(s.num));
-      
+      globalHistory = globalHistory.filter((s) => !numsSet.has(s.num));
+
       // 4. Safely deselect if the current spin was part of the purge
       if (currentSpinIndex !== -1) {
-          const currentSpin = globalHistory.find(s => s.num === currentSpinIndex);
-          if (!currentSpin || numsSet.has(currentSpinIndex)) {
-              currentSpinIndex = -1;
-          }
+        const currentSpin = globalHistory.find((s) => s.num === currentSpinIndex);
+        if (!currentSpin || numsSet.has(currentSpinIndex)) {
+          currentSpinIndex = -1;
+        }
       }
-      
+
       renderSpinHistory(true);
-      
+
       // If we wiped everything we were looking at, clear the center grid
       if (currentSpinIndex === -1) {
-          const totalCells = game.grid.rows * game.grid.cols;
-          renderGrid(new Array(totalCells).fill(game.emptySymbolId), [], new Set());
+        const totalCells = game.grid.rows * game.grid.cols;
+        renderGrid(new Array(totalCells).fill(game.emptySymbolId), [], new Set());
       }
-      
+
       await updateStorageStats();
     } catch (err) {
       console.error(err);
@@ -3840,21 +3904,16 @@ async function loadDefaultData(manual = false) {
 
   showLoading('Loading default history...', 0);
   try {
-    let allHistory = [];
-    const partsPrefix = '/history-parts/default-history-';
-
-    // 1. Try multipart first
-    const firstResp = await fetch(`${partsPrefix}1.json`);
-    if (!firstResp.ok) {
-      console.warn('Default history parts not found in /history-parts/');
-      return; // Silently exit or handle as empty
+    const resp = await fetch('/json_files/default_data.json');
+    if (!resp.ok) {
+      console.warn('Default data not found.');
+      hideLoading();
+      return;
     }
 
-    const firstData = await firstResp.json();
-    const totalParts = firstData.total_parts || 1;
-    allHistory = firstData.h || [];
+    const firstData = await resp.json();
+    const allHistory = firstData.h || [];
 
-    // Load metadata from part 1
     if (firstData.f && (activeFilters.length === 0 || manual)) {
       activeFilters = firstData.f;
       localStorage.setItem('active_filters', JSON.stringify(activeFilters));
@@ -3863,38 +3922,12 @@ async function loadDefaultData(manual = false) {
       localStorage.setItem('sort_field', firstData.o);
     }
 
-    // Load remaining parts in parallel
-    if (totalParts > 1) {
-      let finishedParts = 1;
-      const remainingParts = Array.from({ length: totalParts - 1 }, (_, i) => i + 2);
-
-      const partsData = await Promise.all(
-        remainingParts.map(async (p) => {
-          const resp = await fetch(`${partsPrefix}${p}.json`);
-          finishedParts++;
-          showLoading(
-            `Loading default history (${finishedParts}/${totalParts})...`,
-            Math.floor((finishedParts / totalParts) * 80),
-          );
-          if (resp.ok) {
-            const partData = await resp.json();
-            return partData.h || [];
-          }
-          return [];
-        }),
-      );
-
-      partsData.forEach((chunk) => {
-        allHistory = allHistory.concat(chunk);
-      });
-    }
-
     if (allHistory.length > 0) {
       showLoading(`Importing ${allHistory.length} spins...`, 80);
       console.log(`Transforming ${allHistory.length} spins for IndexedDB...`);
       const mapped = allHistory
         .map((entry, idx) => {
-          const r = entry.rawData || entry.r || entry; // Legacy fallback kept very brief
+          const r = entry.rawData || entry.r || entry; 
           if (!r || !r.step) return null;
 
           let spinType = 'basic';
@@ -3939,7 +3972,7 @@ async function loadDefaultData(manual = false) {
             timestamp: entry.timestamp || entry.t || new Date().toISOString(),
             gameId: entry.gameId || entry.g || game.id,
             rawData: r,
-            isCheatTriggered: data.meta?.private?.isCheatTriggered === true,
+            isCheatTriggered: r.meta?.private?.isCheatTriggered === true, 
             fields,
             summary,
             isWin: parseInt(summary.coins || 0) > 0,
@@ -3966,17 +3999,53 @@ async function loadDefaultData(manual = false) {
         })
         .filter(Boolean);
 
-      console.log(`Importing ${mapped.length} mapped spins into IndexedDB...`);
       await saveAllSpins(mapped);
       console.log('Import complete.');
     }
 
+    // --- THE FIX: Smart Fallback & Race-Condition Prevention ---
+    const storedGame = localStorage.getItem('active_game_id');
+    
+    // 1. Try JSON settings -> 2. Try LocalStorage -> 3. Try First Item's Game ID
+    const defaultGameId = firstData.s?.activeGame || storedGame || (allHistory[0] && (allHistory[0].gameId || allHistory[0].g));
+
+    // Only force a game switch if we are explicitly on the WRONG game
+    if (defaultGameId && defaultGameId !== game.id) {
+       setActiveGame(defaultGameId);
+       game = getActiveGame();
+       SYMBOLS = game.symbols;
+       EMOJIS = game.emojis;
+       SYMBOL_COLORS = game.colors;
+       
+       const gameSelect = document.getElementById('gameSelect');
+       if (gameSelect) gameSelect.value = game.id;
+       const gameLabel = document.getElementById('gameLabel');
+       if (gameLabel) gameLabel.innerText = game.name;
+       
+       // Note: We deliberately DO NOT call switchGame() here during the boot cycle 
+       // to prevent it from firing overlapping IndexedDB requests!
+    }
+
+    if (firstData.s && manual) {
+      if (firstData.s.requestBody) {
+        localStorage.setItem('request_body', firstData.s.requestBody);
+        document.getElementById('requestBody').value = firstData.s.requestBody;
+        if (typeof syncSpinSettingsUI === 'function') syncSpinSettingsUI();
+      }
+    }
+
     localStorage.setItem('default_data_loaded', 'true');
     showLoading('Default history loaded!', 100);
+    
     setTimeout(() => {
       hideLoading();
-      location.reload();
-    }, 1000);
+      // If the user manually triggered "Clear All Data" or "Import", reload to sync cleanly.
+      // If this was an automatic boot, just let boot() finish its job.
+      if (manual) {
+         location.reload();
+      }
+    }, 800);
+    
   } catch (err) {
     console.error('Failed to load default data:', err);
     hideLoading();
@@ -4153,7 +4222,7 @@ if (playbackSpeedSlider) playbackSpeedSlider.oninput = handleSpeedChange;
 async function boot() {
   await migrateFromLocalStorage();
   await loadDefaultData();
-  globalHistory = await loadAllSpins();
+  globalHistory = await loadAllSpins(game.id, MAX_RAM_HISTORY);
   console.log(`Boot: Loaded ${globalHistory.length} total spins from IndexedDB.`);
 
   renderWinCategoryCheckboxes(); // <--- ADD THIS LINE

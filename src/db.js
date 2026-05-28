@@ -112,24 +112,26 @@ export async function saveAllSpins(entries) {
   });
 }
 
-/** Load initial batch of spins for RAM cache (RAM safe limit) */
-export async function loadAllSpins(limit = 10000) {
+/** Load initial batch of spins ONLY for the active game */
+export async function loadAllSpins(gameId, limit = 10000) {
   await open();
   return new Promise((resolve, reject) => {
     const store = getStore();
-    const req = store.openCursor(null, 'prev'); // Descending order (newest first)
+    const req = store.openCursor(null, 'prev');
     const results = [];
 
     req.onsuccess = (e) => {
       const cursor = e.target.result;
       if (!cursor) {
-        resolve(results); // No more records
+        resolve(results);
         return;
       }
 
-      results.push(cursor.value);
+      // STRICT ISOLATION: Only load into RAM if it belongs to the current game
+      if (cursor.value.gameId === gameId) {
+        results.push(cursor.value);
+      }
 
-      // Stop pushing to RAM if we hit our safe limit
       if (results.length < limit) {
         cursor.continue();
       } else {
@@ -284,55 +286,46 @@ export async function toggleBookmark(num, state) {
   });
 }
 
-/** * Searches the entire database using a cursor and applies filters.
- * Returns only the matches, up to a specific limit to keep UI snappy.
- */
+/** Search the database ONLY for the active game */
 export async function searchEntireDb(filters, gameConfig, limit = 1000) {
   await open();
   const { FILTER_DEFS } = await import('./filters.js');
 
   return new Promise((resolve, reject) => {
     const store = getStore();
-    const req = store.openCursor(null, 'prev'); // Newest first
+    const req = store.openCursor(null, 'prev');
     const results = [];
 
     req.onsuccess = (e) => {
       const cursor = e.target.result;
-      if (!cursor) {
-        resolve(results);
-        return;
-      }
+      if (!cursor) return resolve(results);
 
       const spin = cursor.value;
 
-      // Apply every active filter to this specific record
-      const isMatch = filters.every((af) => {
-        if (af.disabled) return true;
-        const def = FILTER_DEFS.find((d) => d.id === af.id);
-        if (!def) return true;
-        return def.apply(spin, af.value, gameConfig);
-      });
+      // STRICT ISOLATION
+      if (spin.gameId === gameConfig.id) {
+        const isMatch = filters.every((af) => {
+          if (af.disabled) return true;
+          const def = FILTER_DEFS.find((d) => d.id === af.id);
+          if (!def) return true;
+          return def.apply(spin, af.value, gameConfig);
+        });
 
-      if (isMatch) {
-        results.push(spin);
+        if (isMatch) results.push(spin);
       }
 
-      // Stop once we find enough to fill the view, or continue
-      if (results.length < limit) {
-        cursor.continue();
-      } else {
-        resolve(results);
-      }
+      if (results.length < limit) cursor.continue();
+      else resolve(results);
     };
     req.onerror = (e) => reject(e.target.error);
   });
 }
 
-/** Iterate through DB with optional filters and yield chunks */
-export async function iterateDb(filters, gameConfig, callback) {
+/** Iterate DB for streaming. Supports 'filtered' (active game) or 'all' (entire DB) */
+export async function iterateDb(exportMode, filters, gameConfig, callback) {
   await open();
   const { FILTER_DEFS } = await import('./filters.js');
-  
+
   return new Promise((resolve, reject) => {
     const store = getStore('readonly');
     const req = store.openCursor(null, 'prev');
@@ -342,31 +335,32 @@ export async function iterateDb(filters, gameConfig, callback) {
       const cursor = e.target.result;
       if (!cursor) {
         if (chunk.length > 0) await callback(chunk);
-        resolve();
-        return;
+        return resolve();
       }
 
       const spin = cursor.value;
       let isMatch = true;
 
-      // Apply filters if they exist
-      if (filters && filters.length > 0) {
-        isMatch = filters.every((af) => {
-          if (af.disabled) return true;
-          const def = FILTER_DEFS.find((d) => d.id === af.id);
-          if (!def) return true;
-          return def.apply(spin, af.value, gameConfig);
-        });
-      }
+      if (exportMode === 'filtered') {
+        // Enforce Game Isolation for filtered exports
+        if (spin.gameId !== gameConfig.id) {
+          isMatch = false;
+        } else if (filters && filters.length > 0) {
+          isMatch = filters.every((af) => {
+            if (af.disabled) return true;
+            const def = FILTER_DEFS.find((d) => d.id === af.id);
+            return def ? def.apply(spin, af.value, gameConfig) : true;
+          });
+        }
+      } // If exportMode === 'all', isMatch remains true for EVERY game!
 
       if (isMatch) chunk.push(spin);
 
-      // Yield the chunk to the file writer and flush RAM every 500 records
       if (chunk.length >= 500) {
         await callback([...chunk]);
-        chunk.length = 0; 
+        chunk.length = 0;
       }
-      
+
       cursor.continue();
     };
     req.onerror = (e) => reject(e.target.error);

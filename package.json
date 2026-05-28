@@ -8,7 +8,6 @@
     "build": "vite build src --outDir ../dist --emptyOutDir",
     "preview": "vite preview",
     "test": "bun test && bunx bats tests/",
-    "split-history": "bun src/scripts/split-history.cjs",
     "deploy": "npm run build && npx wrangler deploy",
     "lint": "bun run type:check && bun run prettier:check && bun run lint:code",
     "lint:fix": "bun run prettier:fix && bun run lint:code --fix",
