@@ -199,6 +199,23 @@ export async function clearAllSpins() {
   });
 }
 
+/** Delete a batch of spins by their numbers (Fast Transaction) */
+export async function deleteSpinsBatch(nums) {
+  await open();
+  return new Promise((resolve, reject) => {
+    // Open a single transaction for maximum speed
+    const tx = _db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+
+    for (let i = 0; i < nums.length; i++) {
+      store.delete(nums[i]);
+    }
+
+    tx.oncomplete = () => resolve();
+    tx.onerror = (e) => reject(e.target.error);
+  });
+}
+
 /** Delete a single spin by number */
 export async function deleteSpin(num) {
   await open();
@@ -306,6 +323,51 @@ export async function searchEntireDb(filters, gameConfig, limit = 1000) {
       } else {
         resolve(results);
       }
+    };
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+/** Iterate through DB with optional filters and yield chunks */
+export async function iterateDb(filters, gameConfig, callback) {
+  await open();
+  const { FILTER_DEFS } = await import('./filters.js');
+  
+  return new Promise((resolve, reject) => {
+    const store = getStore('readonly');
+    const req = store.openCursor(null, 'prev');
+    const chunk = [];
+
+    req.onsuccess = async (e) => {
+      const cursor = e.target.result;
+      if (!cursor) {
+        if (chunk.length > 0) await callback(chunk);
+        resolve();
+        return;
+      }
+
+      const spin = cursor.value;
+      let isMatch = true;
+
+      // Apply filters if they exist
+      if (filters && filters.length > 0) {
+        isMatch = filters.every((af) => {
+          if (af.disabled) return true;
+          const def = FILTER_DEFS.find((d) => d.id === af.id);
+          if (!def) return true;
+          return def.apply(spin, af.value, gameConfig);
+        });
+      }
+
+      if (isMatch) chunk.push(spin);
+
+      // Yield the chunk to the file writer and flush RAM every 500 records
+      if (chunk.length >= 500) {
+        await callback([...chunk]);
+        chunk.length = 0; 
+      }
+      
+      cursor.continue();
     };
     req.onerror = (e) => reject(e.target.error);
   });

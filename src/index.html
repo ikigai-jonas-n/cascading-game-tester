@@ -51,10 +51,17 @@
                         <div class="dropdown-item" id="importReplaceBtn">Totally replace</div>
                       </div>
                     </div>
-                    <button id="clearHistoryBtn" class="header-btn-v5" title="Clear All History" style="color: var(--error);">
+                    <div id="clearWrapper" style="display: contents;">
+                      <button id="clearMenuBtn" class="header-btn-v5" title="Clear Options" style="color: var(--error);">
                         <span class="icon">🗑️</span>
                         <span class="label">Clear</span>
-                    </button>
+                      </button>
+                      <div id="clearDropdown" class="dropdown-menu" style="display: none; top: 100%; right: 0;">
+                        <div class="dropdown-item" id="clearFilteredBtn" style="color: var(--bg-accent);">Clear Filtered Results</div>
+                        <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
+                        <div class="dropdown-item" id="clearAllBtn" style="color: var(--error);">Clear All History</div>
+                      </div>
+                    </div>
                 </div>
             </div>
 
@@ -79,7 +86,7 @@
     <select id="playMode" style="width: 120px;">
         <option value="single">Single</option>
         <option value="count">Play N</option>
-        <option value="untilWin">Until Win</option>
+        <option value="allCheatTemplates">All Cheats</option> <option value="untilWin">Until Win</option>
         <option value="untilLoss">Until Loss</option>
         <option value="untilFilter">Until Filter</option>
         <option value="untilConditionN">Until Targets</option>

@@ -6,7 +6,7 @@ const path = require('path');
  * Usage: node scripts/split-history.js [inputFile] [outputDir] [entriesPerPart]
  */
 
-const inputFile = process.argv[2] || path.join(__dirname, '../json_files/default_data.json');
+const inputFile = process.argv[2] || path.join(__dirname, '../public/json_files/default_data.json');
 const outputDir = process.argv[3] || path.join(__dirname, '../public/history-parts');
 const entriesPerPart = parseInt(process.argv[4]) || 5000; // 5k-10k is optimal for balancing HTTP overhead and file size
 

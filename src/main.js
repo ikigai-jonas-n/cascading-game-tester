@@ -501,6 +501,7 @@ const quickCheatError = document.getElementById('quickCheatError');
 const cheatTemplateSelect = document.getElementById('cheatTemplateSelect');
 const cheatTemplateDesc = document.getElementById('cheatTemplateDesc');
 
+let allCheatTemplates = {};
 let cheatTemplates = [];
 
 async function loadCheatTemplates() {
@@ -508,44 +509,55 @@ async function loadCheatTemplates() {
   try {
     const resp = await fetch('/cheat-tool-templates.json');
     if (!resp.ok) return;
-    cheatTemplates = await resp.json();
-
-    cheatTemplates.forEach((template, index) => {
-      const option = document.createElement('option');
-      option.value = index;
-      option.textContent = template.title;
-      cheatTemplateSelect.appendChild(option);
-    });
-
-    cheatTemplateSelect.onchange = (e) => {
-      const index = e.target.value;
-      if (index !== '') {
-        const template = cheatTemplates[index];
-        if (template.description) {
-          cheatTemplateDesc.textContent = template.description;
-          cheatTemplateDesc.style.display = 'block';
-        } else {
-          cheatTemplateDesc.style.display = 'none';
-        }
-
-        try {
-          const parsed = JSON.parse(template.json);
-          // Auto-inject current IDs to the template
-          if (typeof PLAYER_ID !== 'undefined') parsed.configId = PLAYER_ID;
-          parsed.gameCode = game.gameCode;
-
-          quickTestConfigInput.value = JSON.stringify(parsed, null, 2);
-          quickCheatError.style.display = 'none';
-        } catch (err) {
-          quickTestConfigInput.value = template.json;
-        }
-      } else {
-        cheatTemplateDesc.style.display = 'none';
-      }
-    };
+    allCheatTemplates = await resp.json();
+    renderCheatTemplates();
   } catch (e) {
     console.warn('Failed to load cheat templates', e);
   }
+}
+
+function renderCheatTemplates() {
+  if (!cheatTemplateSelect) return;
+  
+  cheatTemplateSelect.innerHTML = '<option value="">-- Select a Template --</option>';
+  if (cheatTemplateDesc) cheatTemplateDesc.style.display = 'none';
+
+  // Extract templates for the active game (fallback to empty array if none exist)
+  cheatTemplates = allCheatTemplates[game.id] || [];
+
+  cheatTemplates.forEach((template, index) => {
+    const option = document.createElement('option');
+    option.value = index;
+    option.textContent = template.title;
+    cheatTemplateSelect.appendChild(option);
+  });
+
+  cheatTemplateSelect.onchange = (e) => {
+    const index = e.target.value;
+    if (index !== '') {
+      const template = cheatTemplates[index];
+      if (template.description) {
+        cheatTemplateDesc.textContent = template.description;
+        cheatTemplateDesc.style.display = 'block';
+      } else {
+        cheatTemplateDesc.style.display = 'none';
+      }
+
+      try {
+        const parsed = JSON.parse(template.json);
+        // Auto-inject current IDs to the template
+        if (typeof PLAYER_ID !== 'undefined') parsed.configId = PLAYER_ID;
+        parsed.gameCode = game.gameCode;
+
+        quickTestConfigInput.value = JSON.stringify(parsed, null, 2);
+        quickCheatError.style.display = 'none';
+      } catch (err) {
+        quickTestConfigInput.value = template.json;
+      }
+    } else {
+      cheatTemplateDesc.style.display = 'none';
+    }
+  };
 }
 
 loadCheatTemplates();
@@ -1365,9 +1377,14 @@ window.startDescEdit = (num, rowEl) => {
 
   const save = () => {
     const val = input.value.trim();
-    if (spin) spin.description = val || null;
+    if (spin) {
+      spin.description = val || null;
+      // --- THE FIX: Save the manual edit to IndexedDB immediately ---
+      import('./db.js').then(db => db.saveSpin(spin)); 
+    }
     renderSpinHistory(true);
   };
+  
   input.addEventListener('blur', save);
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
@@ -1658,6 +1675,85 @@ async function playSpin() {
     return;
   }
 
+  // --- PLAY ALL CHEAT TEMPLATES ---
+  if (mode === 'allCheatTemplates') {
+    if (!cheatTemplates || cheatTemplates.length === 0) {
+      alert('Cheat templates not loaded yet!');
+      return;
+    }
+    setPlayUIBusy(true);
+    const statusEl = document.getElementById('autoStatus');
+    const originalTestConfig = localStorage.getItem('test_config');
+
+    try {
+      for (let i = 0; i < cheatTemplates.length; i++) {
+        const t = cheatTemplates[i];
+        if (statusEl)
+          statusEl.innerText = `Running cheat ${i + 1}/${cheatTemplates.length}: ${t.title}`;
+
+        let parsed;
+        try {
+          parsed = JSON.parse(t.json);
+        } catch (e) {
+          continue;
+        }
+
+        // Auto-inject current IDs
+        if (typeof PLAYER_ID !== 'undefined') parsed.configId = PLAYER_ID;
+        parsed.gameCode = game.gameCode;
+
+        // 1. Arm the backend via the test-config endpoint
+        const cheatRes = await fetch(`${API_URL}/v1/test/test-config`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-signature': 'rgs-local-signature',
+            accept: '*/*',
+          },
+          body: JSON.stringify(parsed),
+        });
+
+        if (!cheatRes.ok) {
+          console.error(`Skipping ${t.title} - Failed to set cheat config`);
+          continue;
+        }
+
+        // 2. Set local storage so the Audit Drawer saves the correct testConfig metadata
+        localStorage.setItem('test_config', JSON.stringify(parsed));
+
+        // 3. Fire the normal spin! (The backend will intercept and apply the cheat)
+        await playSingleSpin(config, t.title);
+      }
+      if (statusEl) statusEl.innerText = `Done: ${cheatTemplates.length} cheat templates`;
+    } catch (err) {
+      alert('Error running templates: ' + err.message);
+    } finally {
+      // 4. Cleanup: Delete the cheat config from the server so normal spins aren't affected
+      const params = new URLSearchParams({
+        gameCode: game.gameCode,
+        configId: PLAYER_ID,
+        playerId: PLAYER_ID,
+      });
+      fetch(`${API_URL}/v1/test/test-config?${params}`, {
+        method: 'DELETE',
+        headers: { 'x-signature': 'rgs-local-signature' },
+      }).catch((e) => console.warn(e));
+
+      // Restore user's previous cheat config state (or clear it)
+      if (originalTestConfig) {
+        localStorage.setItem('test_config', originalTestConfig);
+      } else {
+        localStorage.removeItem('test_config');
+      }
+
+      setPlayUIBusy(false);
+      renderSpinHistory();
+      loadSpin(0);
+      updateStorageStats();
+    }
+    return;
+  }
+
   // --- LIGHTNING SPEED WORKER PIPELINE ---
   autoPlayRunning = true;
   stopAutoBtn.style.display = 'inline-block';
@@ -1734,7 +1830,7 @@ async function playSpin() {
           if (results && results.length > 0) {
             await saveAllSpins(results);
 
-            // --- NEW: AND / OR Logic processing ---
+            // --- AND / OR Win Category Logic ---
             if (mode === 'untilConditionN' && targetConditions.length > 0) {
               for (const entry of results) {
                 const category = getWinCategory(entry.totalWin, entry.betAmount);
@@ -1747,7 +1843,6 @@ async function playSpin() {
                       break;
                     }
                   } else {
-                    // AND LOGIC
                     targetHitMap[category]++;
                     const allMet = targetConditions.every(
                       (c) => targetHitMap[c] >= targetCountLimit,
@@ -1759,6 +1854,38 @@ async function playSpin() {
                     }
                   }
                 }
+              }
+            }
+
+            // --- NEW: Until Filter Logic ---
+            if (mode === 'untilFilter' && activeFilters.some((f) => !f.disabled)) {
+              for (const entry of results) {
+                const isMatch = activeFilters.every((af) => {
+                  if (af.disabled) return true;
+                  const def = FILTER_DEFS.find((d) => d.id === af.id);
+                  if (!def) return true;
+                  return def.apply(entry, af.value, game);
+                });
+
+                if (isMatch) {
+                  limitReached = true;
+                  autoPlayRunning = false;
+                  break;
+                }
+              }
+            }
+
+            // --- NEW: Until Win / Loss Logic ---
+            if (mode === 'untilWin') {
+              if (results.some((entry) => entry.isWin)) {
+                limitReached = true;
+                autoPlayRunning = false;
+              }
+            }
+            if (mode === 'untilLoss') {
+              if (results.some((entry) => !entry.isWin)) {
+                limitReached = true;
+                autoPlayRunning = false;
               }
             }
 
@@ -3104,98 +3231,115 @@ function getOptimizedData(history) {
   };
 }
 
-// ── Chunked Export ──────────────────────────────────────────────────────────
-async function exportMappedData(dataList, fileName) {
-  showLoading('Preparing mapped export...', 0);
+// --- SSD Direct Streaming Exporter ---
+async function exportDataDirectFromDb(defaultFileName, useFilters, isMapped = false) {
+  showLoading(`Preparing Export...`, 0);
+  try {
+    const { decompressData, iterateDb } = await import('./db.js');
+    let processedCount = 0;
 
-  const mapped = dataList.map((s) => ({
-    request: s.requestBody || {},
-    response: s.rawData || {},
-  }));
+    let header, footer;
+    if (isMapped) {
+       header = '['; footer = ']';
+    } else {
+       const settingsExport = {
+         playMode: localStorage.getItem('play_mode') || 'single',
+         playCount: localStorage.getItem('play_count') || '10',
+         requestBody: localStorage.getItem('request_body') || '',
+       };
+       const v2Format = {
+         v: 2,
+         f: useFilters ? activeFilters : [],
+         o: localStorage.getItem('sort_field') || 'num_desc',
+         s: settingsExport,
+         h: [],
+       };
+       header = JSON.stringify(v2Format).split('"h":[]')[0] + '"h":[';
+       footer = ']}';
+    }
 
-  const blob = new Blob([JSON.stringify(mapped, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  a.click();
-  URL.revokeObjectURL(url);
-  hideLoading();
-}
+    let writable = null;
+    let blobParts = [];
+    // Use modern FileSystem API if available (streams direct to disk)
+    let useFileSystem = !!window.showSaveFilePicker;
 
-async function exportDataChunked(dataList, fileName) {
-  showLoading('Preparing Export...');
-  const chunks = [];
-  const chunkSize = 1000;
-  for (let i = 0; i < dataList.length; i += chunkSize) {
-    const percent = Math.round((i / dataList.length) * 100);
-    showLoading(
-      `Exporting ${Math.min(i + chunkSize, dataList.length)} / ${dataList.length}...`,
-      percent,
-    );
-    const chunk = getOptimizedData(dataList.slice(i, i + chunkSize));
-    let str = JSON.stringify(chunk.h);
-    chunks.push(str.slice(1, -1));
-    await new Promise((r) => setTimeout(r, 0));
+    try {
+      if (useFileSystem) {
+         const handle = await window.showSaveFilePicker({ suggestedName: defaultFileName });
+         writable = await handle.createWritable();
+         await writable.write(header);
+      } else {
+         blobParts.push(header); // Fallback for Firefox/Safari
+      }
+    } catch (e) {
+      if (e.name === 'AbortError') { hideLoading(); return; } // User cancelled save dialog
+      useFileSystem = false;
+      blobParts.push(header);
+    }
+
+    let hasData = false;
+
+    // Scan the DB and write chunks instantly to the file
+    await iterateDb(useFilters ? activeFilters : [], game, async (chunkData) => {
+       processedCount += chunkData.length;
+       showLoading(`Exporting ${processedCount} records...`, 50);
+
+       const decompressedSlice = await Promise.all(chunkData.map(async (spin) => {
+         if (spin._isCompressed && spin.rawData instanceof ArrayBuffer) {
+           return { ...spin, rawData: await decompressData(spin.rawData), _isCompressed: false };
+         }
+         return spin;
+       }));
+
+       let chunkStr = '';
+       if (isMapped) {
+          const mapped = decompressedSlice.map(s => ({ request: s.requestBody || {}, response: s.rawData || {} }));
+          chunkStr = JSON.stringify(mapped).slice(1, -1);
+       } else {
+          const optChunk = getOptimizedData(decompressedSlice);
+          chunkStr = JSON.stringify(optChunk.h).slice(1, -1);
+       }
+
+       if (chunkStr.length > 0) {
+         if (hasData) {
+           if (useFileSystem) await writable.write(',');
+           else blobParts.push(',');
+         }
+         if (useFileSystem) await writable.write(chunkStr);
+         else blobParts.push(chunkStr);
+         hasData = true;
+       }
+    });
+
+    if (useFileSystem) {
+       await writable.write(footer);
+       await writable.close();
+    } else {
+       blobParts.push(footer);
+       const blob = new Blob(blobParts, { type: 'application/json' });
+       const url = URL.createObjectURL(blob);
+       const a = document.createElement('a');
+       a.href = url;
+       a.download = defaultFileName;
+       a.click();
+       URL.revokeObjectURL(url);
+    }
+    
+    showLoading('Export Complete! ✅', 100);
+    setTimeout(hideLoading, 1500);
+
+  } catch (e) {
+    console.error("Export failed", e);
+    alert("Export failed: " + e.message);
+    hideLoading();
   }
-
-  const settingsExport = {
-    playMode: localStorage.getItem('play_mode') || 'single',
-    playCount: localStorage.getItem('play_count') || '10',
-    requestBody: localStorage.getItem('request_body') || '',
-  };
-
-  const v2Format = {
-    v: 2,
-    f: activeFilters,
-    o: localStorage.getItem('sort_field') || 'num_desc',
-    s: settingsExport,
-    h: [],
-  };
-  const header = JSON.stringify(v2Format).split('"h":[]')[0] + '"h":[';
-  const footer = ']}';
-
-  const blob = new Blob([header, chunks.filter((c) => c.length > 0).join(','), footer], {
-    type: 'application/json',
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  a.click();
-  URL.revokeObjectURL(url);
-  hideLoading();
 }
 
-exportFilteredBtn.onclick = () => {
-  const filtered = applyFilters(globalHistory, activeFilters, game);
-  exportDataChunked(
-    filtered,
-    `slot-filtered-${game.id}-${new Date().toISOString().slice(0, 10)}.json`,
-  );
-};
-
-exportAllBtn.onclick = () => {
-  exportDataChunked(
-    globalHistory,
-    `slot-all-${game.id}-${new Date().toISOString().slice(0, 10)}.json`,
-  );
-};
-
-exportMappedFilteredBtn.onclick = () => {
-  const filtered = applyFilters(globalHistory, activeFilters, game);
-  exportMappedData(
-    filtered,
-    `mapped-filtered-${game.id}-${new Date().toISOString().slice(0, 10)}.json`,
-  );
-};
-
-exportMappedAllBtn.onclick = () => {
-  exportMappedData(
-    globalHistory,
-    `mapped-all-${game.id}-${new Date().toISOString().slice(0, 10)}.json`,
-  );
-};
+// Bind all 4 buttons to the unified DB Exporter
+exportFilteredBtn.onclick = () => exportDataDirectFromDb(`slot-filtered-${game.id}-${new Date().toISOString().slice(0, 10)}.json`, true, false);
+exportAllBtn.onclick = () => exportDataDirectFromDb(`slot-all-${game.id}-${new Date().toISOString().slice(0, 10)}.json`, false, false);
+exportMappedFilteredBtn.onclick = () => exportDataDirectFromDb(`mapped-filtered-${game.id}-${new Date().toISOString().slice(0, 10)}.json`, true, true);
+exportMappedAllBtn.onclick = () => exportDataDirectFromDb(`mapped-all-${game.id}-${new Date().toISOString().slice(0, 10)}.json`, false, true);
 
 // ── Import Handler ───────────────────────────────────────────────────────────
 if (importMenuBtn) {
@@ -3270,7 +3414,8 @@ const triggerImport = (mode) => {
         const chunk = importedRaw.slice(i, i + chunkSize);
         const processed = chunk
           .map((item) => {
-            const r = item.rawData || item.r || item;
+            // Added item.response to support importing Mapped Data JSONs
+            const r = item.response || item.rawData || item.r || item;
             if (!r || !r.step) return null;
 
             const fields = [];
@@ -3590,15 +3735,29 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ── Clear History ────────────────────────────────────────────────────────────
-const clearBtn = document.getElementById('clearHistoryBtn');
-if (clearBtn) {
-  clearBtn.onclick = async () => {
+const clearMenuBtn = document.getElementById('clearMenuBtn');
+const clearDropdown = document.getElementById('clearDropdown');
+const clearAllBtnUI = document.getElementById('clearAllBtn');
+const clearFilteredBtnUI = document.getElementById('clearFilteredBtn');
+
+if (clearMenuBtn) {
+  clearMenuBtn.onclick = (e) => {
+    e.stopPropagation();
+    const isVisible = clearDropdown.style.display === 'block';
+    clearDropdown.style.display = isVisible ? 'none' : 'block';
+  };
+  document.addEventListener('click', () => {
+    if (clearDropdown) clearDropdown.style.display = 'none';
+  });
+}
+
+if (clearAllBtnUI) {
+  clearAllBtnUI.onclick = async () => {
     if (!confirm('Delete ALL spin history? This cannot be undone.')) return;
     
-    // 1. Instantly show the spinner so the UI doesn't feel frozen
-    showLoading('Nuking database...', 50);
-    
+    showLoading('Nuking entire database...', 50);
     try {
+      const { clearAllSpins } = await import('./db.js');
       await clearAllSpins();
       globalHistory = [];
       currentSpinIndex = -1;
@@ -3607,14 +3766,61 @@ if (clearBtn) {
       const totalCells = game.grid.rows * game.grid.cols;
       renderGrid(new Array(totalCells).fill(game.emptySymbolId), [], new Set());
       
-      // 2. Force the storage stats to refresh
       await updateStorageStats();
-      
     } catch (err) {
       console.error(err);
       alert('Failed to clear history: ' + err.message);
     } finally {
-      // 3. Hide the spinner
+      hideLoading();
+    }
+  };
+}
+
+if (clearFilteredBtnUI) {
+  clearFilteredBtnUI.onclick = async () => {
+    // 1. Get the items currently visible in the UI
+    const filtered = applyFilters(globalHistory, activeFilters, game);
+    
+    if (filtered.length === 0) {
+      alert('No filtered results to clear.');
+      return;
+    }
+    
+    if (!confirm(`Delete ${filtered.length} filtered spins? This cannot be undone.`)) return;
+    
+    showLoading(`Deleting ${filtered.length} spins...`, 50);
+    try {
+      const { deleteSpinsBatch } = await import('./db.js');
+      const numsToDelete = filtered.map(s => s.num);
+      
+      // 2. Erase them from the IndexedDB hard drive
+      await deleteSpinsBatch(numsToDelete);
+      
+      // 3. Purge them from the RAM array
+      const numsSet = new Set(numsToDelete);
+      globalHistory = globalHistory.filter(s => !numsSet.has(s.num));
+      
+      // 4. Safely deselect if the current spin was part of the purge
+      if (currentSpinIndex !== -1) {
+          const currentSpin = globalHistory.find(s => s.num === currentSpinIndex);
+          if (!currentSpin || numsSet.has(currentSpinIndex)) {
+              currentSpinIndex = -1;
+          }
+      }
+      
+      renderSpinHistory(true);
+      
+      // If we wiped everything we were looking at, clear the center grid
+      if (currentSpinIndex === -1) {
+          const totalCells = game.grid.rows * game.grid.cols;
+          renderGrid(new Array(totalCells).fill(game.emptySymbolId), [], new Set());
+      }
+      
+      await updateStorageStats();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to clear filtered history: ' + err.message);
+    } finally {
       hideLoading();
     }
   };

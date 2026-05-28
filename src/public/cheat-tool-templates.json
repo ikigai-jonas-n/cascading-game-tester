@@ -1,47 +1,71 @@
-[
-  {
-    "title": "1. Rigid Screen (Exact Placement)",
-    "description": "Replicates a perfect 25-symbol screen manually without triggering any features.",
-    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"screen\": [\n          \"H2_Grapes\", \"H2_Grapes\", \"H2_Grapes\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\"\n        ]\n      }\n    }\n  }\n}"
-  },
-  {
-    "title": "2. Loose Symbols (Count-based Placement)",
-    "description": "Ensures exactly 6 H1_Watermelon symbols are placed randomly; engine fills the remaining 19 normally.",
-    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Watermelon\", \"count\": 6 }\n        ]\n      }\n    }\n  }\n}"
-  },
-  {
-    "title": "3. H1 Minimum Cluster (5 Symbols)",
-    "description": "Forces an H1 cluster of exactly 5 symbols in the first column.",
-    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"screen\": [\n          \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\"\n        ]\n      },\n      \"cascade\": {\n        \"cascadeCount\": 1\n      }\n    }\n  }\n}"
-  },
-  {
-    "title": "4. Tumble Win (2 Forced Cascades)",
-    "description": "Forces 2 complete winning cycles (The initial screen plus one forced refill win).",
-    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"baseSpin\": {\n      \"cascade\": {\n        \"cascadeCount\": 2\n      }\n    }\n  }\n}"
-  },
-  {
-    "title": "5. Multiplier Growth (growCount)",
-    "description": "Forces the cluster in the first cascade to grow exactly twice, resulting in a 3x Multiplier.",
-    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"baseSpin\": {\n      \"cascade\": {\n        \"cascadeCount\": 1,\n        \"cascadeConfigs\": [\n          { \"growCount\": 2 }\n        ]\n      }\n    }\n  }\n}"
-  },
-  {
-    "title": "6. Golden Symbol Transformation",
-    "description": "Verifies that a Golden H1 transforms into a Wild at its exact position upon popping.",
-    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"screen\": [\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"L4_J\", \"L4_J\",\n          \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon*\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\"\n        ]\n      }\n    }\n  }\n}"
-  },
-  {
-    "title": "7. Wild Sharing Showcase (Multi Clusters)",
-    "description": "Uses the smart generator to build two clusters around a formed Wild. Requires Golden in Round 1 and forcing Round 2 via cascadeCount.",
-    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"screen\": [\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"L4_J\", \"L4_J\",\n          \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon*\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\"\n        ]\n      },\n      \"cascade\": {\n        \"cascadeCount\": 2\n      }\n    }\n  }\n}"
-  },
-  {
-    "title": "8. Total Free Spins (15 Spins)",
-    "description": "Forces the total number of Free Spins to be 15 (Initial 10 + 1 Retrigger).",
-    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"freeSpin\": {\n      \"freeSpinNumber\": 15\n    }\n  }\n}"
-  },
-  {
-    "title": "9. Per-Spin Free Spin Config",
-    "description": "Overrides individual free spin outcomes: Spin 0 gets 3x multiplier, Spin 1 gets 2 cascades.",
-    "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"QARealGameOperator:QARealGameBrand:jonas0n\",\n  \"config\": {\n    \"freeSpin\": {\n      \"freeSpinConfigs\": [\n        { \"cascade\": { \"cascadeCount\": 1, \"cascadeConfigs\": [{ \"growCount\": 2 }] } },\n        { \"cascade\": { \"cascadeCount\": 2 } }\n      ]\n    }\n  }\n}"
-  }
-]
+{
+  "sexy-fruits": [
+    {
+      "title": "1. Rigid Screen (Exact Placement)",
+      "description": "Replicates a perfect 25-symbol screen manually without triggering any features.",
+      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"screen\": [\n          \"H2_Grapes\", \"H2_Grapes\", \"H2_Grapes\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\"\n        ]\n      }\n    }\n  }\n}"
+    },
+    {
+      "title": "2. Loose Symbols (Count-based Placement)",
+      "description": "Ensures exactly 6 H1_Watermelon symbols are placed randomly; engine fills the remaining 19 normally.",
+      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Watermelon\", \"count\": 6 }\n        ]\n      }\n    }\n  }\n}"
+    },
+    {
+      "title": "3. H1 Minimum Cluster (5 Symbols)",
+      "description": "Forces an H1 cluster of exactly 5 symbols in the first column.",
+      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"screen\": [\n          \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\"\n        ]\n      },\n      \"cascade\": {\n        \"cascadeCount\": 1\n      }\n    }\n  }\n}"
+    },
+    {
+      "title": "4. Tumble Win (2 Forced Cascades)",
+      "description": "Forces 2 complete winning cycles (The initial screen plus one forced refill win).",
+      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"config\": {\n    \"baseSpin\": {\n      \"cascade\": {\n        \"cascadeCount\": 2\n      }\n    }\n  }\n}"
+    },
+    {
+      "title": "5. Multiplier Growth (growCount)",
+      "description": "Forces the cluster in the first cascade to grow exactly twice, resulting in a 3x Multiplier.",
+      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"config\": {\n    \"baseSpin\": {\n      \"cascade\": {\n        \"cascadeCount\": 1,\n        \"cascadeConfigs\": [\n          { \"growCount\": 2 }\n        ]\n      }\n    }\n  }\n}"
+    },
+    {
+      "title": "6. Golden Symbol Transformation",
+      "description": "Verifies that a Golden H1 transforms into a Wild at its exact position upon popping.",
+      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"screen\": [\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"L4_J\", \"L4_J\",\n          \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon*\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\"\n        ]\n      }\n    }\n  }\n}"
+    },
+    {
+      "title": "7. Wild Sharing Showcase (Multi Clusters)",
+      "description": "Uses the smart generator to build two clusters around a formed Wild. Requires Golden in Round 1 and forcing Round 2 via cascadeCount.",
+      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"screen\": [\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon\", \"L4_J\", \"L4_J\",\n          \"H1_Watermelon\", \"H1_Watermelon\", \"H1_Watermelon*\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\",\n          \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\", \"L4_J\"\n        ]\n      },\n      \"cascade\": {\n        \"cascadeCount\": 2\n      }\n    }\n  }\n}"
+    },
+    {
+      "title": "8. Total Free Spins (15 Spins)",
+      "description": "Forces the total number of Free Spins to be 15 (Initial 10 + 1 Retrigger).",
+      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"config\": {\n    \"freeSpin\": {\n      \"freeSpinNumber\": 15\n    }\n  }\n}"
+    },
+    {
+      "title": "9. Per-Spin Free Spin Config",
+      "description": "Overrides individual free spin outcomes: Spin 0 gets 3x multiplier, Spin 1 gets 2 cascades.",
+      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"config\": {\n    \"freeSpin\": {\n      \"freeSpinConfigs\": [\n        { \"cascade\": { \"cascadeCount\": 1, \"cascadeConfigs\": [{ \"growCount\": 2 }] } },\n        { \"cascade\": { \"cascadeCount\": 2 } }\n      ]\n    }\n  }\n}"
+    }
+  ],
+  "magic-g": [
+    {
+      "title": "1. Big Win (20x - 50x)",
+      "description": "Target: 400 - 1,000 coins. Strategy: H2_Princess (12+ cluster) pays exactly 500 coins. Additional two tumbles generate minor wins, bringing the total to ~550 - 800.",
+      "json": "{\n  \"config\": {\n    \"baseSpin\": {\n      \"tumbleCount\": 2,\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H2_Princess\", \"count\": 12 }\n        ]\n      }\n    }\n  }\n}"
+    },
+    {
+      "title": "2. Mega Win (50x - 150x)",
+      "description": "Target: 1,000 - 3,000 coins. Strategy: H1_Aladdin (12+ cluster) pays 1,000 coins + M2 multiplier. Entire tumble multiplied by 2 (~2,100 - 2,500).",
+      "json": "{\n  \"config\": {\n    \"baseSpin\": {\n      \"tumbleCount\": 2,\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Aladdin\", \"count\": 12 },\n          { \"symbol\": \"M2\", \"count\": 1 }\n        ]\n      }\n    }\n  }\n}"
+    },
+    {
+      "title": "3. Huge Win (150x - 5000x)",
+      "description": "Target: 3,000 - 100,000 coins. Strategy: H1_Aladdin (12+ cluster) pays 1,000 coins + M25 multiplier. 1,000 * 25 = 25,000 coins base (~1,250x).",
+      "json": "{\n  \"config\": {\n    \"baseSpin\": {\n      \"tumbleCount\": 2,\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Aladdin\", \"count\": 12 },\n          { \"symbol\": \"M25\", \"count\": 1 }\n        ]\n      }\n    }\n  }\n}"
+    },
+    {
+      "title": "4. Max Win (5000x+)",
+      "description": "Target: 100,000+ coins. Strategy: H1_Aladdin (12+ cluster) for 1,000 coins + M500 multiplier. 1000 * 500 = 500,000, forcing the Max Win cap check.",
+      "json": "{\n  \"config\": {\n    \"baseSpin\": {\n      \"tumbleCount\": 2,\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Aladdin\", \"count\": 12 },\n          { \"symbol\": \"M500\", \"count\": 1 }\n        ]\n      }\n    }\n  }\n}"
+    }
+  ]
+}
