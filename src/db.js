@@ -54,24 +54,83 @@ export async function saveSpin(entry) {
 export async function saveAllSpins(entries) {
   await open();
   return new Promise((resolve, reject) => {
+    // Open a single transaction for the entire massive array
     const tx = _db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
-    entries.forEach((entry) => store.put(entry));
+
+    // Performance optimization: don't wait for each put to finish
+    let i = 0;
+    function putNext() {
+      if (i < entries.length) {
+        store.put(entries[i]);
+        i++;
+        putNext();
+      }
+    }
+    putNext();
+
     tx.oncomplete = () => resolve();
     tx.onerror = (e) => reject(e.target.error);
   });
 }
 
-/** Load all spins, newest first */
-export async function loadAllSpins() {
+/** Load initial batch of spins for RAM cache (RAM safe limit) */
+export async function loadAllSpins(limit = 10000) {
   await open();
   return new Promise((resolve, reject) => {
     const store = getStore();
-    const req = store.getAll();
-    req.onsuccess = () => {
-      const result = req.result || [];
-      result.sort((a, b) => b.num - a.num);
-      resolve(result);
+    const req = store.openCursor(null, 'prev'); // Descending order (newest first)
+    const results = [];
+
+    req.onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (!cursor) {
+        resolve(results); // No more records
+        return;
+      }
+
+      results.push(cursor.value);
+
+      // Stop pushing to RAM if we hit our safe limit
+      if (results.length < limit) {
+        cursor.continue();
+      } else {
+        resolve(results);
+      }
+    };
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+/** Load a specific page of spins using a cursor (Newest First) */
+export async function loadSpinsPage(limit = 30, offset = 0) {
+  await open();
+  return new Promise((resolve, reject) => {
+    const store = getStore();
+    const req = store.openCursor(null, 'prev'); // Descending order
+    const results = [];
+    let advanced = false;
+
+    req.onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (!cursor) {
+        resolve(results); // No more records
+        return;
+      }
+
+      // Skip records for the offset
+      if (offset > 0 && !advanced) {
+        advanced = true;
+        cursor.advance(offset);
+        return;
+      }
+
+      results.push(cursor.value);
+      if (results.length < limit) {
+        cursor.continue();
+      } else {
+        resolve(results);
+      }
     };
     req.onerror = (e) => reject(e.target.error);
   });
@@ -167,5 +226,49 @@ export async function toggleBookmark(num, state) {
     };
     tx.oncomplete = () => resolve();
     tx.onerror = (e) => reject(e.target.error);
+  });
+}
+
+/** * Searches the entire database using a cursor and applies filters.
+ * Returns only the matches, up to a specific limit to keep UI snappy.
+ */
+export async function searchEntireDb(filters, gameConfig, limit = 1000) {
+  await open();
+  const { FILTER_DEFS } = await import('./filters.js');
+
+  return new Promise((resolve, reject) => {
+    const store = getStore();
+    const req = store.openCursor(null, 'prev'); // Newest first
+    const results = [];
+
+    req.onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (!cursor) {
+        resolve(results);
+        return;
+      }
+
+      const spin = cursor.value;
+
+      // Apply every active filter to this specific record
+      const isMatch = filters.every((af) => {
+        if (af.disabled) return true;
+        const def = FILTER_DEFS.find((d) => d.id === af.id);
+        if (!def) return true;
+        return def.apply(spin, af.value, gameConfig);
+      });
+
+      if (isMatch) {
+        results.push(spin);
+      }
+
+      // Stop once we find enough to fill the view, or continue
+      if (results.length < limit) {
+        cursor.continue();
+      } else {
+        resolve(results);
+      }
+    };
+    req.onerror = (e) => reject(e.target.error);
   });
 }

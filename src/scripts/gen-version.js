@@ -58,17 +58,27 @@ function generateVersion() {
     }
   });
 
-  const finalHash = crypto.createHash('sha256').update(combinedHashContent).digest('hex').substring(0, 16);
-  
+  const finalHash = crypto
+    .createHash('sha256')
+    .update(combinedHashContent)
+    .digest('hex')
+    .substring(0, 16);
+
   console.log(`[gen-version] Generated Hash: ${finalHash}`);
 
   // Write to public/version.json
   const publicDir = path.join(ROOT, 'public');
   if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir);
-  fs.writeFileSync(path.join(publicDir, 'version.json'), JSON.stringify({ version: finalHash }, null, 2));
+  fs.writeFileSync(
+    path.join(publicDir, 'version.json'),
+    JSON.stringify({ version: finalHash }, null, 2),
+  );
 
   // Write to src/version.js
-  fs.writeFileSync(path.join(ROOT, 'src/version.js'), `export const APP_VERSION = '${finalHash}';\n`);
+  fs.writeFileSync(
+    path.join(ROOT, 'src/version.js'),
+    `export const APP_VERSION = '${finalHash}';\n`,
+  );
 
   console.log('[gen-version] Updated version files.');
 }

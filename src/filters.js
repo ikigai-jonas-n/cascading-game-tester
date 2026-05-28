@@ -174,7 +174,8 @@ export const FILTER_DEFS = [
       { label: 'FreeSpin', value: 'hasFree' },
     ],
     apply: (spin, value) => {
-      const hasBase = !!spin.hasBaseSpin || spin.spinType === 'baseSpin' || spin.spinType === 'basic';
+      const hasBase =
+        !!spin.hasBaseSpin || spin.spinType === 'baseSpin' || spin.spinType === 'basic';
       const hasFree = !!spin.hasFreeSpin || spin.spinType === 'freeSpin';
       if (value === 'hasFree') return hasFree;
       if (value === 'hasBase') return hasBase;
@@ -200,7 +201,7 @@ export const FILTER_DEFS = [
     placeholder: 'e.g. regular',
     apply: (spin, value) => {
       if (!spin.roundTags) return false;
-      return spin.roundTags.some(t => t.toLowerCase().includes(value.toLowerCase()));
+      return spin.roundTags.some((t) => t.toLowerCase().includes(value.toLowerCase()));
     },
   },
   {
@@ -234,6 +235,37 @@ export const FILTER_DEFS = [
     label: 'Cheat Triggered',
     type: 'toggle',
     apply: (spin) => spin.rawData?.meta?.private?.isCheatTriggered === true,
+  },
+  {
+    id: 'winCategory',
+    label: 'Win Categories',
+    type: 'multiselect', // Instructs the UI to build a checkbox group
+    apply: (spin, selectedCategories, game) => {
+      if (!selectedCategories || selectedCategories.length === 0) return true;
+
+      const bet = parseFloat(spin.betAmount || 0);
+      const win = parseFloat(spin.totalWin || 0);
+      if (bet <= 0) return false;
+      const tb = win / bet;
+
+      const cats = game.winCategories || {};
+      const sortedCats = Object.entries(cats).sort((a, b) => b[1] - a[1]);
+
+      let spinCategory = 'NONE';
+      for (const [catName, threshold] of sortedCats) {
+        if (tb >= threshold) {
+          spinCategory = catName;
+          break;
+        }
+      }
+
+      // Returns true if the spin's category is included in your checked boxes
+      return selectedCategories.includes(spinCategory);
+    },
+    formatValue: (value) => {
+      if (Array.isArray(value)) return value.map((v) => v.replace('_WIN', '')).join(' + ');
+      return value;
+    },
   },
 ];
 

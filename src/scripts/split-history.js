@@ -43,16 +43,16 @@ for (const file of files) {
 for (let part = 1; part <= totalParts; part++) {
   const start = (part - 1) * entriesPerPart;
   const chunk = history.slice(start, start + entriesPerPart);
-  
+
   const output = {
     v: data.v, // version
     f: part === 1 ? data.f : undefined, // filters only in part 1
     o: part === 1 ? data.o : undefined, // order only in part 1
     h: chunk,
     total_parts: totalParts,
-    part: part
+    part: part,
   };
-  
+
   const outputName = `default-history-${part}.json`;
   fs.writeFileSync(path.join(outputDir, outputName), JSON.stringify(output));
   console.log(`[${part}/${totalParts}] Wrote ${outputName} (${chunk.length} entries)`);

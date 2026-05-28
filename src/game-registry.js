@@ -1,37 +1,40 @@
 /**
  * Game Registry — plugin system for game configurations.
- *
- * To add a new game, create a file in ./games/<name>.js exporting a GameConfig
- * and register it in GAME_MODULES below. The rest of the app uses getGame() / getActiveGame().
+ * Automatically registers any game dropped into the ./games/ folder using Vite.
  *
  * @typedef {{
- *   id: string,
- *   name: string,
- *   gameCode: string,
- *   grid: { rows: number, cols: number },
- *   emptySymbolId: number,
- *   scatterSymbolId: number,
- *   wildSymbolId: number,
- *   symbols: Record<number, string>,
- *   emojis: Record<number, string>,
- *   colors: Record<number, string>,
- *   defaultRequestBody: object,
- *   playerId: string,
+ * id: string,
+ * name: string,
+ * gameCode: string,
+ * grid: { rows: number, cols: number },
+ * emptySymbolId: number,
+ * scatterSymbolId: number,
+ * wildSymbolId: number,
+ * symbols: Record<number, string>,
+ * emojis: Record<number, string>,
+ * colors: Record<number, string>,
+ * defaultRequestBody: object,
+ * playerId: string,
  * }} GameConfig
  */
-
-// --- Static imports (add new games here) ---
-import sexyFruits from './games/sexy-fruits.js';
-import captainJack from './games/captain-jack.js';
 
 const registry = new Map();
 
 function register(config) {
-  registry.set(config.id, config);
+  if (config && config.id) {
+    registry.set(config.id, config);
+  }
 }
 
-// Register all bundled games
-[sexyFruits, captainJack].forEach(register);
+// --- Auto-import all game configs ---
+// Vite will automatically bundle and provide every JS file in the games folder
+const gameModules = import.meta.glob('./games/*.js', { eager: true });
+
+Object.values(gameModules).forEach((module) => {
+  if (module.default) {
+    register(module.default);
+  }
+});
 
 /** @returns {GameConfig[]} */
 export function listGames() {
@@ -48,7 +51,11 @@ const STORAGE_KEY = 'active_game_id';
 /** @returns {GameConfig} */
 export function getActiveGame() {
   const stored = localStorage.getItem(STORAGE_KEY);
-  return registry.get(stored) || sexyFruits;
+  if (stored && registry.has(stored)) {
+    return registry.get(stored);
+  }
+  // Fallback to the very first game loaded if no local storage value exists
+  return registry.values().next().value;
 }
 
 /** @param {string} id */
