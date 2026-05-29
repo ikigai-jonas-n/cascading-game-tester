@@ -2561,13 +2561,12 @@ function appendSpinHistoryCards(startIndex, endIndex) {
           return (
             headerHtml +
             `
-            <div data-tumble="${tIdx}" class="glass" style="padding: 8px; border-radius: 8px; background: ${isTumbleActive ? 'rgba(255,255,255,0.05)' : 'transparent'};
-                border: 1px solid ${isTumbleActive ? 'var(--bg-accent)' : 'transparent'};
-                cursor: pointer; margin-top: 4px;">
+            <div data-tumble="${tIdx}" class="glass ${isTumbleActive ? 'active-tumble-item' : ''}" style="padding: 8px; border-radius: 8px; background: ${isTumbleActive ? 'rgba(34, 197, 94, 0.12)' : 'transparent'};
+                border: 1px solid ${isTumbleActive ? 'rgba(34, 197, 94, 0.4)' : 'transparent'};
+                cursor: pointer; margin-top: 4px;" aria-pressed="${isTumbleActive}">
               <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div style="display:flex; align-items:center;">
-                  <span class="step-label" style="font-weight:700; color:${isTumbleActive ? '#fff' : 'var(--text-muted)'}; font-size:10px;">TUMBLE ${localTumbleIdx}</span>
-                  ${cascadeBadge}
+                  <span class="step-label" style="font-weight:${isTumbleActive ? '900' : '700'}; color:${isTumbleActive ? '#fff' : 'var(--text-muted)'}; font-size:10px;">TUMBLE ${localTumbleIdx}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                    <span style="color:${isWinStep ? 'var(--success)' : 'var(--text-muted)'}; font-size: 10px; font-weight: 800;">+${parseFloat(getFieldEffectiveWin(f).toFixed(2))}</span>
@@ -2787,11 +2786,18 @@ window.selectTumble = (tIdx, phase) => {
 };
 
 // ── Load Spin ────────────────────────────────────────────────────────────────
-function loadSpin(historyIndex) {
+async function loadSpin(historyIndex) {
   currentSpinIndex = historyIndex;
   localStorage.setItem('last_spin_index', historyIndex);
   const spin = globalHistory[historyIndex];
   if (!spin) return;
+
+  // --- THE FIX: Unzip the massive payload ONCE and store it in RAM ---
+  if (spin._isCompressed && spin.rawData instanceof ArrayBuffer) {
+      const { decompressData } = await import('./db.js');
+      spin.rawData = await decompressData(spin.rawData);
+      spin._isCompressed = false;
+  }
 
   gameState.fields = spin.fields;
   gameState.summary = spin.summary;
@@ -2890,52 +2896,56 @@ function showTumble(index, phase) {
   // Instead of fully destroying and recreating the list when only the active tumble changes,
   // we can just cleanly update the active styles if the card is already expanded!
   const updateAuditListStyles = () => {
-    const tumbles = spinHistoryEl.querySelectorAll('[data-tumble]');
-    if (tumbles.length > 0) {
-      let activeTumbleEl = null;
-      tumbles.forEach((t) => {
-        const idx = parseInt(t.dataset.tumble);
-        const isActive = idx === index;
-        if (isActive) activeTumbleEl = t;
-
-        t.style.background = isActive ? 'rgba(34, 197, 94, 0.12)' : 'transparent';
-        t.style.border = isActive ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid transparent';
-        t.setAttribute('aria-pressed', isActive.toString());
-        t.setAttribute('tabindex', isActive ? '0' : '-1');
-
-        const stepLabel = t.querySelector('.step-label');
-        if (stepLabel) {
-          stepLabel.style.color = isActive ? '#fff' : 'var(--text-muted)';
-          stepLabel.style.fontWeight = isActive ? '900' : '700';
-        }
-      });
-
-      if (activeTumbleEl) {
-        // Auto-expand round if hidden
-        const roundContent = activeTumbleEl.closest('.round-content');
-        if (roundContent && roundContent.style.display === 'none') {
-          const roundIdx = roundContent.id.replace('round-content-', '');
-          const header = spinHistoryEl.querySelector(`.round-header[data-round="${roundIdx}"]`);
-          if (header) {
-            // Expand this round, collapse others
-            spinHistoryEl
-              .querySelectorAll('.round-content')
-              .forEach((el) => (el.style.display = 'none'));
-            spinHistoryEl
-              .querySelectorAll('.round-toggle-icon')
-              .forEach((el) => (el.style.transform = 'rotate(0deg)'));
-            roundContent.style.display = 'block';
-            const icon = header.querySelector('.round-toggle-icon');
-            if (icon) icon.style.transform = 'rotate(180deg)';
-          }
-        }
-
-        activeTumbleEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    // 1. Instantly turn off the old active tumble (O(1) lookup)
+    const prevActive = spinHistoryEl.querySelector('.active-tumble-item');
+    if (prevActive) {
+      prevActive.style.background = 'transparent';
+      prevActive.style.border = '1px solid transparent';
+      prevActive.setAttribute('aria-pressed', 'false');
+      prevActive.classList.remove('active-tumble-item');
+      const sl = prevActive.querySelector('.step-label');
+      if (sl) {
+        sl.style.color = 'var(--text-muted)';
+        sl.style.fontWeight = '700';
       }
+    }
+
+    // 2. Turn on the new active tumble
+    const newActive = spinHistoryEl.querySelector(`[data-tumble="${index}"]`);
+    if (newActive) {
+      newActive.style.background = 'rgba(34, 197, 94, 0.12)';
+      newActive.style.border = '1px solid rgba(34, 197, 94, 0.4)';
+      newActive.setAttribute('aria-pressed', 'true');
+      newActive.classList.add('active-tumble-item');
+      const sl = newActive.querySelector('.step-label');
+      if (sl) {
+        sl.style.color = '#fff';
+        sl.style.fontWeight = '900';
+      }
+
+      // Auto-expand round if hidden
+      const roundContent = newActive.closest('.round-content');
+      if (roundContent && roundContent.style.display === 'none') {
+        const roundIdx = roundContent.id.replace('round-content-', '');
+        const header = spinHistoryEl.querySelector(`.round-header[data-round="${roundIdx}"]`);
+        if (header) {
+          spinHistoryEl.querySelectorAll('.round-content').forEach((el) => (el.style.display = 'none'));
+          spinHistoryEl.querySelectorAll('.round-toggle-icon').forEach((el) => (el.style.transform = 'rotate(0deg)'));
+          roundContent.style.display = 'block';
+          const icon = header.querySelector('.round-toggle-icon');
+          if (icon) icon.style.transform = 'rotate(180deg)';
+        }
+      }
+
+      newActive.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } else {
-      renderSpinHistory();
-      // Try once more after render
-      setTimeout(updateAuditListStyles, 50);
+      // If it's not in the DOM yet, wait 50ms and try again
+      setTimeout(() => {
+         const fallback = spinHistoryEl.querySelector(`[data-tumble="${index}"]`);
+         if (fallback && !fallback.classList.contains('active-tumble-item')) {
+            updateAuditListStyles();
+         }
+      }, 50);
     }
   };
 
