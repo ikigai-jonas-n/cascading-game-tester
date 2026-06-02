@@ -15,26 +15,57 @@
  * colors: Record<number, string>,
  * defaultRequestBody: object,
  * playerId: string,
+ * winCategories: object,
+ * actions?: Array<{id: number, desc: string}>
  * }} GameConfig
  */
 
 const registry = new Map();
 
-function register(config) {
+export function register(config) {
   if (config && config.id) {
     registry.set(config.id, config);
   }
 }
 
 // --- Auto-import all game configs ---
-// Vite will automatically bundle and provide every JS file in the games folder
 const gameModules = import.meta.glob('./games/*.js', { eager: true });
-
 Object.values(gameModules).forEach((module) => {
-  if (module.default) {
-    register(module.default);
-  }
+  if (module.default) register(module.default);
 });
+
+// --- Hydrate Backend Data ---
+let backendData = {};
+import('./games/backend-extracted-data.json')
+  .then((module) => {
+    backendData = module.default || module;
+  })
+  .catch(() => console.warn('backend-extracted-data.json not found. Run the extraction script.'));
+
+// --- Hydrate Custom Games from LocalStorage ---
+export function loadCustomGames() {
+  try {
+    const custom = JSON.parse(localStorage.getItem('custom_games') || '[]');
+    custom.forEach(register);
+  } catch (e) {
+    console.error('Failed to load custom games', e);
+  }
+}
+loadCustomGames();
+
+export function saveCustomGame(config) {
+  if (!config || !config.id) throw new Error("Config must have an 'id'");
+  register(config);
+  try {
+    const custom = JSON.parse(localStorage.getItem('custom_games') || '[]');
+    const existingIdx = custom.findIndex((g) => g.id === config.id);
+    if (existingIdx >= 0) custom[existingIdx] = config;
+    else custom.push(config);
+    localStorage.setItem('custom_games', JSON.stringify(custom));
+  } catch (e) {
+    console.error('Failed to save custom game', e);
+  }
+}
 
 /** @returns {GameConfig[]} */
 export function listGames() {
@@ -51,11 +82,17 @@ const STORAGE_KEY = 'active_game_id';
 /** @returns {GameConfig} */
 export function getActiveGame() {
   const stored = localStorage.getItem(STORAGE_KEY);
+  let active = registry.values().next().value;
   if (stored && registry.has(stored)) {
-    return registry.get(stored);
+    active = registry.get(stored);
   }
-  // Fallback to the very first game loaded if no local storage value exists
-  return registry.values().next().value;
+
+  // Attach the raw backend configs to the active game object at runtime
+  if (backendData[active.id]) {
+    active.rawBackendConfig = backendData[active.id].rawConfig;
+  }
+
+  return active;
 }
 
 /** @param {string} id */

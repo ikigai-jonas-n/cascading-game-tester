@@ -44,28 +44,53 @@
       "title": "9. Per-Spin Free Spin Config",
       "description": "Overrides individual free spin outcomes: Spin 0 gets 3x multiplier, Spin 1 gets 2 cascades.",
       "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"config\": {\n    \"freeSpin\": {\n      \"freeSpinConfigs\": [\n        { \"cascade\": { \"cascadeCount\": 1, \"cascadeConfigs\": [{ \"growCount\": 2 }] } },\n        { \"cascade\": { \"cascadeCount\": 2 } }\n      ]\n    }\n  }\n}"
+    },
+    {
+      "title": "10. Big Win (20x - 50x)",
+      "description": "Target: 400 - 1,000 coins. Strategy: 14 H1_Watermelon (600 coins payout). cascadeCount 1 ensures a safe non-winning refill. Payout: 30x bet.",
+      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Watermelon\", \"count\": 14 }\n        ]\n      },\n      \"cascade\": {\n        \"cascadeCount\": 1\n      }\n    }\n  }\n}"
+    },
+    {
+      "title": "11. Mega Win (50x - 100x)",
+      "description": "Target: 1,000 - 2,000 coins. Strategy: 15 H1_Watermelon (1,200 coins payout). cascadeCount 1 ensures a safe non-winning refill. Payout: 60x bet.",
+      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Watermelon\", \"count\": 15 }\n        ]\n      },\n      \"cascade\": {\n        \"cascadeCount\": 1\n      }\n    }\n  }\n}"
+    },
+    {
+      "title": "12. Super Win (100x - 150x)",
+      "description": "Target: 2,000 - 3,000 coins. Strategy: 15 H1_Watermelon (1,200 payout) + growCount 1 (Multiplier 2x). Payout: 2,400 coins (120x bet).",
+      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Watermelon\", \"count\": 15 }\n        ]\n      },\n      \"cascade\": {\n        \"cascadeCount\": 1,\n        \"cascadeConfigs\": [\n          { \"growCount\": 1 }\n        ]\n      }\n    }\n  }\n}"
+    },
+    {
+      "title": "13. Epic Win (150x - 5000x)",
+      "description": "Target: 3,000 - 100,000 coins. Strategy: 15 H1_Watermelon (1,200 payout) + growCount 4 (Multiplier 5x). Payout: 6,000 coins (300x bet).",
+      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Watermelon\", \"count\": 15 }\n        ]\n      },\n      \"cascade\": {\n        \"cascadeCount\": 1,\n        \"cascadeConfigs\": [\n          { \"growCount\": 4 }\n        ]\n      }\n    }\n  }\n}"
+    },
+    {
+      "title": "14. Max Win (5000x+)",
+      "description": "Target: 100,000+ coins. Strategy: 15 H1_Watermelon (1,200 payout) + growCount 83 (Multiplier 84x). Shatters the 100k cap on the very first pop.",
+      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Watermelon\", \"count\": 15 }\n        ]\n      },\n      \"cascade\": {\n        \"cascadeCount\": 1,\n        \"cascadeConfigs\": [\n          { \"growCount\": 83 }\n        ]\n      }\n    }\n  }\n}"
     }
   ],
   "magic-g": [
     {
       "title": "1. Big Win (20x - 50x)",
       "description": "Target: 400 - 1,000 coins. Strategy: H2_Princess (12+ cluster) pays exactly 500 coins. Additional two tumbles generate minor wins, bringing the total to ~550 - 800.",
-      "json": "{\n  \"config\": {\n    \"baseSpin\": {\n      \"tumbleCount\": 2,\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H2_Princess\", \"count\": 12 }\n        ]\n      }\n    }\n  }\n}"
+      "json": "{\n  \"config\": {\n    \"baseSpin\": {\n      \"tumbleCount\": 1,\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H2_Princess\", \"count\": 12 }\n        ]\n      }\n    }\n  }\n}"
     },
     {
       "title": "2. Mega Win (50x - 150x)",
       "description": "Target: 1,000 - 3,000 coins. Strategy: H1_Aladdin (12+ cluster) pays 1,000 coins + M2 multiplier. Entire tumble multiplied by 2 (~2,100 - 2,500).",
-      "json": "{\n  \"config\": {\n    \"baseSpin\": {\n      \"tumbleCount\": 2,\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Aladdin\", \"count\": 12 },\n          { \"symbol\": \"M2\", \"count\": 1 }\n        ]\n      }\n    }\n  }\n}"
+      "json": "{\n  \"config\": {\n    \"baseSpin\": {\n      \"tumbleCount\": 1,\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Aladdin\", \"count\": 12 },\n          { \"symbol\": \"M2\", \"count\": 1 }\n        ]\n      }\n    }\n  }\n}"
     },
     {
       "title": "3. Huge Win (150x - 5000x)",
       "description": "Target: 3,000 - 100,000 coins. Strategy: H1_Aladdin (12+ cluster) pays 1,000 coins + M25 multiplier. 1,000 * 25 = 25,000 coins base (~1,250x).",
-      "json": "{\n  \"config\": {\n    \"baseSpin\": {\n      \"tumbleCount\": 2,\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Aladdin\", \"count\": 12 },\n          { \"symbol\": \"M25\", \"count\": 1 }\n        ]\n      }\n    }\n  }\n}"
+      "json": "{\n  \"config\": {\n    \"baseSpin\": {\n      \"tumbleCount\": 1,\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Aladdin\", \"count\": 12 },\n          { \"symbol\": \"M25\", \"count\": 1 }\n        ]\n      }\n    }\n  }\n}"
     },
     {
       "title": "4. Max Win (5000x+)",
       "description": "Target: 100,000+ coins. Strategy: H1_Aladdin (12+ cluster) for 1,000 coins + M500 multiplier. 1000 * 500 = 500,000, forcing the Max Win cap check.",
-      "json": "{\n  \"config\": {\n    \"baseSpin\": {\n      \"tumbleCount\": 2,\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Aladdin\", \"count\": 12 },\n          { \"symbol\": \"M500\", \"count\": 1 }\n        ]\n      }\n    }\n  }\n}"
+      "json": "{\n  \"config\": {\n    \"baseSpin\": {\n      \"tumbleCount\": 1,\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Aladdin\", \"count\": 12 },\n          { \"symbol\": \"M500\", \"count\": 1 }\n        ]\n      }\n    }\n  }\n}"
     }
   ]
 }

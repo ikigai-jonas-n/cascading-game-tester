@@ -35,16 +35,55 @@ self.onmessage = async (e) => {
 
   for (let i = 0; i < batchSize; i++) {
     try {
-      const response = await fetch(`${apiUrl}/v1/service/play`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-signature': 'rgs-local-signature' },
-        body: JSON.stringify({ ...config, gameCode, id: playerId }),
-      });
+      const makeRequest = async (body) => {
+        const response = await fetch(`${apiUrl}/v1/service/play`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-signature': 'rgs-local-signature' },
+          body: JSON.stringify(body),
+        });
+        const json = await response.json();
+        return json.data;
+      };
 
-      const json = await response.json();
-      if (!json.data) continue;
+      const reqBody = { ...config, gameCode, id: playerId };
+      let data = await makeRequest(reqBody);
+      if (!data) continue;
 
-      let data = json.data;
+      // WORKER AUTO-CHAINING
+      if (data.finished === false && data.choices && data.choices.length > 0) {
+        let allPhases = [...(data.step?.gamePhases || [])];
+        let isFirstChain = true;
+
+        // Extract potential baseGameWin
+        const baseSpinPhases = data.step?.gamePhases ?? [];
+        const hasTriggerFreeSpin = baseSpinPhases.some((phase) =>
+          (phase.playgrounds ?? []).some((pg) =>
+            (pg.fields ?? []).some((field) => field.features?.triggerFreeSpin === true),
+          ),
+        );
+        const baseGameWin = hasTriggerFreeSpin ? (data.step?.summary?.coins ?? 0) : null;
+
+        while (data.finished === false && data.choices && data.choices.length > 0) {
+          const nextChoice = data.choices[0]; // Auto-play always picks first choice safely
+          let nextBody = { ...reqBody, choice: nextChoice };
+
+          if (isFirstChain && baseGameWin !== null) {
+            nextBody = { ...nextBody, meta: { private: { baseGameWin } } };
+          }
+          isFirstChain = false;
+
+          const nextData = await makeRequest(nextBody);
+          if (nextData && nextData.step && nextData.step.gamePhases) {
+            allPhases = allPhases.concat(nextData.step.gamePhases);
+          }
+          data = nextData || data;
+        }
+
+        if (data.step) data.step.gamePhases = allPhases;
+      }
+
+      // --- THE FIX: Removed 'let data = json.data;' from here ---
+
       const fields = [];
       const fieldMetadata = [];
       const playgroundStats = [];

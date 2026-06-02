@@ -1,0 +1,25 @@
+export default {
+  id: 'eldorado2',
+  name: 'Eldorado 2',
+  gameCode: 'LGS-006',
+  grid: { cols: 5, rows: 5 },
+  emptySymbolId: 10,
+  scatterSymbolId: 9,
+  wildSymbolId: 0,
+  symbols: {},
+  emojis: {},
+  colors: {},
+  winCategories: { BIG_WIN: 20, MEGA_WIN: 50, HUGE_WIN: 150, MAX_WIN: 5000 },
+  defaultRequestBody: {
+    betAmount: 20,
+    cashBet: '20',
+    currencyDec: 2,
+    stakes: [{ type: 'commonGame' }],
+    rtpOption: 'RTP_97',
+  },
+  playerId: 'cascading-game-tester',
+  actions: [
+    { id: 1, desc: 'Continue' },
+    { id: 2, desc: 'Cash Out' },
+  ],
+};

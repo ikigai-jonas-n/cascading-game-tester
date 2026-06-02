@@ -12,9 +12,9 @@ import { FILTER_DEFS, WIN_OPERATORS, applyFilters } from './filters.js';
 
 // ── Active Game Config (plugin-driven) ───────────────────────────────────────
 let game = getActiveGame();
-let SYMBOLS = game.symbols;
-let EMOJIS = game.emojis;
-let SYMBOL_COLORS = game.colors;
+let SYMBOLS = game.symbols || {};
+let EMOJIS = game.emojis || {};
+let SYMBOL_COLORS = game.colors || {};
 
 function renderWinCategoryCheckboxes() {
   const container = document.getElementById('targetConditionsCheckboxes');
@@ -35,9 +35,9 @@ function renderWinCategoryCheckboxes() {
 function switchGame(id) {
   setActiveGame(id);
   game = getActiveGame();
-  SYMBOLS = game.symbols;
-  EMOJIS = game.emojis;
-  SYMBOL_COLORS = game.colors;
+  SYMBOLS = game.symbols || {};
+  EMOJIS = game.emojis || {};
+  SYMBOL_COLORS = game.colors || {};
   document.getElementById('gameLabel').innerText = game.name;
   renderSymbolMap();
 
@@ -145,7 +145,6 @@ const importReplaceBtn = document.getElementById('importReplaceBtn');
 
 const openSettingsBtn = document.getElementById('openSettingsBtn');
 const closeSettingsBtn = document.getElementById('closeSettingsBtn');
-const saveSettingsBtn = document.getElementById('saveSettingsBtn');
 const settingsModal = document.getElementById('settingsModal');
 const requestBodyTextarea = document.getElementById('requestBody');
 const disableAnimCheckbox = document.getElementById('disableAnimation');
@@ -218,11 +217,7 @@ function syncSpinSettingsUI() {
     const updateConfig = () => {
       try {
         const c = JSON.parse(requestBodyTextarea.value);
-        if (uiSpinType.value === 'free') {
-          c.choice = 1;
-        } else {
-          delete c.choice;
-        }
+        // REMOVED: c.choice = 1 injection logic. The request body is now the source of truth.
         c.betAmount = parseFloat(uiBetAmount.value) || 20;
         c.cashBet = c.betAmount;
         c.spinMode = uiStake.value;
@@ -293,6 +288,32 @@ function hideLoading() {
       if (loadingBar) loadingBar.style.width = '0%';
     }, 300);
   }
+}
+
+function promptUserForChoice(availableChoices) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('choicePromptModal');
+    const container = document.getElementById('choicePromptButtons');
+    container.innerHTML = '';
+
+    availableChoices.forEach((choiceId) => {
+      const actionDef = game.actions?.find((a) => a.id === choiceId);
+      const desc = actionDef ? actionDef.desc : `Action ${choiceId}`;
+
+      const btn = document.createElement('button');
+      btn.className = 'btn-primary';
+      btn.style.padding = '12px';
+      btn.style.fontSize = '12px';
+      btn.innerHTML = `<span style="opacity:0.6; margin-right:8px;">[${choiceId}]</span> ${desc}`;
+      btn.onclick = () => {
+        modal.close();
+        resolve(choiceId);
+      };
+      container.appendChild(btn);
+    });
+
+    modal.showModal();
+  });
 }
 
 async function clearAllDataAndReload(skipConfirm = false) {
@@ -699,24 +720,14 @@ if (quickCheatBtn && quickCheatModal) {
 }
 
 closeSettingsBtn.onclick = closeSettings;
-saveSettingsBtn.onclick = () => {
-  const apiUrlInput = document.getElementById('apiUrlInput');
-  if (apiUrlInput) {
-    API_URL = apiUrlInput.value || 'http://localhost:9000';
-    localStorage.setItem('api_url', API_URL);
+
+// Click outside to close
+settingsModal.addEventListener('click', (e) => {
+  // If the user clicks directly on the dialog background (not the modal-content inside it)
+  if (e.target === settingsModal) {
+    closeSettings();
   }
-  const playerIdInput = document.getElementById('playerIdInput');
-  if (playerIdInput) {
-    PLAYER_ID = playerIdInput.value || 'cascading-game-tester';
-    localStorage.setItem('player_id', PLAYER_ID);
-  }
-  // Persist request body so it survives reload
-  if (requestBodyTextarea.value && requestBodyTextarea.value.trim() !== '') {
-    localStorage.setItem('request_body', requestBodyTextarea.value);
-  }
-  settingsModal.close();
-  location.reload();
-};
+});
 
 if (clearDataBtn) {
   clearDataBtn.onclick = () => clearAllDataAndReload();
@@ -783,10 +794,10 @@ function renderSymbolMap() {
     return;
   }
   symbolMapOverlay.style.display = 'block';
-  symbolMapOverlay.innerHTML = Object.entries(game.symbols)
+  symbolMapOverlay.innerHTML = Object.entries(game.symbols || {})
     .map(([id, name]) => {
-      const emoji = game.emojis[id] || '';
-      const color = game.colors[id] || '#666';
+      const emoji = (game.emojis || {})[id] || '';
+      const color = (game.colors || {})[id] || '#666';
       return `<div style="display:flex;align-items:center;gap:6px;padding:2px 0;">
         <span style="color:#555;font-family:monospace;min-width:18px;">${id}</span>
         <span style="color:#444;">→</span>
@@ -1299,12 +1310,11 @@ async function autoDetectBackend() {
 }
 autoDetectBackend();
 
-async function fireSpinRequest(config) {
-  const reqBody = {
-    ...config,
-    gameCode: game.gameCode,
-    id: PLAYER_ID,
-  };
+// Add isInteractive parameter
+async function fireSpinRequest(config, isInteractive = false) {
+  const reqBody = { ...config };
+  if (!reqBody.gameCode) reqBody.gameCode = game.gameCode;
+  if (!reqBody.id) reqBody.id = PLAYER_ID;
 
   const makeRequest = async (body) => {
     const response = await fetch(`${API_URL}/v1/service/play`, {
@@ -1312,18 +1322,27 @@ async function fireSpinRequest(config) {
       headers: { 'Content-Type': 'application/json', 'x-signature': 'rgs-local-signature' },
       body: JSON.stringify(body),
     });
+
     const json = await response.json();
-    if (!json.data) throw new Error('Invalid API Response: ' + (json.message || 'Unknown error'));
+
+    // ERROR HANDLING: Super intuitive error toast
+    if (!response.ok || json.error) {
+      const errorMsg =
+        json.error?.message || json.message || response.statusText || 'Unknown Server Error';
+      showErrorToast(`API Error [${response.status}]: ${errorMsg}`);
+      throw new Error(`API Error: ${errorMsg}`);
+    }
+
+    if (!json.data) throw new Error('Invalid API Response: Missing data object');
     return json.data;
   };
 
   let data = await makeRequest(reqBody);
 
-  // Auto-chain if not finished (e.g. FreeSpin was awarded)
+  // Auto-chain if not finished
   if (data.finished === false && data.choices && data.choices.length > 0) {
     let allPhases = [...(data.step?.gamePhases || [])];
 
-    // If baseSpin triggered freeSpin, include baseGameWin in the first chained request
     const baseSpinPhases =
       data.step?.gamePhases ?? data.roundEvents?.playResult?.step?.gamePhases ?? [];
     const hasTriggerFreeSpin = baseSpinPhases.some((phase) =>
@@ -1334,22 +1353,29 @@ async function fireSpinRequest(config) {
     const baseGameWin = hasTriggerFreeSpin
       ? (data.step?.summary?.coins ?? data.roundEvents?.playResult?.step?.summary?.coins ?? 0)
       : null;
+
     let isFirstChain = true;
 
     while (data.finished === false && data.choices && data.choices.length > 0) {
-      const nextChoice = data.choices[0];
+      let nextChoice;
+
+      // NEW: Dynamic Choice Selection
+      if (data.choices.length === 1) {
+        nextChoice = data.choices[0]; // Auto-hit if only 1 option
+      } else {
+        if (isInteractive) {
+          nextChoice = await promptUserForChoice(data.choices);
+        } else {
+          nextChoice = data.choices[0]; // Auto-play fallback
+        }
+      }
+
       let nextBody = { ...reqBody, choice: nextChoice };
 
       if (isFirstChain && baseGameWin !== null) {
         nextBody = {
           ...nextBody,
-          meta: {
-            ...nextBody.meta,
-            private: {
-              ...nextBody.meta?.private,
-              baseGameWin,
-            },
-          },
+          meta: { ...nextBody.meta, private: { ...nextBody.meta?.private, baseGameWin } },
         };
       }
       isFirstChain = false;
@@ -1358,11 +1384,10 @@ async function fireSpinRequest(config) {
       if (nextData.step && nextData.step.gamePhases) {
         allPhases = allPhases.concat(nextData.step.gamePhases);
       }
-      data = nextData; // Keep advancing to get the final summary/meta
+      data = nextData;
     }
-    if (data.step) {
-      data.step.gamePhases = allPhases;
-    }
+
+    if (data.step) data.step.gamePhases = allPhases;
   }
 
   return data;
@@ -1472,9 +1497,10 @@ function getMappedRequest(config) {
   };
 }
 
+// Ensure playSingleSpin passes true for interactivity
 async function playSingleSpin(overrideConfig = null, description = null) {
   const config = overrideConfig || JSON.parse(requestBodyTextarea.value);
-  const data = await fireSpinRequest(config);
+  const data = await fireSpinRequest(config, true); // <-- Pass true here
 
   const fields = [];
   const fieldMetadata = [];
@@ -1920,17 +1946,20 @@ async function playSpin() {
               .join(targetConditionLogic === 'OR' ? '|' : '&');
             if (targetConditionLogic === 'OR') {
               if (statusEl)
-                statusEl.innerText = `${count} spins | Found ${targetHitCount}/${targetCountLimit} [${activeLabels}] (${rps}/s)`;
+                statusEl.innerText = `Processing: ${count} / ${maxSpins} | Found ${targetHitCount}/${targetCountLimit} [${activeLabels}] (${rps} spins/sec)`;
             } else {
               const minHit = targetConditions.length ? Math.min(...Object.values(targetHitMap)) : 0;
               if (statusEl)
-                statusEl.innerText = `${count} spins | Found ${minHit}/${targetCountLimit} [${activeLabels}] (${rps}/s)`;
+                statusEl.innerText = `Processing: ${count} / ${maxSpins} | Found ${minHit}/${targetCountLimit} [${activeLabels}] (${rps} spins/sec)`;
             }
           } else {
-            if (statusEl) statusEl.innerText = `${count}/${maxSpins} (${rps}/s)`;
+            // FIX: Shows accurate X / 1000 tracker
+            if (statusEl)
+              statusEl.innerText = `Processing: ${count} / ${maxSpins} (${rps} spins/sec)`;
           }
 
-          if (now - lastRenderTime > 300) {
+          // FIX: Only render the massive DOM history every 1.5 seconds during auto-play
+          if (now - lastRenderTime > 1500) {
             renderSpinHistory();
             lastRenderTime = now;
           }
@@ -2409,7 +2438,14 @@ function appendSpinHistoryCards(startIndex, endIndex) {
     if (isActive) {
       let currentPlayground = -1;
       let localTumbleIdx = 0;
-      const tumbles = spin.fields
+      let accumulatedWin = 0; // Tracks running total
+
+      // Cap initial render to prevent UI freezes
+      const RENDER_LIMIT = spin._showAllTumbles ? spin.fields.length : 50;
+      const fieldsToRender = spin.fields.slice(0, RENDER_LIMIT);
+      const hasMore = spin.fields.length > RENDER_LIMIT;
+
+      const tumbles = fieldsToRender
         .map((f, tIdx) => {
           const meta = spin.fieldMetadata ? spin.fieldMetadata[tIdx] : {};
           let headerHtml = '';
@@ -2428,7 +2464,7 @@ function appendSpinHistoryCards(startIndex, endIndex) {
               : '';
 
             currentPlayground = meta.playgroundIndex;
-            localTumbleIdx = 1; // Reset local index for new playground
+            localTumbleIdx = 1;
 
             const stats = spin.playgroundStats ? spin.playgroundStats[currentPlayground] : null;
             const headerText = stats
@@ -2466,46 +2502,35 @@ function appendSpinHistoryCards(startIndex, endIndex) {
           const goldenPositions = f.features?.golden || [];
           const isWinStep = parseFloat(f.coins || 0) > 0 && isSettleField(f);
 
-          // cascadeNum = group this tumble belongs to WITHIN the same playground
-          const payingBefore = spin.fields.slice(0, tIdx).filter((f2, idx2) => {
-            const m2 = spin.fieldMetadata ? spin.fieldMetadata[idx2] : {};
-            return (
-              parseFloat(f2.coins || 0) > 0 &&
-              isSettleField(f2) &&
-              m2.playgroundIndex === meta.playgroundIndex
-            );
-          }).length;
-          const cascadeNum = payingBefore + 1;
-          const badgeBg = isWinStep ? 'rgba(59,130,246,0.18)' : 'rgba(255,255,255,0.03)';
-          const badgeColor = isWinStep ? 'var(--info)' : '#444';
-          const badgeBorder = isWinStep ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.06)';
-          const badgeLabel = isWinStep ? `CASCADE #${cascadeNum} ↓` : `CASCADE #${cascadeNum}`;
-          const cascadeBadge = `<span style="background:${badgeBg}; color:${badgeColor}; border:1px solid ${badgeBorder}; padding:2px 6px; border-radius:4px; font-size:9px; margin-left:8px; font-weight:800; font-family:monospace;">${badgeLabel}</span>`;
+          // Calculate effective win & add to accumulated total
+          const effectiveWin = getFieldEffectiveWin(f);
+          if (isWinStep && effectiveWin > 0) {
+            accumulatedWin += effectiveWin;
+          }
 
-          // Generate tallies for this tumble
-          const payoutMap = new Map();
           const payoutPositions = new Set();
           (f.symbols.payouts || []).forEach((p) => {
-            const sid =
-              p.symbolId !== undefined ? p.symbolId : p.symbol !== undefined ? p.symbol : p.id;
-            payoutMap.set(sid, p);
             if (Array.isArray(p.positions)) {
               p.positions.forEach((pos) => payoutPositions.add(pos));
             }
           });
 
-          // 1. Identify "Winning Golden" symbols for the audit listing
-          const winningGoldenTallies = new Map(); // sid -> count
+          const winningGoldenTallies = new Map();
+          const initialSyms = f.symbols.initial || f.symbols.final || [];
           goldenPositions.forEach((pos) => {
             if (payoutPositions.has(pos)) {
-              const sid = f.symbols.initial[pos];
+              const sid = initialSyms[pos];
               winningGoldenTallies.set(sid, (winningGoldenTallies.get(sid) || 0) + 1);
             }
           });
 
+          const wildId = game.wildSymbolId;
+          const winningWildCount = initialSyms.filter(
+            (id, pos) => id === wildId && payoutPositions.has(pos),
+          ).length;
+
           let linesHtml = '';
 
-          // 1a. Golden Wins (Listed specifically)
           winningGoldenTallies.forEach((count, sid) => {
             const name = SYMBOLS[sid] || sid;
             const emoji = EMOJIS[sid] || '';
@@ -2520,11 +2545,6 @@ function appendSpinHistoryCards(startIndex, endIndex) {
             `;
           });
 
-          // 2. Wild Line (count Wilds in initial grid that were part of a win)
-          const wildId = game.wildSymbolId;
-          const winningWildCount = f.symbols.initial.filter(
-            (id, pos) => id === wildId && payoutPositions.has(pos),
-          ).length;
           if (winningWildCount > 0) {
             linesHtml += `
               <div style="display: flex; justify-content: space-between; align-items: center; padding: 2px 0;">
@@ -2537,7 +2557,6 @@ function appendSpinHistoryCards(startIndex, endIndex) {
             `;
           }
 
-          // 3. Regular Payout Lines (Total count as per photo)
           (f.symbols.payouts || []).forEach((p) => {
             const sid =
               p.symbolId !== undefined ? p.symbolId : p.symbol !== undefined ? p.symbol : p.id;
@@ -2562,14 +2581,16 @@ function appendSpinHistoryCards(startIndex, endIndex) {
             headerHtml +
             `
             <div data-tumble="${tIdx}" class="glass ${isTumbleActive ? 'active-tumble-item' : ''}" style="padding: 8px; border-radius: 8px; background: ${isTumbleActive ? 'rgba(34, 197, 94, 0.12)' : 'transparent'};
-                border: 1px solid ${isTumbleActive ? 'rgba(34, 197, 94, 0.4)' : 'transparent'};
-                cursor: pointer; margin-top: 4px;" aria-pressed="${isTumbleActive}">
+                border: 1px solid ${isTumbleActive ? 'rgba(34, 197, 94, 0.4)' : 'transparent'}; cursor: pointer; margin-top: 4px;" aria-pressed="${isTumbleActive}">
               <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div style="display:flex; align-items:center;">
                   <span class="step-label" style="font-weight:${isTumbleActive ? '900' : '700'}; color:${isTumbleActive ? '#fff' : 'var(--text-muted)'}; font-size:10px;">TUMBLE ${localTumbleIdx}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                   <span style="color:${isWinStep ? 'var(--success)' : 'var(--text-muted)'}; font-size: 10px; font-weight: 800;">+${parseFloat(getFieldEffectiveWin(f).toFixed(2))}</span>
+                   <div style="display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1;">
+                       <span style="color:${isWinStep ? 'var(--success)' : 'var(--text-muted)'}; font-size: 10px; font-weight: 800;">+${parseFloat(effectiveWin.toFixed(2))}</span>
+                       ${isWinStep ? `<span style="font-size: 8px; color: var(--text-muted); font-weight: 700;">Acc: ${parseFloat(accumulatedWin.toFixed(2))}</span>` : ''}
+                   </div>
                    <span style="color: var(--bg-accent); font-size: 11px; font-weight: 800;">${f.features?.cumulativeMultiplier || 1}x</span>
                 </div>
               </div>
@@ -2583,20 +2604,24 @@ function appendSpinHistoryCards(startIndex, endIndex) {
         currentPlayground !== -1 && spin.playgroundStats
           ? spin.playgroundStats[currentPlayground]
           : null;
-      const lastSummaryHtml = lastStats
-        ? `
-        <div class="round-summary-v5" style="margin:8px 0; padding:6px 10px; background:rgba(34,197,94,0.05); border-radius:6px; border:1px solid rgba(34,197,94,0.1); display:flex; justify-content:space-between; align-items:center;">
-          <span style="font-size:9px; color:#4ade80; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">Round Summary</span>
-          <span style="font-size:10px; color:#fff; font-weight:800; font-family:monospace;">${lastStats.tumbleCount} Tumbles · ${lastStats.cascadeCount} Cascades</span>
-        </div>`
-        : '';
-      const tumblesHtml = tumbles + (spin.fields.length > 0 ? lastSummaryHtml + '</div>' : '');
+      const lastSummaryHtml = lastStats ? `...</div>` : ''; // Closes the round div
+
+      let loadMoreHtml = '';
+      if (hasMore) {
+        loadMoreHtml = `
+          <button class="btn-ghost load-more-tumbles-btn" style="width: 100%; margin-top: 8px; padding: 8px; font-size: 10px; border: 1px dashed var(--border-color); color: var(--text-muted);">
+              ⚠️ ${spin.fields.length - RENDER_LIMIT} More Tumbles Hidden. Click to load all (May lag UI)
+          </button>`;
+      }
+
+      const tumblesHtml = tumbles + (fieldsToRender.length > 0 ? (lastStats ? '</div>' : '') : '');
 
       const auditContainer = document.createElement('div');
       auditContainer.style.marginTop = '10px';
       auditContainer.innerHTML = `
         <div style="font-size:9px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom:6px;">Tumble Audit</div>
         ${tumblesHtml}
+        ${loadMoreHtml}
       `;
       card.appendChild(auditContainer);
 
@@ -2644,6 +2669,14 @@ function appendSpinHistoryCards(startIndex, endIndex) {
     }
 
     card.onclick = (e) => {
+      // Add this new block right at the top of the onclick handler
+      const loadMoreBtn = e.target.closest('.load-more-tumbles-btn');
+      if (loadMoreBtn) {
+        e.stopPropagation();
+        spin._showAllTumbles = true; // Flag this specific spin to bypass limits
+        renderSpinHistory(true);
+        return;
+      }
       const bookmarkBtn = e.target.closest('.bookmark-btn-v5');
       if (bookmarkBtn) {
         e.stopPropagation();
@@ -2761,30 +2794,41 @@ window.selectTumble = (tIdx, phase) => {
   showTumble(tIdx, phase);
   const spin = globalHistory[currentSpinIndex];
   const field = spin.fields[tIdx];
-  const diff = field.symbols.initial.map((val, i) => {
-    const finalVal = field.symbols.final[i];
+
+  // Safe Fallback
+  const initialArr = field.symbols.initial || field.symbols.final || [];
+  const finalArr = field.symbols.final || [];
+
+  const diff = initialArr.map((val, i) => {
+    const finalVal = finalArr[i];
     const r = i % game.grid.rows;
     const c = Math.floor(i / game.grid.rows);
     const coord = `(c${c}, r${r})`;
     if (val !== finalVal) return `${val} -> ${finalVal}, ${coord}`;
     return `${val}`;
   });
-  openRawDrawer(
-    [
-      { label: `TUMBLE_${tIdx + 1}_FIELD`, data: field },
-      { label: 'DIFF', data: diff },
-      { label: 'INITIAL[]', data: field.symbols.initial },
-      { label: 'FINAL[]', data: field.symbols.final },
-      { label: 'PAYOUTS', data: field.symbols.payouts },
-      { label: 'FEATURES', data: field.features },
-      { label: 'TESTCONFIG', data: spin.requestBody?.testConfig || {} },
-      { label: 'FULL_JSON', data: spin.rawData },
-    ],
-    0,
+
+  // 1. Build tabs dynamically following the strict order
+  const tabs = [{ label: `TUMBLE_${tIdx + 1}_FIELD`, data: field }];
+
+  // 2. Insert TESTCONFIG only if cheat is triggered
+  if (spin.isCheatTriggered === true) {
+    tabs.push({ label: 'TESTCONFIG', data: spin.requestBody?.testConfig || {} });
+  }
+
+  // 3. Append the rest in exact order
+  tabs.push(
+    { label: 'FULL_JSON', data: spin.rawData },
+    { label: 'FEATURES', data: field.features || {} },
+    { label: 'PAYOUTS', data: field.symbols.payouts || [] },
+    { label: 'INIT-FINAL DIFF', data: diff },
+    { label: 'INITIAL[]', data: initialArr },
+    { label: 'FINAL[]', data: finalArr },
   );
+
+  openRawDrawer(tabs, 0);
   updatePlaybackLabels();
 };
-
 // ── Load Spin ────────────────────────────────────────────────────────────────
 async function loadSpin(historyIndex) {
   currentSpinIndex = historyIndex;
@@ -2794,9 +2838,9 @@ async function loadSpin(historyIndex) {
 
   // --- THE FIX: Unzip the massive payload ONCE and store it in RAM ---
   if (spin._isCompressed && spin.rawData instanceof ArrayBuffer) {
-      const { decompressData } = await import('./db.js');
-      spin.rawData = await decompressData(spin.rawData);
-      spin._isCompressed = false;
+    const { decompressData } = await import('./db.js');
+    spin.rawData = await decompressData(spin.rawData);
+    spin._isCompressed = false;
   }
 
   gameState.fields = spin.fields;
@@ -2884,14 +2928,38 @@ function updateGlobalSummary() {
 // ── Show Tumble ──────────────────────────────────────────────────────────────
 function showTumble(index, phase) {
   gameState.currentIndex = index;
-  // Determine phase: explicit arg > singleViewMode default
   const resolvedPhase = showDoubleGrid
-    ? 'final' // double view always renders final (initial handled separately)
+    ? 'final'
     : (phase ?? (singleViewMode === 'initial' ? 'initial' : 'final'));
   gameState.currentFramePhase = resolvedPhase;
 
   const field = gameState.fields[index];
   if (!field) return;
+
+  // NEW: Smart Runtime Grid Deduction for Sandbox & Custom Games
+  if ((game.id === 'sandbox' || game.id.startsWith('custom-sandbox')) && field.symbols) {
+    const syms = field.symbols.final || field.symbols.initial || [];
+    const len = syms.length;
+    if (len > 0) {
+      const definedCols = game.grid.cols;
+      const definedRows = game.grid.rows;
+
+      if (definedCols && !definedRows) {
+        // Only cols defined (e.g. MrBooms)
+        game.grid.rows = Math.ceil(len / definedCols);
+      } else if (definedRows && !definedCols) {
+        // Only rows defined
+        game.grid.cols = Math.ceil(len / definedRows);
+      } else if (!definedRows && !definedCols) {
+        // Neither defined
+        game.grid.cols = Math.min(len, 5); // Fallback to max 5 columns
+        game.grid.rows = Math.ceil(len / game.grid.cols);
+      } else if (definedRows * definedCols !== len) {
+        // Both defined but don't match the payload length (override rows to fit)
+        game.grid.rows = Math.ceil(len / definedCols);
+      }
+    }
+  }
 
   // Instead of fully destroying and recreating the list when only the active tumble changes,
   // we can just cleanly update the active styles if the card is already expanded!
@@ -2929,8 +2997,12 @@ function showTumble(index, phase) {
         const roundIdx = roundContent.id.replace('round-content-', '');
         const header = spinHistoryEl.querySelector(`.round-header[data-round="${roundIdx}"]`);
         if (header) {
-          spinHistoryEl.querySelectorAll('.round-content').forEach((el) => (el.style.display = 'none'));
-          spinHistoryEl.querySelectorAll('.round-toggle-icon').forEach((el) => (el.style.transform = 'rotate(0deg)'));
+          spinHistoryEl
+            .querySelectorAll('.round-content')
+            .forEach((el) => (el.style.display = 'none'));
+          spinHistoryEl
+            .querySelectorAll('.round-toggle-icon')
+            .forEach((el) => (el.style.transform = 'rotate(0deg)'));
           roundContent.style.display = 'block';
           const icon = header.querySelector('.round-toggle-icon');
           if (icon) icon.style.transform = 'rotate(180deg)';
@@ -2941,10 +3013,10 @@ function showTumble(index, phase) {
     } else {
       // If it's not in the DOM yet, wait 50ms and try again
       setTimeout(() => {
-         const fallback = spinHistoryEl.querySelector(`[data-tumble="${index}"]`);
-         if (fallback && !fallback.classList.contains('active-tumble-item')) {
-            updateAuditListStyles();
-         }
+        const fallback = spinHistoryEl.querySelector(`[data-tumble="${index}"]`);
+        if (fallback && !fallback.classList.contains('active-tumble-item')) {
+          updateAuditListStyles();
+        }
       }, 50);
     }
   };
@@ -3090,11 +3162,16 @@ function showTumble(index, phase) {
     }
     if (showDoubleGrid && initialContainer && gridInitialEl) {
       initialContainer.style.display = 'flex';
-      renderGrid(field.symbols.initial, field.symbols.payouts, goldenInitial, 'grid-initial');
+      renderGrid(
+        field.symbols.initial || field.symbols.final || [],
+        field.symbols.payouts,
+        goldenInitial,
+        'grid-initial',
+      );
     }
 
     // --- Final panel: show symbols.final, NO win lines, golden AFTER transformation ---
-    renderGrid(field.symbols.final, [], goldenFinal, 'grid');
+    renderGrid(field.symbols.final || [], [], goldenFinal, 'grid');
   } else {
     wrapper?.classList.remove('double-view');
     if (initialContainer) initialContainer.style.display = 'none';
@@ -3102,10 +3179,15 @@ function showTumble(index, phase) {
 
     if (resolvedPhase === 'initial') {
       // Initial: show initial symbols WITH payouts (win lines) and golden from this tumble start
-      renderGrid(field.symbols.initial, field.symbols.payouts, goldenInitial, 'grid');
+      renderGrid(
+        field.symbols.initial || field.symbols.final || [],
+        field.symbols.payouts,
+        goldenInitial,
+        'grid',
+      );
     } else {
       // Final: show final symbols, NO payouts (removed), golden AFTER transformation
-      renderGrid(field.symbols.final, [], goldenFinal);
+      renderGrid(field.symbols.final || [], [], goldenFinal);
     }
   }
 }
@@ -3157,7 +3239,7 @@ function renderGrid(symbols, payouts, goldenSet, targetId = 'grid') {
       cell.setAttribute('role', 'gridcell');
       cell.setAttribute(
         'aria-label',
-        `Row ${r + 1} Column ${c + 1} ${isEmpty ? 'Empty' : SYMBOLS[id] || id}${isWin ? ' Winning' : ''}${isGolden ? ' Golden' : ''}`,
+        `Row ${r + 1} Column ${c + 1} ${isEmpty ? 'Empty' : SYMBOLS && SYMBOLS[id] ? SYMBOLS[id] : id}${isWin ? ' Winning' : ''}${isGolden ? ' Golden' : ''}`,
       );
       cell.style.cssText = `
         width: 76px; height: 76px;
@@ -3171,18 +3253,20 @@ function renderGrid(symbols, payouts, goldenSet, targetId = 'grid') {
 
       cell.innerHTML = `
         <div style="font-size: 2.2em; line-height: 1; transform: ${isEmpty ? 'scale(0.5)' : 'scale(1)'}; transition: transform 0.3s;">
-          ${EMOJIS[id] || (isEmpty ? '' : id)}
+          ${EMOJIS && EMOJIS[id] ? EMOJIS[id] : isEmpty ? '' : id}
         </div>
-        ${!isEmpty ? `<div style="font-size: 8px; color: ${isGolden ? '#fbbf24' : SYMBOL_COLORS[id] || '#666'}; font-weight: 800; margin-top: 4px; letter-spacing:0.5px; opacity:0.6;">${SYMBOLS[id]}</div>` : ''}
+        ${!isEmpty ? `<div style="font-size: 8px; color: ${isGolden ? '#fbbf24' : SYMBOL_COLORS && SYMBOL_COLORS[id] ? SYMBOL_COLORS[id] : '#666'}; font-weight: 800; margin-top: 4px; letter-spacing:0.5px; opacity:0.6;">${SYMBOLS && SYMBOLS[id] !== undefined ? SYMBOLS[id] : id}</div>` : ''}
       `;
 
       cell.onmouseover = () => {
         const insp = document.getElementById('inspector');
         if (insp) {
           insp.style.display = 'block';
+          const emojiStr = EMOJIS && EMOJIS[id] ? EMOJIS[id] + ' ' : '';
+          const nameStr = SYMBOLS && SYMBOLS[id] !== undefined ? SYMBOLS[id] : id;
           document.getElementById('inspSymbol').innerText = isEmpty
             ? 'EMPTY'
-            : `${EMOJIS[id]} ${SYMBOLS[id]} (${id})`;
+            : `${emojiStr}${nameStr} (${id})`;
           document.getElementById('inspPos').innerText =
             `ID: ${idx} | R${r} C${c}${isWin ? ' [WIN]' : ''}`;
         }
@@ -3264,25 +3348,26 @@ async function exportDataDirectFromDb(defaultFileName, exportMode, isMapped = fa
 
     let header, footer;
     if (isMapped) {
-       header = '['; footer = ']';
+      header = '[';
+      footer = ']';
     } else {
-       const settingsExport = {
-         playMode: localStorage.getItem('play_mode') || 'single',
-         playCount: localStorage.getItem('play_count') || '10',
-         requestBody: localStorage.getItem('request_body') || '',
-         activeGame: game.id, 
-         uiSpinType: document.getElementById('uiSpinType')?.value || 'base', 
-         uiStake: document.getElementById('uiStake')?.value || 'commonGame', 
-       };
-       const v2Format = {
-         v: 2,
-         f: activeFilters, // <--- FIX: ALWAYS export filters to preserve UI state!
-         o: localStorage.getItem('sort_field') || 'num_desc',
-         s: settingsExport,
-         h: [],
-       };
-       header = JSON.stringify(v2Format).split('"h":[]')[0] + '"h":[';
-       footer = ']}';
+      const settingsExport = {
+        playMode: localStorage.getItem('play_mode') || 'single',
+        playCount: localStorage.getItem('play_count') || '10',
+        requestBody: localStorage.getItem('request_body') || '',
+        activeGame: game.id,
+        uiSpinType: document.getElementById('uiSpinType')?.value || 'base',
+        uiStake: document.getElementById('uiStake')?.value || 'commonGame',
+      };
+      const v2Format = {
+        v: 2,
+        f: activeFilters, // <--- FIX: ALWAYS export filters to preserve UI state!
+        o: localStorage.getItem('sort_field') || 'num_desc',
+        s: settingsExport,
+        h: [],
+      };
+      header = JSON.stringify(v2Format).split('"h":[]')[0] + '"h":[';
+      footer = ']}';
     }
 
     let writable = null;
@@ -3511,12 +3596,16 @@ const triggerImport = (mode) => {
       const chunkSize = 1000;
       for (let i = 0; i < importedRaw.length; i += chunkSize) {
         const percent = Math.round((i / importedRaw.length) * 100);
-        showLoading(`Processing ${Math.min(i + chunkSize, importedRaw.length)} / ${importedRaw.length}...`, percent);
+        showLoading(
+          `Processing ${Math.min(i + chunkSize, importedRaw.length)} / ${importedRaw.length}...`,
+          percent,
+        );
         const chunk = importedRaw.slice(i, i + chunkSize);
-        const processed = chunk.map((item) => {
+        const processed = chunk
+          .map((item) => {
             const r = item.response || item.rawData || item.r || item;
             if (!r || !r.step) return null;
-            
+
             const fields = [];
             const fieldMetadata = [];
             const playgroundStats = [];
@@ -3531,11 +3620,20 @@ const triggerImport = (mode) => {
                 let pgCascades = 0;
                 (pg.fields || []).forEach((f) => {
                   fields.push(f);
-                  fieldMetadata.push({ playgroundIndex: playgroundCounter, isFreeSpin: phase.type === 'freeSpin', roundIndex: roundCounter });
+                  fieldMetadata.push({
+                    playgroundIndex: playgroundCounter,
+                    isFreeSpin: phase.type === 'freeSpin',
+                    roundIndex: roundCounter,
+                  });
                   pgTumbles++;
                   if (parseFloat(f.coins || 0) > 0) pgCascades++;
                 });
-                playgroundStats.push({ tumbleCount: pgTumbles, cascadeCount: pgCascades, headerText: phase.type === 'freeSpin' ? `FreeSpin #${roundCounter + 1}` : 'BaseSpin' });
+                playgroundStats.push({
+                  tumbleCount: pgTumbles,
+                  cascadeCount: pgCascades,
+                  headerText:
+                    phase.type === 'freeSpin' ? `FreeSpin #${roundCounter + 1}` : 'BaseSpin',
+                });
                 playgroundCounter++;
                 roundCounter++;
               });
@@ -3578,7 +3676,8 @@ const triggerImport = (mode) => {
                 hasFreeSpin: item.hfs || item.hasFreeSpin || false,
               },
             };
-          }).filter(Boolean);
+          })
+          .filter(Boolean);
         restored.push(...processed);
         await new Promise((r) => setTimeout(r, 0));
       }
@@ -3591,9 +3690,14 @@ const triggerImport = (mode) => {
         await clearAllSpins();
         finalEntries = restored.map((r, i) => ({ ...r.data, num: i + 1 }));
       } else {
-        const existingFingers = new Set(globalHistory.map((s) => `${s.timestamp}_${s.summary.coins}_${s.fields.length}`));
+        const existingFingers = new Set(
+          globalHistory.map((s) => `${s.timestamp}_${s.summary.coins}_${s.fields.length}`),
+        );
         const filtered = restored.filter((r) => {
-          if (existingFingers.has(r.finger)) { skippedCount++; return false; }
+          if (existingFingers.has(r.finger)) {
+            skippedCount++;
+            return false;
+          }
           return true;
         });
         const baseNum = await getNextSpinNum();
@@ -3821,6 +3925,38 @@ const clearMenuBtn = document.getElementById('clearMenuBtn');
 const clearDropdown = document.getElementById('clearDropdown');
 const clearAllBtnUI = document.getElementById('clearAllBtn');
 const clearFilteredBtnUI = document.getElementById('clearFilteredBtn');
+const clearCurrentGameBtnUI = document.getElementById('clearCurrentGameBtn');
+
+// New logic to clear only the active game (e.g. only Sexy Fruits)
+if (clearCurrentGameBtnUI) {
+  clearCurrentGameBtnUI.onclick = async () => {
+    if (!confirm(`Delete ALL spin history for ${game.name}?`)) return;
+
+    showLoading(`Clearing ${game.name}...`, 50);
+    try {
+      const { deleteSpinsBatch } = await import('./db.js');
+      // Find all spin numbers that belong to the active game
+      const numsToDelete = globalHistory.filter((s) => s.gameId === game.id).map((s) => s.num);
+
+      await deleteSpinsBatch(numsToDelete);
+
+      // Remove them from RAM
+      globalHistory = globalHistory.filter((s) => s.gameId !== game.id);
+      currentSpinIndex = -1;
+
+      renderSpinHistory(true);
+      const totalCells = game.grid.rows * game.grid.cols;
+      renderGrid(new Array(totalCells).fill(game.emptySymbolId), [], new Set());
+      await updateStorageStats();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to clear current game history: ' + err.message);
+    } finally {
+      hideLoading();
+      clearDropdown.style.display = 'none'; // Close menu
+    }
+  };
+}
 
 if (clearMenuBtn) {
   clearMenuBtn.onclick = (e) => {
@@ -4023,17 +4159,20 @@ async function loadDefaultData(manual = false) {
 
     // --- THE FIX: Smart Fallback & Race-Condition Prevention ---
     const storedGame = localStorage.getItem('active_game_id');
-    const defaultGameId = firstData.s?.activeGame || storedGame || (allHistory[0] && (allHistory[0].gameId || allHistory[0].g));
+    const defaultGameId =
+      firstData.s?.activeGame ||
+      storedGame ||
+      (allHistory[0] && (allHistory[0].gameId || allHistory[0].g));
 
     // Consolidate settings object
     const s = firstData.s || {};
     if (!s.activeGame) s.activeGame = defaultGameId;
-    
+
     // Use the unified function to restore EVERYTHING including Dropdowns and Filters
     restoreSettingsFromImport(s, firstData.f);
 
     if (firstData.o) {
-        localStorage.setItem('sort_field', firstData.o);
+      localStorage.setItem('sort_field', firstData.o);
     }
 
     localStorage.setItem('default_data_loaded', 'true');
@@ -4271,8 +4410,225 @@ function toggleAutoplayOnSelect() {
   }
 }
 
+// Add this global helper
+function showErrorToast(msg) {
+  const existing = document.querySelector('.error-toast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.className = 'error-toast update-toast'; // Reusing your existing toast animation
+  toast.style.borderColor = 'var(--error)';
+  toast.style.background = 'rgba(244, 63, 94, 0.15)';
+  toast.innerHTML = `
+    <div style="display:flex; flex-direction:column; gap:4px;">
+      <div style="font-size:12px; font-weight:900; color:var(--error); text-transform:uppercase;">🚨 Request Failed</div>
+      <div style="font-size:11px; color:#fff; font-family:monospace;">${msg}</div>
+    </div>
+    <button onclick="this.parentElement.remove()" style="background:transparent; color:#fff; border:none; font-size:16px; cursor:pointer;">&times;</button>
+  `;
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    if (toast.parentElement) toast.remove();
+  }, 8000);
+}
+
+// Initialize Header Selectors
+const headerGameSelect = document.getElementById('headerGameSelect');
+const headerEnvSelect = document.getElementById('headerEnvSelect');
+
+if (headerGameSelect) {
+  listGames().forEach((g) => {
+    const opt = document.createElement('option');
+    opt.value = g.id;
+    opt.textContent = g.name;
+    if (g.id === game.id) opt.selected = true;
+    headerGameSelect.appendChild(opt);
+  });
+
+  headerGameSelect.onchange = () => {
+    switchGame(headerGameSelect.value);
+    localStorage.removeItem('request_body');
+    requestBodyTextarea.value = JSON.stringify(game.defaultRequestBody, null, 2);
+  };
+}
+
+if (headerEnvSelect) {
+  // 1. Restore from local storage on load
+  const savedEnv = localStorage.getItem('api_url');
+  if (savedEnv) {
+    headerEnvSelect.value = savedEnv;
+    API_URL = savedEnv;
+  } else {
+    headerEnvSelect.value = API_URL;
+  }
+
+  // 2. Save choice on change
+  headerEnvSelect.onchange = () => {
+    API_URL = headerEnvSelect.value;
+    localStorage.setItem('api_url', API_URL);
+    checkBackendHealth(API_URL, 'current');
+  };
+}
+
+// Auto-Save inside the Settings Modal (Instant trigger on 'input')
+document.querySelectorAll('#settingsModal input, #settingsModal textarea').forEach((el) => {
+  el.addEventListener('input', () => {
+    const playerIdInput = document.getElementById('playerIdInput');
+    if (playerIdInput && el.id === 'playerIdInput') {
+      PLAYER_ID = playerIdInput.value || 'cascading-game-tester';
+      localStorage.setItem('player_id', PLAYER_ID);
+    }
+    if (requestBodyTextarea && el.id === 'requestBody') {
+      localStorage.setItem('request_body', requestBodyTextarea.value);
+    }
+  });
+});
+
 if (playbackAutoplayBtn) {
   playbackAutoplayBtn.onclick = toggleAutoplayOnSelect;
+}
+
+// ── Custom Game Modal Handler ──────────────────────────────────────────────
+const addCustomGameBtn = document.getElementById('addCustomGameBtn');
+const customGameModal = document.getElementById('customGameModal');
+const closeCustomGameBtn = document.getElementById('closeCustomGameBtn');
+const saveCustomGameBtn = document.getElementById('saveCustomGameBtn');
+const customGameJson = document.getElementById('customGameJson');
+const customGameError = document.getElementById('customGameError');
+
+if (addCustomGameBtn && customGameModal) {
+  addCustomGameBtn.onclick = () => {
+    customGameError.style.display = 'none';
+    const defaultTemplate = {
+      id: 'custom-sandbox-' + Date.now(),
+      name: 'New Sandbox',
+      gameCode: 'LGS-004',
+      grid: { rows: 5, cols: 5 },
+      emptySymbolId: -1,
+      scatterSymbolId: 99,
+      wildSymbolId: 98,
+      symbols: { 1: 'H1', 2: 'H2', 99: 'SCAT' },
+      emojis: { 1: '🍒', 2: '🍉', 99: '⭐' },
+      colors: { 1: '#ff5252', 2: '#66bb6a', 99: '#ffeb3b' },
+      winCategories: {
+        BIG_WIN: 20,
+        MEGA_WIN: 50,
+        HUGE_WIN: 150,
+        MAX_WIN: 5000,
+      },
+      defaultRequestBody: {
+        betAmount: 20,
+        cashBet: '20',
+        currencyDec: 2,
+        stakes: [{ type: 'commonGame' }],
+        rtpOption: 'RTP_97',
+      },
+      playerId: PLAYER_ID,
+    };
+    customGameJson.value = JSON.stringify(defaultTemplate, null, 2);
+    customGameModal.showModal();
+  };
+
+  if (closeCustomGameBtn) closeCustomGameBtn.onclick = () => customGameModal.close();
+
+  if (saveCustomGameBtn) {
+    saveCustomGameBtn.onclick = async () => {
+      try {
+        const config = JSON.parse(customGameJson.value);
+        if (!config.id || !config.name || !config.gameCode) {
+          throw new Error('Missing required fields: id, name, gameCode');
+        }
+
+        const { saveCustomGame } = await import('./game-registry.js');
+        saveCustomGame(config);
+
+        // Inject option into header dropdown dynamically
+        const headerGameSelect = document.getElementById('headerGameSelect');
+        if (headerGameSelect) {
+          const opt = document.createElement('option');
+          opt.value = config.id;
+          opt.textContent = config.name;
+          headerGameSelect.appendChild(opt);
+          headerGameSelect.value = config.id;
+
+          // Force UI switch
+          headerGameSelect.dispatchEvent(new Event('change'));
+        }
+
+        customGameModal.close();
+        showLoading('Custom Game Loaded! ✅');
+        setTimeout(hideLoading, 1500);
+      } catch (e) {
+        customGameError.textContent = 'Invalid JSON: ' + e.message;
+        customGameError.style.display = 'block';
+      }
+    };
+  }
+
+  customGameModal.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') customGameModal.close();
+  });
+}
+
+// ── Paytable Modal Logic ──────────────────────────────────────────────────
+const openPaytableBtn = document.getElementById('openPaytableBtn');
+const paytableModal = document.getElementById('paytableModal');
+const closePaytableBtn = document.getElementById('closePaytableBtn');
+const paytableContent = document.getElementById('paytableContent');
+const paytableTitle = document.getElementById('paytableTitle');
+
+if (openPaytableBtn && paytableModal) {
+  openPaytableBtn.onclick = () => {
+    // 1. Fetch latest active game config with attached backend data
+    const currentGame = getActiveGame();
+    paytableTitle.innerText = `📊 PAYTABLE - ${currentGame.name}`;
+    paytableContent.innerHTML = '';
+
+    // 2. Render Raw Backend Config (If extraction script was run)
+    if (currentGame.rawBackendConfig) {
+      const rawContainer = document.createElement('div');
+      rawContainer.style.cssText =
+        'background: #000; color: #10b981; padding: 16px; border-radius: 8px; font-family: "JetBrains Mono", monospace; font-size: 10px; white-space: pre-wrap; overflow-x: auto; margin-bottom: 12px; border: 1px solid var(--border-color); box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);';
+      rawContainer.innerText = currentGame.rawBackendConfig;
+      paytableContent.appendChild(rawContainer);
+    } else {
+      paytableContent.innerHTML += `<div style="color: var(--error); font-size: 11px; text-align: center; padding: 10px; border: 1px dashed var(--error); border-radius: 8px; margin-bottom: 12px;">⚠️ No backend data found. Run the node extraction script.</div>`;
+    }
+
+    // 3. Render any manual formatting (If you manually added to the game config)
+    if (currentGame.paytable && Object.keys(currentGame.paytable).length > 0) {
+      Object.entries(currentGame.paytable).forEach(([id, rule]) => {
+        const emojiStr = EMOJIS[id] || '';
+        const nameStr = SYMBOLS[id] !== undefined ? SYMBOLS[id] : `Symbol ${id}`;
+        const color = SYMBOL_COLORS[id] || '#666';
+
+        const row = document.createElement('div');
+        row.style.cssText =
+          'display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 8px;';
+        row.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="font-size: 24px; width: 32px; text-align: center;">${emojiStr}</div>
+            <div style="display: flex; flex-direction: column;">
+              <span style="color: ${color}; font-weight: 900; font-size: 12px; text-transform: uppercase;">${nameStr}</span>
+              <span style="color: var(--text-muted); font-size: 9px; font-family: monospace;">ID: ${id}</span>
+            </div>
+          </div>
+          <div style="color: var(--success); font-weight: 800; font-size: 11px; text-align: right; max-width: 60%;">
+            ${rule}
+          </div>
+        `;
+        paytableContent.appendChild(row);
+      });
+    }
+
+    paytableModal.showModal();
+  };
+
+  closePaytableBtn.onclick = () => paytableModal.close();
+
+  paytableModal.addEventListener('click', (e) => {
+    if (e.target === paytableModal) paytableModal.close();
+  });
 }
 
 boot().catch((err) => console.error('Boot failed:', err));
