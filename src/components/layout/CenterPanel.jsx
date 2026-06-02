@@ -11,8 +11,10 @@ export default function CenterPanel() {
   const currentSpin = createMemo(() => globalHistory[currentSpinIndex()]);
 
   return (
-    <main id="col2" style="flex:1; display:flex; flex-direction:column; min-width:0; overflow:hidden; padding:20px;">
-
+    <main
+      id="col2"
+      style="flex:1; display:flex; flex-direction:column; min-width:0; overflow:hidden; padding:20px;"
+    >
       {/* Top HUD */}
       <Show when={currentSpin()}>
         <HudDisplay spin={currentSpin()} />
@@ -20,7 +22,10 @@ export default function CenterPanel() {
 
       {/* Grid Area */}
       <div style="flex:1; display:flex; align-items:center; justify-content:center; position:relative; min-height:0; overflow:hidden;">
-        <div id="grid-main-wrapper" style="display:flex; flex-direction:column; align-items:center; gap:16px;">
+        <div
+          id="grid-main-wrapper"
+          style="display:flex; flex-direction:column; align-items:center; gap:16px;"
+        >
           <GameGrid />
         </div>
       </div>

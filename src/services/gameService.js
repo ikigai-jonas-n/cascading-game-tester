@@ -105,7 +105,9 @@ async function getDeployVersion() {
   try {
     const res = await fetch('/?t=' + Date.now(), { method: 'HEAD' });
     return res.headers.get('X-Worker-Version-Id');
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 export async function checkVersionOnLoad() {
@@ -113,7 +115,10 @@ export async function checkVersionOnLoad() {
   if (!serverVersion) return;
 
   const stored = localStorage.getItem('app_version');
-  if (!stored) { localStorage.setItem('app_version', serverVersion); return; }
+  if (!stored) {
+    localStorage.setItem('app_version', serverVersion);
+    return;
+  }
   if (stored !== serverVersion) {
     if (localStorage.getItem('skip_update') !== serverVersion) {
       pushToast({
@@ -154,7 +159,9 @@ export async function autoDetectBackend() {
         setApiUrl(url);
         console.log('Auto-detected local Backend URL:', url);
       }
-    } catch (e) { console.warn('Auto-detection failed:', e); }
+    } catch (e) {
+      console.warn('Auto-detection failed:', e);
+    }
   }
 }
 
@@ -186,13 +193,19 @@ export async function loadDefaultData(manual = false) {
 
   if (!manual) {
     const count = await getSpinCount();
-    if (count > 0) { localStorage.setItem('default_data_loaded', 'true'); return; }
+    if (count > 0) {
+      localStorage.setItem('default_data_loaded', 'true');
+      return;
+    }
   }
 
   showLoading('Loading default history...', 0);
   try {
     const resp = await fetch('/json_files/default_data.json');
-    if (!resp.ok) { hideLoading(); return; }
+    if (!resp.ok) {
+      hideLoading();
+      return;
+    }
 
     const firstData = await resp.json();
     const allHistory = firstData.h || [];
@@ -201,79 +214,98 @@ export async function loadDefaultData(manual = false) {
       setActiveFilters(firstData.f);
       localStorage.setItem('active_filters', JSON.stringify(firstData.f));
     }
-    if (firstData.o) { localStorage.setItem('sort_field', firstData.o); setSortField(firstData.o); }
+    if (firstData.o) {
+      localStorage.setItem('sort_field', firstData.o);
+      setSortField(firstData.o);
+    }
 
     if (allHistory.length > 0) {
       showLoading(`Importing ${allHistory.length} spins...`, 80);
-      const mapped = allHistory.map((entry, idx) => {
-        const r = entry.rawData || entry.r || entry;
-        if (!r || !r.step) return null;
+      const mapped = allHistory
+        .map((entry, idx) => {
+          const r = entry.rawData || entry.r || entry;
+          if (!r || !r.step) return null;
 
-        let spinType = 'basic';
-        const fields = [];
-        const fieldMetadata = [];
-        const playgroundStats = [];
-        let playgroundCounter = 0;
+          let spinType = 'basic';
+          const fields = [];
+          const fieldMetadata = [];
+          const playgroundStats = [];
+          let playgroundCounter = 0;
 
-        (r.step.gamePhases || []).forEach((phase) => {
-          if (phase.type === 'freeSpin') spinType = 'freeSpin';
-          let roundCounter = 0;
-          (phase.playgrounds || []).forEach((pg) => {
-            let pgTumbles = 0, pgCascades = 0;
-            (pg.fields || []).forEach((f) => {
-              fields.push(f);
-              fieldMetadata.push({ playgroundIndex: playgroundCounter, isFreeSpin: phase.type === 'freeSpin', roundIndex: roundCounter });
-              pgTumbles++;
-              if (parseInt(f.coins || 0) > 0) pgCascades++;
+          (r.step.gamePhases || []).forEach((phase) => {
+            if (phase.type === 'freeSpin') spinType = 'freeSpin';
+            let roundCounter = 0;
+            (phase.playgrounds || []).forEach((pg) => {
+              let pgTumbles = 0,
+                pgCascades = 0;
+              (pg.fields || []).forEach((f) => {
+                fields.push(f);
+                fieldMetadata.push({
+                  playgroundIndex: playgroundCounter,
+                  isFreeSpin: phase.type === 'freeSpin',
+                  roundIndex: roundCounter,
+                });
+                pgTumbles++;
+                if (parseInt(f.coins || 0) > 0) pgCascades++;
+              });
+              playgroundStats.push({
+                tumbleCount: pgTumbles,
+                cascadeCount: pgCascades,
+                headerText:
+                  phase.type === 'freeSpin' ? `FreeSpin #${roundCounter + 1}` : 'BaseSpin',
+              });
+              playgroundCounter++;
+              roundCounter++;
             });
-            playgroundStats.push({
-              tumbleCount: pgTumbles,
-              cascadeCount: pgCascades,
-              headerText: phase.type === 'freeSpin' ? `FreeSpin #${roundCounter + 1}` : 'BaseSpin',
-            });
-            playgroundCounter++;
-            roundCounter++;
           });
-        });
 
-        const summary = r.step.summary;
-        const metaPublic = r.meta?.public || r.step?.meta?.public || {};
-        const stats = getSpinStats(fields, game().wildSymbolId);
+          const summary = r.step.summary;
+          const metaPublic = r.meta?.public || r.step?.meta?.public || {};
+          const stats = getSpinStats(fields, game().wildSymbolId);
 
-        return {
-          num: entry.num || entry.n || idx + 1,
-          timestamp: entry.timestamp || entry.t || new Date().toISOString(),
-          gameId: entry.gameId || entry.g || game().id,
-          rawData: r,
-          isCheatTriggered: r.meta?.private?.isCheatTriggered === true,
-          fields, summary, fieldMetadata, playgroundStats,
-          isWin: parseInt(summary.coins || 0) > 0,
-          totalWin: summary.coins || 0,
-          tumbleCount: fields.length,
-          cascadeCount: fields.filter((f) => parseInt(f.coins || 0) > 0).length,
-          betAmount: metaPublic.betAmount || 0,
-          spinMode: metaPublic.spinMode || 'std',
-          spinType, playgroundCount: playgroundCounter,
-          roundTags: r.roundTags || r.step?.roundTags || [],
-          choices: r.choices || r.step?.choices || [],
-          bookmarked: entry.b || entry.bookmarked || false,
-          description: entry.desc || entry.description || null,
-          hasGolden: entry.hg || entry.hasGolden || false,
-          hasBaseSpin: entry.hbs || entry.hasBaseSpin || false,
-          hasFreeSpin: entry.hfs || entry.hasFreeSpin || false,
-          hasMaxWin: !!(summary.hasMaxWin || r.hasMaxWin),
-          goldenTransformed: stats.goldenTransformed,
-          maxMultiplier: stats.maxMultiplier,
-        };
-      }).filter(Boolean);
+          return {
+            num: entry.num || entry.n || idx + 1,
+            timestamp: entry.timestamp || entry.t || new Date().toISOString(),
+            gameId: entry.gameId || entry.g || game().id,
+            rawData: r,
+            isCheatTriggered: r.meta?.private?.isCheatTriggered === true,
+            fields,
+            summary,
+            fieldMetadata,
+            playgroundStats,
+            isWin: parseInt(summary.coins || 0) > 0,
+            totalWin: summary.coins || 0,
+            tumbleCount: fields.length,
+            cascadeCount: fields.filter((f) => parseInt(f.coins || 0) > 0).length,
+            betAmount: metaPublic.betAmount || 0,
+            spinMode: metaPublic.spinMode || 'std',
+            spinType,
+            playgroundCount: playgroundCounter,
+            roundTags: r.roundTags || r.step?.roundTags || [],
+            choices: r.choices || r.step?.choices || [],
+            bookmarked: entry.b || entry.bookmarked || false,
+            description: entry.desc || entry.description || null,
+            hasGolden: entry.hg || entry.hasGolden || false,
+            hasBaseSpin: entry.hbs || entry.hasBaseSpin || false,
+            hasFreeSpin: entry.hfs || entry.hasFreeSpin || false,
+            hasMaxWin: !!(summary.hasMaxWin || r.hasMaxWin),
+            goldenTransformed: stats.goldenTransformed,
+            maxMultiplier: stats.maxMultiplier,
+          };
+        })
+        .filter(Boolean);
 
       await saveAllSpins(mapped);
     }
 
     const s = firstData.s || {};
-    if (!s.activeGame) s.activeGame = firstData.s?.activeGame || localStorage.getItem('active_game_id');
+    if (!s.activeGame)
+      s.activeGame = firstData.s?.activeGame || localStorage.getItem('active_game_id');
     restoreSettingsFromImport(s, firstData.f);
-    if (firstData.o) { localStorage.setItem('sort_field', firstData.o); setSortField(firstData.o); }
+    if (firstData.o) {
+      localStorage.setItem('sort_field', firstData.o);
+      setSortField(firstData.o);
+    }
 
     localStorage.setItem('default_data_loaded', 'true');
     showLoading('Default history loaded!', 100);
@@ -294,18 +326,25 @@ export async function boot() {
   await migrateFromLocalStorage();
   await loadDefaultData();
 
+  // Ensure request body defaults to active game's default if not set
+  if (!localStorage.getItem('request_body')) {
+    const g = game();
+    if (g.defaultRequestBody) {
+      localStorage.setItem('request_body', JSON.stringify(g.defaultRequestBody, null, 2));
+    }
+  }
+
   const spins = await loadAllSpins(game().id, MAX_RAM_HISTORY);
   replaceHistory(spins);
   rebuildSortedList();
 
-  console.log(`Boot: Loaded ${spins.length} spins from IndexedDB.`);
+  console.log(`Boot: Loaded ${spins.length} spins from IndexedDB for game "${game().id}".`);
 
   await updateStorageStats();
 
-  const lastIdx = localStorage.getItem('last_spin_index');
-  const startIdx = lastIdx !== null && globalHistory[parseInt(lastIdx)] ? parseInt(lastIdx) : 0;
-
   if (globalHistory.length > 0) {
+    const lastIdx = localStorage.getItem('last_spin_index');
+    const startIdx = lastIdx !== null && globalHistory[parseInt(lastIdx)] ? parseInt(lastIdx) : 0;
     await loadSpin(startIdx);
   }
 
@@ -326,7 +365,9 @@ export async function clearCurrentGame() {
     setCurrentSpinIndex(-1);
     rebuildSortedList();
     await updateStorageStats();
-  } finally { hideLoading(); }
+  } finally {
+    hideLoading();
+  }
 }
 
 export async function clearAllHistory() {
@@ -337,7 +378,9 @@ export async function clearAllHistory() {
     setCurrentSpinIndex(-1);
     rebuildSortedList();
     await updateStorageStats();
-  } finally { hideLoading(); }
+  } finally {
+    hideLoading();
+  }
 }
 
 export async function clearFilteredHistory(filtered) {
@@ -350,11 +393,14 @@ export async function clearFilteredHistory(filtered) {
     setGlobalHistory((prev) => prev.filter((s) => !numsSet.has(s.num)));
     rebuildSortedList();
     await updateStorageStats();
-  } finally { hideLoading(); }
+  } finally {
+    hideLoading();
+  }
 }
 
 export async function clearAllDataAndReload(skipConfirm = false) {
-  if (!skipConfirm && !confirm('Are you sure you want to clear ALL data? This cannot be undone.')) return;
+  if (!skipConfirm && !confirm('Are you sure you want to clear ALL data? This cannot be undone.'))
+    return;
   showLoading('Clearing data and updating...');
   try {
     localStorage.clear();

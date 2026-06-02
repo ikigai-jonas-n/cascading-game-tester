@@ -36,7 +36,10 @@ export default function FilterBar() {
     <section aria-labelledby="filtersHeading">
       <div style="display:flex; align-items:center; gap:8px;">
         <h2 id="filtersHeading">Active Filters</h2>
-        <span id="filterCount" style="font-size:9px; color:var(--text-muted); font-family:monospace;">
+        <span
+          id="filterCount"
+          style="font-size:9px; color:var(--text-muted); font-family:monospace;"
+        >
           {activeFilters.length > 0 ? `${activeFilters.length} active` : ''}
         </span>
       </div>
@@ -61,7 +64,10 @@ export default function FilterBar() {
               }
 
               return (
-                <div class={`filter-chip ${af.disabled ? 'disabled' : ''}`} title="Click label to toggle, X to remove">
+                <div
+                  class={`filter-chip ${af.disabled ? 'disabled' : ''}`}
+                  title="Click label to toggle, X to remove"
+                >
                   <span
                     class="filter-chip-label"
                     role="button"
@@ -74,7 +80,9 @@ export default function FilterBar() {
                     <span
                       class="filter-chip-value editable"
                       title="Click to edit"
-                      onClick={() => {/* TODO: inline edit */}}
+                      onClick={() => {
+                        /* TODO: inline edit */
+                      }}
                     >
                       {displayValue}
                     </span>
@@ -98,7 +106,10 @@ export default function FilterBar() {
             id="addFilterBtn"
             class="btn-ghost"
             style="border-radius:20px; border-style:dashed;"
-            onClick={(e) => { e.stopPropagation(); setDropdownOpen((v) => !v); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setDropdownOpen((v) => !v);
+            }}
           >
             + Add Filter
           </button>
@@ -111,13 +122,11 @@ export default function FilterBar() {
             >
               <For each={FILTER_DEFS}>
                 {(def) => {
-                  const stackable = def.id === 'text' || def.id === 'winCondition' || def.id === 'hasSymbol';
+                  const stackable =
+                    def.id === 'text' || def.id === 'winCondition' || def.id === 'hasSymbol';
                   if (!stackable && activeFilters.some((af) => af.id === def.id)) return null;
                   return (
-                    <div
-                      class="dropdown-item"
-                      onClick={() => addFilter(def)}
-                    >
+                    <div class="dropdown-item" onClick={() => addFilter(def)}>
                       {def.label}
                     </div>
                   );
@@ -129,8 +138,13 @@ export default function FilterBar() {
       </div>
 
       {/* Sort Bar */}
-      <div class="sort-bar" style="display:flex; align-items:center; gap:8px; margin-top:8px; border-top:1px solid var(--border-color); padding-top:8px;">
-        <span class="sort-label" style="font-size:9px;">SORT:</span>
+      <div
+        class="sort-bar"
+        style="display:flex; align-items:center; gap:8px; margin-top:8px; border-top:1px solid var(--border-color); padding-top:8px;"
+      >
+        <span class="sort-label" style="font-size:9px;">
+          SORT:
+        </span>
         <select
           id="sortField"
           style="background:transparent; border:none; color:var(--text-muted); padding:0;"

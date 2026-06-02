@@ -45,7 +45,13 @@ export async function exportDataDirectFromDb(defaultFileName, exportMode, isMapp
         requestBody: localStorage.getItem('request_body') || '',
         activeGame: game().id,
       };
-      const v2 = { v: 2, f: activeFilters, o: localStorage.getItem('sort_field') || 'num_desc', s: settingsExport, h: [] };
+      const v2 = {
+        v: 2,
+        f: activeFilters,
+        o: localStorage.getItem('sort_field') || 'num_desc',
+        s: settingsExport,
+        h: [],
+      };
       header = JSON.stringify(v2).split('"h":[]')[0] + '"h":[';
       footer = ']}';
     }
@@ -63,7 +69,10 @@ export async function exportDataDirectFromDb(defaultFileName, exportMode, isMapp
         blobParts.push(header);
       }
     } catch (e) {
-      if (e.name === 'AbortError') { hideLoading(); return; }
+      if (e.name === 'AbortError') {
+        hideLoading();
+        return;
+      }
       useFileSystem = false;
       blobParts.push(header);
     }
@@ -84,7 +93,10 @@ export async function exportDataDirectFromDb(defaultFileName, exportMode, isMapp
 
       let chunkStr = '';
       if (isMapped) {
-        const mapped = decompressed.map((s) => ({ request: s.requestBody || {}, response: s.rawData || {} }));
+        const mapped = decompressed.map((s) => ({
+          request: s.requestBody || {},
+          response: s.rawData || {},
+        }));
         chunkStr = JSON.stringify(mapped).slice(1, -1);
       } else {
         chunkStr = JSON.stringify(decompressed.map(getOptimizedEntry)).slice(1, -1);
@@ -154,69 +166,88 @@ export function triggerImport(mode) {
       const chunkSize = 1000;
       for (let i = 0; i < importedRaw.length; i += chunkSize) {
         const percent = Math.round((i / importedRaw.length) * 100);
-        showLoading(`Processing ${Math.min(i + chunkSize, importedRaw.length)} / ${importedRaw.length}...`, percent);
-        const chunk = importedRaw.slice(i, i + chunkSize).map((item) => {
-          const r = item.response || item.rawData || item.r || item;
-          if (!r || !r.step) return null;
+        showLoading(
+          `Processing ${Math.min(i + chunkSize, importedRaw.length)} / ${importedRaw.length}...`,
+          percent,
+        );
+        const chunk = importedRaw
+          .slice(i, i + chunkSize)
+          .map((item) => {
+            const r = item.response || item.rawData || item.r || item;
+            if (!r || !r.step) return null;
 
-          let spinType = 'basic';
-          const fields = [], fieldMetadata = [], playgroundStats = [];
-          let playgroundCounter = 0;
+            let spinType = 'basic';
+            const fields = [],
+              fieldMetadata = [],
+              playgroundStats = [];
+            let playgroundCounter = 0;
 
-          (r.step?.gamePhases || []).forEach((phase) => {
-            if (phase.type === 'freeSpin') spinType = 'freeSpin';
-            let roundCounter = 0;
-            (phase.playgrounds || []).forEach((pg) => {
-              let pgTumbles = 0, pgCascades = 0;
-              (pg.fields || []).forEach((f) => {
-                fields.push(f);
-                fieldMetadata.push({ playgroundIndex: playgroundCounter, isFreeSpin: phase.type === 'freeSpin', roundIndex: roundCounter });
-                pgTumbles++;
-                if (parseFloat(f.coins || 0) > 0) pgCascades++;
+            (r.step?.gamePhases || []).forEach((phase) => {
+              if (phase.type === 'freeSpin') spinType = 'freeSpin';
+              let roundCounter = 0;
+              (phase.playgrounds || []).forEach((pg) => {
+                let pgTumbles = 0,
+                  pgCascades = 0;
+                (pg.fields || []).forEach((f) => {
+                  fields.push(f);
+                  fieldMetadata.push({
+                    playgroundIndex: playgroundCounter,
+                    isFreeSpin: phase.type === 'freeSpin',
+                    roundIndex: roundCounter,
+                  });
+                  pgTumbles++;
+                  if (parseFloat(f.coins || 0) > 0) pgCascades++;
+                });
+                playgroundStats.push({
+                  tumbleCount: pgTumbles,
+                  cascadeCount: pgCascades,
+                  headerText:
+                    phase.type === 'freeSpin' ? `FreeSpin #${roundCounter + 1}` : 'BaseSpin',
+                });
+                playgroundCounter++;
+                roundCounter++;
               });
-              playgroundStats.push({
-                tumbleCount: pgTumbles, cascadeCount: pgCascades,
-                headerText: phase.type === 'freeSpin' ? `FreeSpin #${roundCounter + 1}` : 'BaseSpin',
-              });
-              playgroundCounter++;
-              roundCounter++;
             });
-          });
 
-          const summary = r.step.summary;
-          const ts = item.timestamp || item.t || new Date().toISOString();
-          const metaPublic = r.meta?.public || r.step?.meta?.public || {};
-          const stats = getSpinStats(fields, game().wildSymbolId);
+            const summary = r.step.summary;
+            const ts = item.timestamp || item.t || new Date().toISOString();
+            const metaPublic = r.meta?.public || r.step?.meta?.public || {};
+            const stats = getSpinStats(fields, game().wildSymbolId);
 
-          return {
-            finger: `${ts}_${summary.coins}_${fields.length}`,
-            data: {
-              num: item.num || item.n || undefined,
-              timestamp: ts,
-              gameId: item.gameId || item.g || game().id,
-              rawData: r,
-              isCheatTriggered: r.meta?.private?.isCheatTriggered === true,
-              fields, summary, fieldMetadata, playgroundStats,
-              isWin: item.isWin !== undefined ? item.isWin : parseInt(summary.coins || 0) > 0,
-              totalWin: item.totalWin !== undefined ? item.totalWin : summary.coins || 0,
-              tumbleCount: fields.length,
-              cascadeCount: fields.filter((f) => parseInt(f.coins || 0) > 0).length,
-              betAmount: metaPublic.betAmount || 0,
-              spinMode: metaPublic.spinMode || 'std',
-              spinType, playgroundCount: playgroundCounter,
-              roundTags: r.roundTags || r.step?.roundTags || [],
-              choices: r.choices || r.step?.choices || [],
-              hasMaxWin: !!(summary.hasMaxWin || r.hasMaxWin),
-              goldenTransformed: stats.goldenTransformed,
-              maxMultiplier: stats.maxMultiplier,
-              bookmarked: item.b || item.bookmarked || false,
-              description: item.desc || item.description || null,
-              hasGolden: item.hg || item.hasGolden || false,
-              hasBaseSpin: item.hbs || item.hasBaseSpin || false,
-              hasFreeSpin: item.hfs || item.hasFreeSpin || false,
-            },
-          };
-        }).filter(Boolean);
+            return {
+              finger: `${ts}_${summary.coins}_${fields.length}`,
+              data: {
+                num: item.num || item.n || undefined,
+                timestamp: ts,
+                gameId: item.gameId || item.g || game().id,
+                rawData: r,
+                isCheatTriggered: r.meta?.private?.isCheatTriggered === true,
+                fields,
+                summary,
+                fieldMetadata,
+                playgroundStats,
+                isWin: item.isWin !== undefined ? item.isWin : parseInt(summary.coins || 0) > 0,
+                totalWin: item.totalWin !== undefined ? item.totalWin : summary.coins || 0,
+                tumbleCount: fields.length,
+                cascadeCount: fields.filter((f) => parseInt(f.coins || 0) > 0).length,
+                betAmount: metaPublic.betAmount || 0,
+                spinMode: metaPublic.spinMode || 'std',
+                spinType,
+                playgroundCount: playgroundCounter,
+                roundTags: r.roundTags || r.step?.roundTags || [],
+                choices: r.choices || r.step?.choices || [],
+                hasMaxWin: !!(summary.hasMaxWin || r.hasMaxWin),
+                goldenTransformed: stats.goldenTransformed,
+                maxMultiplier: stats.maxMultiplier,
+                bookmarked: item.b || item.bookmarked || false,
+                description: item.desc || item.description || null,
+                hasGolden: item.hg || item.hasGolden || false,
+                hasBaseSpin: item.hbs || item.hasBaseSpin || false,
+                hasFreeSpin: item.hfs || item.hasFreeSpin || false,
+              },
+            };
+          })
+          .filter(Boolean);
         restored.push(...chunk);
         await new Promise((r) => setTimeout(r, 0));
       }

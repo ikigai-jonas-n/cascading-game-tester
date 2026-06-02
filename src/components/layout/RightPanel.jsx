@@ -33,7 +33,9 @@ export default function RightPanel() {
 
       <div style="padding: 16px; display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--border-color);">
         <span style="font-size:12px;">📋</span>
-        <span style="font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:1px; color:var(--text-primary);">JSON AUDIT</span>
+        <span style="font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:1px; color:var(--text-primary);">
+          JSON AUDIT
+        </span>
       </div>
 
       <RawDrawer />

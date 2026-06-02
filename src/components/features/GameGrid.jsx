@@ -22,7 +22,15 @@ function computeCells(symbolList, payouts, goldenSet, g) {
     for (let c = 0; c < cols; c++) {
       const idx = c * rows + r;
       const id = symbolList[idx];
-      cells.push({ id, idx, r, c, isWin: winPos.has(idx), isEmpty: id === g.emptySymbolId || id === null, isGolden: golden.has(idx) });
+      cells.push({
+        id,
+        idx,
+        r,
+        c,
+        isWin: winPos.has(idx),
+        isEmpty: id === g.emptySymbolId || id === null,
+        isGolden: golden.has(idx),
+      });
     }
   }
   return cells;
@@ -39,7 +47,9 @@ function GridSubPanel({ symbolList, payouts, goldenSet, label, labelId }) {
   return (
     <div class="grid-sub-container" id={labelId}>
       <Show when={label}>
-        <div id="grid-final-label" class="grid-sub-label">{label}</div>
+        <div id="grid-final-label" class="grid-sub-label">
+          {label}
+        </div>
       </Show>
       <div class="grid-inner" style={gridStyle()}>
         <For each={cells()}>{(cell) => <GridCell {...cell} />}</For>
@@ -74,33 +84,49 @@ export default function GameGrid() {
   const growPayouts = createMemo(() => {
     const f = field();
     if (!f) return [];
-    const isGrow = phase() === 'final' && !isSettleField(f) && (f.symbols?.payouts || []).length > 0;
+    const isGrow =
+      phase() === 'final' && !isSettleField(f) && (f.symbols?.payouts || []).length > 0;
     if (!isGrow) return [];
     return f.symbols.payouts || [];
   });
 
   return (
     <div class="grid-area">
-      <Show when={field()} fallback={
-        <GridSubPanel
-          symbolList={emptyGrid}
-          payouts={() => []}
-          goldenSet={() => new Set()}
-          label={null}
-          labelId="grid-container-final"
-        />
-      }>
+      <Show
+        when={field()}
+        fallback={
+          <GridSubPanel
+            symbolList={emptyGrid}
+            payouts={() => []}
+            goldenSet={() => new Set()}
+            label={null}
+            labelId="grid-container-final"
+          />
+        }
+      >
         <Show
-          when={showDouble() && initialSymbols().length && finalSymbols().length && !initialSymbols().every((v, i) => v === finalSymbols()[i])}
+          when={
+            showDouble() &&
+            initialSymbols().length &&
+            finalSymbols().length &&
+            !initialSymbols().every((v, i) => v === finalSymbols()[i])
+          }
           fallback={
             <div id="grid-container-final" class="grid-sub-container">
-              <div class="grid-inner" style={`display:grid; grid-template-columns:repeat(${g().grid.cols},76px); gap:8px;`}>
-                <For each={createMemo(() => {
-                  const syms = phase() === 'initial' ? initialSymbols() : finalSymbols();
-                  const pays = phase() === 'initial' ? payouts() : [];
-                  const golden = phase() === 'initial' ? goldenInitial() : goldenFinal();
-                  return computeCells(syms, pays, golden, g());
-                })()}>{(cell) => <GridCell {...cell} />}</For>
+              <div
+                class="grid-inner"
+                style={`display:grid; grid-template-columns:repeat(${g().grid.cols},76px); gap:8px;`}
+              >
+                <For
+                  each={createMemo(() => {
+                    const syms = phase() === 'initial' ? initialSymbols() : finalSymbols();
+                    const pays = phase() === 'initial' ? payouts() : [];
+                    const golden = phase() === 'initial' ? goldenInitial() : goldenFinal();
+                    return computeCells(syms, pays, golden, g());
+                  })()}
+                >
+                  {(cell) => <GridCell {...cell} />}
+                </For>
               </div>
             </div>
           }
@@ -108,15 +134,27 @@ export default function GameGrid() {
           {/* Double-grid: initial left, final right */}
           <div id="grid-container-initial" class="grid-sub-container">
             <div class="grid-sub-label">INITIAL</div>
-            <div class="grid-inner" style={`display:grid; grid-template-columns:repeat(${g().grid.cols},76px); gap:8px;`}>
-              <For each={createMemo(() => computeCells(initialSymbols(), payouts(), goldenInitial(), g()))()}>
+            <div
+              class="grid-inner"
+              style={`display:grid; grid-template-columns:repeat(${g().grid.cols},76px); gap:8px;`}
+            >
+              <For
+                each={createMemo(() =>
+                  computeCells(initialSymbols(), payouts(), goldenInitial(), g()),
+                )()}
+              >
                 {(cell) => <GridCell {...cell} />}
               </For>
             </div>
           </div>
           <div id="grid-container-final" class="grid-sub-container">
-            <div id="grid-final-label" class="grid-sub-label">FINAL</div>
-            <div class="grid-inner" style={`display:grid; grid-template-columns:repeat(${g().grid.cols},76px); gap:8px;`}>
+            <div id="grid-final-label" class="grid-sub-label">
+              FINAL
+            </div>
+            <div
+              class="grid-inner"
+              style={`display:grid; grid-template-columns:repeat(${g().grid.cols},76px); gap:8px;`}
+            >
               <For each={createMemo(() => computeCells(finalSymbols(), [], goldenFinal(), g()))()}>
                 {(cell) => <GridCell {...cell} />}
               </For>
@@ -151,7 +189,7 @@ function GridCell(props) {
     return props.isEmpty ? '#ffffff05' : '#ffffff10';
   };
 
-  const shadow = () => props.isGolden ? '0 0 15px rgba(251, 191, 36, 0.3)' : 'none';
+  const shadow = () => (props.isGolden ? '0 0 15px rgba(251, 191, 36, 0.3)' : 'none');
 
   const nameStr = () => {
     const s = sym();
@@ -193,11 +231,15 @@ function GridCell(props) {
       onMouseOver={onMouseOver}
       onMouseOut={onMouseOut}
     >
-      <div style={`font-size:2.2em; line-height:1; transform:${props.isEmpty ? 'scale(0.5)' : 'scale(1)'}; transition:transform 0.3s;`}>
+      <div
+        style={`font-size:2.2em; line-height:1; transform:${props.isEmpty ? 'scale(0.5)' : 'scale(1)'}; transition:transform 0.3s;`}
+      >
         {emojiStr() || (props.isEmpty ? '' : props.id)}
       </div>
       <Show when={!props.isEmpty}>
-        <div style={`font-size:8px; color:${props.isGolden ? '#fbbf24' : colorStr()}; font-weight:800; margin-top:4px; letter-spacing:0.5px; opacity:0.6;`}>
+        <div
+          style={`font-size:8px; color:${props.isGolden ? '#fbbf24' : colorStr()}; font-weight:800; margin-top:4px; letter-spacing:0.5px; opacity:0.6;`}
+        >
           {nameStr()}
         </div>
       </Show>
@@ -211,25 +253,28 @@ function GrowPayoutOverlay({ payouts }) {
 
   return (
     <div id="growPayoutOverlay" style="margin-top:8px; font-size:10px; color:#aaa;">
-      <For each={payouts}>{(p) => {
-        const sid = p.symbolId !== undefined ? p.symbolId : p.symbol !== undefined ? p.symbol : p.id;
-        const name = sym()[sid] || String(sid);
-        const emoji = emo()[sid] || '';
-        const count = p.oak || p.count || 0;
-        const rawWin = parseFloat(p.coins || 0);
-        return (
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
-            <span style="display:flex; align-items:center; gap:4px; white-space:nowrap;">
-              <span>{emoji}</span>
-              <b>{name}</b>
-            </span>
-            <span style="white-space:nowrap; text-align:right;">
-              <span style="color:#aaa;">×{count} → </span>
-              <span style="color:#4ade80;">{rawWin}</span>
-            </span>
-          </div>
-        );
-      }}</For>
+      <For each={payouts}>
+        {(p) => {
+          const sid =
+            p.symbolId !== undefined ? p.symbolId : p.symbol !== undefined ? p.symbol : p.id;
+          const name = sym()[sid] || String(sid);
+          const emoji = emo()[sid] || '';
+          const count = p.oak || p.count || 0;
+          const rawWin = parseFloat(p.coins || 0);
+          return (
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+              <span style="display:flex; align-items:center; gap:4px; white-space:nowrap;">
+                <span>{emoji}</span>
+                <b>{name}</b>
+              </span>
+              <span style="white-space:nowrap; text-align:right;">
+                <span style="color:#aaa;">×{count} → </span>
+                <span style="color:#4ade80;">{rawWin}</span>
+              </span>
+            </div>
+          );
+        }}
+      </For>
     </div>
   );
 }

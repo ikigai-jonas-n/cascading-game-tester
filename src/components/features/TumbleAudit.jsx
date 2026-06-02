@@ -16,7 +16,9 @@ export default function TumbleAudit(props) {
     return spin()._showAllTumbles ? all : all.slice(0, RENDER_LIMIT);
   });
 
-  const hasMore = createMemo(() => (spin().fields?.length || 0) > RENDER_LIMIT && !spin()._showAllTumbles);
+  const hasMore = createMemo(
+    () => (spin().fields?.length || 0) > RENDER_LIMIT && !spin()._showAllTumbles,
+  );
 
   // Group fields by playground
   const rounds = createMemo(() => {
@@ -35,7 +37,11 @@ export default function TumbleAudit(props) {
         const s = stats[pgIdx];
         currentGroup = {
           pgIdx,
-          headerText: s ? s.headerText : (meta.isFreeSpin ? `FreeSpin #${(meta.roundIndex || 0) + 1}` : 'BaseSpin'),
+          headerText: s
+            ? s.headerText
+            : meta.isFreeSpin
+              ? `FreeSpin #${(meta.roundIndex || 0) + 1}`
+              : 'BaseSpin',
           statsText: s ? `(${s.tumbleCount} Tumbles, ${s.cascadeCount} Cascades)` : '',
           tumbles: [],
         };
@@ -63,11 +69,15 @@ export default function TumbleAudit(props) {
 
   return (
     <div style="margin-top:10px;">
-      <div style="font-size:9px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom:6px;">Tumble Audit</div>
+      <div style="font-size:9px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom:6px;">
+        Tumble Audit
+      </div>
 
       <For each={rounds()}>
         {(round) => {
-          const firstTumbleIdx = (spin().fieldMetadata || []).findIndex((m) => m.playgroundIndex === round.pgIdx);
+          const firstTumbleIdx = (spin().fieldMetadata || []).findIndex(
+            (m) => m.playgroundIndex === round.pgIdx,
+          );
           return (
             <div>
               <div
@@ -78,16 +88,28 @@ export default function TumbleAudit(props) {
               >
                 <span>{round.headerText}</span>
                 <Show when={round.statsText}>
-                  <span style="font-size:9px; opacity:0.7; font-weight:normal; margin-left:auto; margin-right:12px;">{round.statsText}</span>
+                  <span style="font-size:9px; opacity:0.7; font-weight:normal; margin-left:auto; margin-right:12px;">
+                    {round.statsText}
+                  </span>
                 </Show>
-                <span class="round-toggle-icon" style={`transition:transform 0.2s; transform:${isExpanded(round.pgIdx) ? 'rotate(180deg)' : 'rotate(0deg)'}`}>▼</span>
+                <span
+                  class="round-toggle-icon"
+                  style={`transition:transform 0.2s; transform:${isExpanded(round.pgIdx) ? 'rotate(180deg)' : 'rotate(0deg)'}`}
+                >
+                  ▼
+                </span>
               </div>
 
               <Show when={isExpanded(round.pgIdx)}>
                 <div class="round-content">
                   <For each={round.tumbles}>
                     {({ f, tIdx, localIdx }) => (
-                      <TumbleRow f={f} tIdx={tIdx} localIdx={localIdx} isCurrent={tIdx === currentIdx()} />
+                      <TumbleRow
+                        f={f}
+                        tIdx={tIdx}
+                        localIdx={localIdx}
+                        isCurrent={tIdx === currentIdx()}
+                      />
                     )}
                   </For>
                 </div>
@@ -101,9 +123,12 @@ export default function TumbleAudit(props) {
         <button
           class="btn-ghost load-more-tumbles-btn"
           style="width:100%; margin-top:8px; padding:8px; font-size:10px; border:1px dashed var(--border-color); color:var(--text-muted);"
-          onClick={() => { props.spin._showAllTumbles = true; }}
+          onClick={() => {
+            props.spin._showAllTumbles = true;
+          }}
         >
-          ⚠️ {(props.spin.fields?.length || 0) - RENDER_LIMIT} More Tumbles Hidden. Click to load all (May lag UI)
+          ⚠️ {(props.spin.fields?.length || 0) - RENDER_LIMIT} More Tumbles Hidden. Click to load
+          all (May lag UI)
         </button>
       </Show>
     </div>
@@ -141,8 +166,8 @@ function TumbleRow(props) {
     return tally;
   });
 
-  const winningWildCount = createMemo(() =>
-    initialSyms().filter((id, pos) => id === wildId() && payoutPositions().has(pos)).length,
+  const winningWildCount = createMemo(
+    () => initialSyms().filter((id, pos) => id === wildId() && payoutPositions().has(pos)).length,
   );
 
   return (
@@ -151,17 +176,29 @@ function TumbleRow(props) {
       class={`glass ${props.isCurrent ? 'active-tumble-item' : ''}`}
       style={`padding:8px; border-radius:8px; background:${props.isCurrent ? 'rgba(34,197,94,0.12)' : 'transparent'}; border:1px solid ${props.isCurrent ? 'rgba(34,197,94,0.4)' : 'transparent'}; cursor:pointer; margin-top:4px;`}
       aria-pressed={props.isCurrent}
-      onClick={(e) => { e.stopPropagation(); selectTumble(props.tIdx, 'initial'); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        selectTumble(props.tIdx, 'initial');
+      }}
     >
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <span class="step-label" style={`font-weight:${props.isCurrent ? '900' : '700'}; color:${props.isCurrent ? '#fff' : 'var(--text-muted)'}; font-size:10px;`}>
+        <span
+          class="step-label"
+          style={`font-weight:${props.isCurrent ? '900' : '700'}; color:${props.isCurrent ? '#fff' : 'var(--text-muted)'}; font-size:10px;`}
+        >
           TUMBLE {props.localIdx}
         </span>
         <div style="display:flex; align-items:center; gap:8px;">
           <div style="display:flex; flex-direction:column; align-items:flex-end; line-height:1.1;">
-            <span style={`color:${isWinStep() ? 'var(--success)' : 'var(--text-muted)'}; font-size:10px; font-weight:800;`}>+{effectiveWin()}</span>
+            <span
+              style={`color:${isWinStep() ? 'var(--success)' : 'var(--text-muted)'}; font-size:10px; font-weight:800;`}
+            >
+              +{effectiveWin()}
+            </span>
           </div>
-          <span style="color:var(--bg-accent); font-size:11px; font-weight:800;">{props.f.features?.cumulativeMultiplier || 1}x</span>
+          <span style="color:var(--bg-accent); font-size:11px; font-weight:800;">
+            {props.f.features?.cumulativeMultiplier || 1}x
+          </span>
         </div>
       </div>
 
@@ -172,10 +209,14 @@ function TumbleRow(props) {
             {([sid, count]) => (
               <div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0;">
                 <div style="display:flex; align-items:center; gap:6px;">
-                  <span style="color:#fbbf24; font-weight:800; font-size:10px; font-family:monospace;">{sym()[sid] || sid}</span>
+                  <span style="color:#fbbf24; font-weight:800; font-size:10px; font-family:monospace;">
+                    {sym()[sid] || sid}
+                  </span>
                   <span style="font-size:10px;">{emo()[sid] || ''} (GOLDEN 🟡)</span>
                 </div>
-                <div style="font-size:10px; color:var(--text-muted); font-weight:800;">x{count}</div>
+                <div style="font-size:10px; color:var(--text-muted); font-weight:800;">
+                  x{count}
+                </div>
               </div>
             )}
           </For>
@@ -183,29 +224,44 @@ function TumbleRow(props) {
           <Show when={winningWildCount() > 0}>
             <div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0;">
               <div style="display:flex; align-items:center; gap:6px;">
-                <span style="color:var(--bg-accent); font-weight:800; font-size:10px; font-family:monospace;">WILD</span>
+                <span style="color:var(--bg-accent); font-weight:800; font-size:10px; font-family:monospace;">
+                  WILD
+                </span>
                 <span style="font-size:10px;">{emo()[wildId()] || ''}</span>
               </div>
-              <div style="font-size:10px; color:var(--text-muted); font-weight:800;">x{winningWildCount()}</div>
+              <div style="font-size:10px; color:var(--text-muted); font-weight:800;">
+                x{winningWildCount()}
+              </div>
             </div>
           </Show>
 
           <For each={props.f.symbols.payouts || []}>
             {(p) => {
-              const sid = p.symbolId !== undefined ? p.symbolId : p.symbol !== undefined ? p.symbol : p.id;
+              const sid =
+                p.symbolId !== undefined ? p.symbolId : p.symbol !== undefined ? p.symbol : p.id;
               const name = sym()[sid] || sid;
               const emoji = emo()[sid] || '';
               const color = g().colors?.[sid] || '#fff';
-              const coins = isSettleField(props.f) ? parseFloat(p.coins || 0) * (props.f.features?.cumulativeMultiplier || 1) : parseFloat(p.coins || 0);
+              const coins = isSettleField(props.f)
+                ? parseFloat(p.coins || 0) * (props.f.features?.cumulativeMultiplier || 1)
+                : parseFloat(p.coins || 0);
               return (
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0;">
                   <div style="display:flex; align-items:center; gap:6px;">
-                    <span style={`color:${color}; font-weight:800; font-size:10px; font-family:monospace;`}>{name}</span>
+                    <span
+                      style={`color:${color}; font-weight:800; font-size:10px; font-family:monospace;`}
+                    >
+                      {name}
+                    </span>
                     <span style="font-size:10px;">{emoji}</span>
                   </div>
                   <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="color:var(--text-muted); font-size:10px;">x{p.oak || p.count || 0}</span>
-                    <span style="color:var(--success); font-weight:800; font-size:10px;">+{parseFloat(coins.toFixed(2))}</span>
+                    <span style="color:var(--text-muted); font-size:10px;">
+                      x{p.oak || p.count || 0}
+                    </span>
+                    <span style="color:var(--success); font-weight:800; font-size:10px;">
+                      +{parseFloat(coins.toFixed(2))}
+                    </span>
                   </div>
                 </div>
               );

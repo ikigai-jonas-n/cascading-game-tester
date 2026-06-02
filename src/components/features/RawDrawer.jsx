@@ -35,7 +35,8 @@ export default function RawDrawer() {
                 onClick={() => {
                   selectDrawerTab(i());
                   if (tab.label === 'INITIAL[]') selectTumble(gameState.currentIndex, 'initial');
-                  if (tab.label === 'FINAL[]' || tab.label === 'DIFF') selectTumble(gameState.currentIndex, 'final');
+                  if (tab.label === 'FINAL[]' || tab.label === 'DIFF')
+                    selectTumble(gameState.currentIndex, 'final');
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'ArrowRight') {
@@ -103,7 +104,14 @@ function TabContent({ tab }) {
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           const i = c * rows + r;
-          cells.push({ i, r, c, val: finalArr[i], changed: isDiff && initialArr && initialArr[i] !== finalArr[i], prevVal: isDiff && initialArr ? initialArr[i] : undefined });
+          cells.push({
+            i,
+            r,
+            c,
+            val: finalArr[i],
+            changed: isDiff && initialArr && initialArr[i] !== finalArr[i],
+            prevVal: isDiff && initialArr ? initialArr[i] : undefined,
+          });
         }
       }
 
@@ -112,9 +120,14 @@ function TabContent({ tab }) {
           <div class="audit-matrix" style="user-select:none; -webkit-user-select:none;">
             <For each={cells}>
               {(cell) => (
-                <div class={`audit-matrix-cell ${cell.changed ? 'changed' : ''}`} title={`idx:${cell.i} r${cell.r} c${cell.c}`}>
+                <div
+                  class={`audit-matrix-cell ${cell.changed ? 'changed' : ''}`}
+                  title={`idx:${cell.i} r${cell.r} c${cell.c}`}
+                >
                   <Show when={cell.changed} fallback={cell.val}>
-                    <span style="font-size:7px; opacity:0.6; text-decoration:line-through;">{cell.prevVal}</span>
+                    <span style="font-size:7px; opacity:0.6; text-decoration:line-through;">
+                      {cell.prevVal}
+                    </span>
                     <br />
                     {cell.val}
                   </Show>
@@ -122,7 +135,9 @@ function TabContent({ tab }) {
               )}
             </For>
           </div>
-          <div style="font-size:9px; color:#888; margin-bottom:6px; user-select:none;">RAW DATA (COPY-PASTEABLE):</div>
+          <div style="font-size:9px; color:#888; margin-bottom:6px; user-select:none;">
+            RAW DATA (COPY-PASTEABLE):
+          </div>
           <pre style="margin:0; font-size:10px; white-space:pre-wrap; color:#ccc;" tabIndex={0}>
             {JSON.stringify(finalArr, null, 2)}
           </pre>
@@ -144,11 +159,18 @@ function TabContent({ tab }) {
               const parts = line.split(', ');
               return (
                 <div style="padding-left:20px; white-space:pre; color:#4ade80; font-weight:bold;">
-                  {parts[0]}{comma} <span style="color:#444; font-weight:normal; font-size:0.9em;">{parts[1]}</span>
+                  {parts[0]}
+                  {comma}{' '}
+                  <span style="color:#444; font-weight:normal; font-size:0.9em;">{parts[1]}</span>
                 </div>
               );
             }
-            return <div style="padding-left:20px; white-space:pre; color:#9cdcfe;">{line}{comma}</div>;
+            return (
+              <div style="padding-left:20px; white-space:pre; color:#9cdcfe;">
+                {line}
+                {comma}
+              </div>
+            );
           }}
         </For>
         <div style="color:#888;">]</div>

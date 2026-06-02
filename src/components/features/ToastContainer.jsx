@@ -5,9 +5,7 @@ import { clearAllDataAndReload } from '../../services/gameService.js';
 export default function ToastContainer() {
   return (
     <div style="position:fixed; top:16px; right:16px; z-index:9999; display:flex; flex-direction:column; gap:8px; max-width:360px;">
-      <For each={toasts}>
-        {(toast) => <Toast toast={toast} />}
-      </For>
+      <For each={toasts}>{(toast) => <Toast toast={toast} />}</For>
     </div>
   );
 }
@@ -17,7 +15,9 @@ function Toast({ toast }) {
     return (
       <div class="update-toast">
         <div style="display:flex; flex-direction:column; gap:2px;">
-          <div style="font-size:11px; font-weight:900; color:var(--bg-accent); text-transform:uppercase; letter-spacing:1px;">New Version Available</div>
+          <div style="font-size:11px; font-weight:900; color:var(--bg-accent); text-transform:uppercase; letter-spacing:1px;">
+            New Version Available
+          </div>
           <div style="font-size:10px; color:#fff; opacity:0.8;">{toast.message}</div>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
@@ -50,7 +50,9 @@ function Toast({ toast }) {
       style="border-color:var(--error); background:rgba(244,63,94,0.15);"
     >
       <div style="display:flex; flex-direction:column; gap:4px;">
-        <div style="font-size:12px; font-weight:900; color:var(--error); text-transform:uppercase;">🚨 {toast.title}</div>
+        <div style="font-size:12px; font-weight:900; color:var(--error); text-transform:uppercase;">
+          🚨 {toast.title}
+        </div>
         <div style="font-size:11px; color:#fff; font-family:monospace;">{toast.message}</div>
       </div>
       <button

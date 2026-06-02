@@ -60,10 +60,7 @@ export function prependSpins(newSpins) {
 
 /** Mutate a single spin in-place (e.g. bookmark, description) */
 export function updateSpin(num, patch) {
-  setGlobalHistory(
-    (s) => s.num === num,
-    patch,
-  );
+  setGlobalHistory((s) => s.num === num, patch);
 }
 
 /** Remove spins by num set */

@@ -5,11 +5,7 @@
  * Reads from stores for config; writes back results via store setters.
  * Zero DOM access — pure data + side-effect coordination.
  */
-import {
-  saveSpin,
-  saveAllSpins,
-  getNextSpinNum,
-} from '../db.js';
+import { saveSpin, saveAllSpins, getNextSpinNum } from '../db.js';
 import { game } from '../store/gameStore.js';
 import {
   gameState,
@@ -52,7 +48,10 @@ import { openRawDrawer, updatePlaybackLabels, syncPlaybackUI } from './drawerSer
 
 export function parseSmartNumber(val) {
   if (!val) return 0;
-  const match = String(val).toLowerCase().trim().match(/^(\d+\.?\d*)([km]?)$/);
+  const match = String(val)
+    .toLowerCase()
+    .trim()
+    .match(/^(\d+\.?\d*)([km]?)$/);
   if (!match) return parseInt(val) || 0;
   const num = parseFloat(match[1]);
   if (match[2] === 'k') return Math.floor(num * 1000);
@@ -137,14 +136,23 @@ function extractFields(data) {
     });
   });
 
-  return { fields, fieldMetadata, playgroundStats, hasBaseSpin, hasFreeSpin, playgroundCount: playgroundCounter };
+  return {
+    fields,
+    fieldMetadata,
+    playgroundStats,
+    hasBaseSpin,
+    hasFreeSpin,
+    playgroundCount: playgroundCounter,
+  };
 }
 
 function getMappedRequest(config) {
   const cheatRaw = localStorage.getItem('test_config');
   let testConfig = null;
   if (cheatRaw) {
-    try { testConfig = JSON.parse(cheatRaw); } catch (e) {}
+    try {
+      testConfig = JSON.parse(cheatRaw);
+    } catch (e) {}
   }
   return {
     play: { ...config, gameCode: game().gameCode, id: playerId() },
@@ -183,7 +191,8 @@ export async function fireSpinRequest(config, isInteractive = false) {
     });
     const json = await response.json();
     if (!response.ok || json.error) {
-      const msg = json.error?.message || json.message || response.statusText || 'Unknown Server Error';
+      const msg =
+        json.error?.message || json.message || response.statusText || 'Unknown Server Error';
       pushToast({ type: 'error', title: 'API Error', message: `[${response.status}]: ${msg}` });
       throw new Error(`API Error: ${msg}`);
     }
@@ -195,7 +204,8 @@ export async function fireSpinRequest(config, isInteractive = false) {
 
   if (data.finished === false && data.choices && data.choices.length > 0) {
     let allPhases = [...(data.step?.gamePhases || [])];
-    const baseSpinPhases = data.step?.gamePhases ?? data.roundEvents?.playResult?.step?.gamePhases ?? [];
+    const baseSpinPhases =
+      data.step?.gamePhases ?? data.roundEvents?.playResult?.step?.gamePhases ?? [];
     const hasTriggerFreeSpin = baseSpinPhases.some((phase) =>
       (phase.playgrounds ?? []).some((pg) =>
         (pg.fields ?? []).some((field) => field.features?.triggerFreeSpin === true),
@@ -216,7 +226,10 @@ export async function fireSpinRequest(config, isInteractive = false) {
 
       let nextBody = { ...reqBody, choice: nextChoice };
       if (isFirstChain && baseGameWin !== null) {
-        nextBody = { ...nextBody, meta: { ...nextBody.meta, private: { ...nextBody.meta?.private, baseGameWin } } };
+        nextBody = {
+          ...nextBody,
+          meta: { ...nextBody.meta, private: { ...nextBody.meta?.private, baseGameWin } },
+        };
       }
       isFirstChain = false;
 
@@ -231,7 +244,8 @@ export async function fireSpinRequest(config, isInteractive = false) {
 }
 
 function buildSpinEntry(data, num, description = null) {
-  const { fields, fieldMetadata, playgroundStats, hasBaseSpin, hasFreeSpin, playgroundCount } = extractFields(data);
+  const { fields, fieldMetadata, playgroundStats, hasBaseSpin, hasFreeSpin, playgroundCount } =
+    extractFields(data);
   const summary = data.step.summary;
   const metaPublic = data.meta?.public || data.step?.meta?.public || {};
   const config = JSON.parse(localStorage.getItem('request_body') || '{}');
@@ -299,10 +313,13 @@ export async function loadSpin(historyIndex) {
   });
 
   let acc = 0;
-  setGameState('accumulatedWins', spin.fields.map((f) => {
-    acc += isSettleField(f) ? getFieldEffectiveWin(f) : 0;
-    return acc;
-  }));
+  setGameState(
+    'accumulatedWins',
+    spin.fields.map((f) => {
+      acc += isSettleField(f) ? getFieldEffectiveWin(f) : 0;
+      return acc;
+    }),
+  );
 
   const persistentGolden = spin.fields.map((f) => new Set(f.features?.golden || []));
   setGameState('goldenCandidates', persistentGolden);
@@ -343,7 +360,8 @@ export function selectTumble(tIdx, phase) {
   });
 
   const tabs = [{ label: `TUMBLE_${tIdx + 1}_FIELD`, data: field }];
-  if (spin.isCheatTriggered === true) tabs.push({ label: 'TESTCONFIG', data: spin.requestBody?.testConfig || {} });
+  if (spin.isCheatTriggered === true)
+    tabs.push({ label: 'TESTCONFIG', data: spin.requestBody?.testConfig || {} });
   tabs.push(
     { label: 'FULL_JSON', data: spin.rawData },
     { label: 'FEATURES', data: field.features || {} },
@@ -408,7 +426,9 @@ export function navigateRound(direction) {
   let targetRound = Math.max(0, Math.min(playgroundCount - 1, currentRound + direction));
   if (targetRound === currentRound) return;
 
-  const firstTumbleIdx = (spin.fieldMetadata || []).findIndex((m) => m.playgroundIndex === targetRound);
+  const firstTumbleIdx = (spin.fieldMetadata || []).findIndex(
+    (m) => m.playgroundIndex === targetRound,
+  );
   if (firstTumbleIdx !== -1) selectTumble(firstTumbleIdx);
 }
 
@@ -510,7 +530,15 @@ export async function openSpinRaw(historyIndex) {
 
 // ── Multi-spin play mode ──────────────────────────────────────────────────────
 
-export async function playSpin({ config, mode, playCount, targetConditions, targetConditionLogic, targetCountLimit, cheatTemplates }) {
+export async function playSpin({
+  config,
+  mode,
+  playCount,
+  targetConditions,
+  targetConditionLogic,
+  targetCountLimit,
+  cheatTemplates,
+}) {
   if (gameState.isAnimating || autoPlayRunning()) return;
 
   if (mode === 'single') {
@@ -536,16 +564,27 @@ export async function playSpin({ config, mode, playCount, targetConditions, targ
         setAutoStatus(`Running cheat ${i + 1}/${cheatTemplates.length}: ${t.title}`);
 
         let parsed;
-        try { parsed = JSON.parse(t.json); } catch { continue; }
+        try {
+          parsed = JSON.parse(t.json);
+        } catch {
+          continue;
+        }
         parsed.configId = playerId();
         parsed.gameCode = game().gameCode;
 
         const cheatRes = await fetch(`${apiUrl()}/v1/test/test-config`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-signature': 'rgs-local-signature', accept: '*/*' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-signature': 'rgs-local-signature',
+            accept: '*/*',
+          },
           body: JSON.stringify(parsed),
         });
-        if (!cheatRes.ok) { console.error(`Skipping ${t.title}`); continue; }
+        if (!cheatRes.ok) {
+          console.error(`Skipping ${t.title}`);
+          continue;
+        }
 
         localStorage.setItem('test_config', JSON.stringify(parsed));
         await playSingleSpin(config, t.title);
@@ -554,8 +593,15 @@ export async function playSpin({ config, mode, playCount, targetConditions, targ
     } catch (err) {
       pushToast({ type: 'error', title: 'Template Error', message: err.message });
     } finally {
-      const params = new URLSearchParams({ gameCode: game().gameCode, configId: playerId(), playerId: playerId() });
-      fetch(`${apiUrl()}/v1/test/test-config?${params}`, { method: 'DELETE', headers: { 'x-signature': 'rgs-local-signature' } }).catch(() => {});
+      const params = new URLSearchParams({
+        gameCode: game().gameCode,
+        configId: playerId(),
+        playerId: playerId(),
+      });
+      fetch(`${apiUrl()}/v1/test/test-config?${params}`, {
+        method: 'DELETE',
+        headers: { 'x-signature': 'rgs-local-signature' },
+      }).catch(() => {});
       if (originalTestConfig) localStorage.setItem('test_config', originalTestConfig);
       else localStorage.removeItem('test_config');
       rebuildSortedList();
@@ -580,8 +626,9 @@ export async function playSpin({ config, mode, playCount, targetConditions, targ
     let baseNum = await getNextSpinNum();
 
     const coreCount = navigator.hardwareConcurrency || 4;
-    const workers = Array.from({ length: coreCount }, () =>
-      new Worker(new URL('../spin-worker.js', import.meta.url), { type: 'module' }),
+    const workers = Array.from(
+      { length: coreCount },
+      () => new Worker(new URL('../spin-worker.js', import.meta.url), { type: 'module' }),
     );
 
     let activeWorkers = 0;
@@ -594,7 +641,12 @@ export async function playSpin({ config, mode, playCount, targetConditions, targ
           if (activeWorkers === 0) resolve();
           return;
         }
-        while (activeWorkers < coreCount && count < maxSpins && autoPlayRunning() && !limitReached) {
+        while (
+          activeWorkers < coreCount &&
+          count < maxSpins &&
+          autoPlayRunning() &&
+          !limitReached
+        ) {
           const worker = workers[activeWorkers % coreCount];
           const batchSize = Math.min(maxSpins - count, 50);
           worker.postMessage({
@@ -627,11 +679,17 @@ export async function playSpin({ config, mode, playCount, targetConditions, targ
                 if (targetConditions.includes(category)) {
                   if (targetConditionLogic === 'OR') {
                     targetHitCount++;
-                    if (targetHitCount >= targetCountLimit) { limitReached = true; setAutoPlayRunning(false); break; }
+                    if (targetHitCount >= targetCountLimit) {
+                      limitReached = true;
+                      setAutoPlayRunning(false);
+                      break;
+                    }
                   } else {
                     targetHitMap[category]++;
                     if (targetConditions.every((c) => targetHitMap[c] >= targetCountLimit)) {
-                      limitReached = true; setAutoPlayRunning(false); break;
+                      limitReached = true;
+                      setAutoPlayRunning(false);
+                      break;
                     }
                   }
                 }
@@ -645,12 +703,22 @@ export async function playSpin({ config, mode, playCount, targetConditions, targ
                   const def = FILTER_DEFS.find((d) => d.id === af.id);
                   return def ? def.apply(entry, af.value, game()) : true;
                 });
-                if (isMatch) { limitReached = true; setAutoPlayRunning(false); break; }
+                if (isMatch) {
+                  limitReached = true;
+                  setAutoPlayRunning(false);
+                  break;
+                }
               }
             }
 
-            if (mode === 'untilWin' && results.some((e) => e.isWin)) { limitReached = true; setAutoPlayRunning(false); }
-            if (mode === 'untilLoss' && results.some((e) => !e.isWin)) { limitReached = true; setAutoPlayRunning(false); }
+            if (mode === 'untilWin' && results.some((e) => e.isWin)) {
+              limitReached = true;
+              setAutoPlayRunning(false);
+            }
+            if (mode === 'untilLoss' && results.some((e) => !e.isWin)) {
+              limitReached = true;
+              setAutoPlayRunning(false);
+            }
 
             // Update RAM history with OOM protection
             setGlobalHistory((prev) => {

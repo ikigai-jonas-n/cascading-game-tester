@@ -16,13 +16,22 @@ export default function ChoicePromptModal() {
         class="modal-dialog"
         style="display:block;"
         open
-        onKeyDown={(e) => { if (e.key === 'Escape') { setChoicePromptOpen(false); resolveChoice(choicePromptChoices()[0]); } }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            setChoicePromptOpen(false);
+            resolveChoice(choicePromptChoices()[0]);
+          }
+        }}
       >
         <div class="modal-content" style="max-width:400px;">
           <div class="modal-header">
             <h2>Select Action</h2>
           </div>
-          <div id="choicePromptButtons" class="modal-body" style="display:flex; flex-direction:column; gap:8px;">
+          <div
+            id="choicePromptButtons"
+            class="modal-body"
+            style="display:flex; flex-direction:column; gap:8px;"
+          >
             <For each={choicePromptChoices()}>
               {(choiceId) => {
                 const actionDef = game().actions?.find((a) => a.id === choiceId);

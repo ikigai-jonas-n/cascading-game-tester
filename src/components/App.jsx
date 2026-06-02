@@ -10,7 +10,12 @@ import CustomGameModal from './modals/CustomGameModal.jsx';
 import PaytableModal from './modals/PaytableModal.jsx';
 import ChoicePromptModal from './modals/ChoicePromptModal.jsx';
 import ToastContainer from './features/ToastContainer.jsx';
-import { navigateFrame, navigateRound, navigateSpinFiltered, togglePlayback } from '../services/spinService.js';
+import {
+  navigateFrame,
+  navigateRound,
+  navigateSpinFiltered,
+  togglePlayback,
+} from '../services/spinService.js';
 import { currentSpinIndex, setCurrentSpinIndex } from '../store/sessionStore.js';
 import { globalHistory, rebuildSortedList } from '../store/historyStore.js';
 import { game } from '../store/gameStore.js';
@@ -45,7 +50,12 @@ export default function App() {
 
     if (e.key === 'Escape' && currentSpinIndex() !== -1) {
       // Only deselect if no filter input or modal is open
-      if (document.querySelector('.filter-condition-input, .filter-inline-picker, .filter-inline-input')) return;
+      if (
+        document.querySelector(
+          '.filter-condition-input, .filter-inline-picker, .filter-inline-input',
+        )
+      )
+        return;
       if (document.querySelector('dialog[open]')) return;
 
       setCurrentSpinIndex(-1);
@@ -80,13 +90,19 @@ export default function App() {
       <ChoicePromptModal />
 
       {/* Cell inspector tooltip */}
-      <div id="inspector" style="display:none; position:fixed; bottom:20px; right:20px; background:rgba(0,0,0,0.9); border:1px solid rgba(255,255,255,0.2); padding:8px 12px; border-radius:8px; font-size:11px; font-family:monospace; color:#fff; z-index:9999; pointer-events:none;">
+      <div
+        id="inspector"
+        style="display:none; position:fixed; bottom:20px; right:20px; background:rgba(0,0,0,0.9); border:1px solid rgba(255,255,255,0.2); padding:8px 12px; border-radius:8px; font-size:11px; font-family:monospace; color:#fff; z-index:9999; pointer-events:none;"
+      >
         <div id="inspSymbol" style="font-weight:800;"></div>
         <div id="inspPos" style="color:#888; font-size:9px; margin-top:2px;"></div>
       </div>
 
       {/* Description tooltip */}
-      <div id="desc-tooltip" style="position:fixed; z-index:9999; background:rgba(0,0,0,0.9); color:#ccc; padding:6px 10px; border-radius:6px; font-size:10px; pointer-events:none; display:none;"></div>
+      <div
+        id="desc-tooltip"
+        style="position:fixed; z-index:9999; background:rgba(0,0,0,0.9); color:#ccc; padding:6px 10px; border-radius:6px; font-size:10px; pointer-events:none; display:none;"
+      ></div>
     </>
   );
 }

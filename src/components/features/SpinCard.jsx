@@ -2,7 +2,13 @@ import { Show, createMemo } from 'solid-js';
 import { game } from '../../store/gameStore.js';
 import { updateSpin } from '../../store/historyStore.js';
 import { saveSpin, deleteSpin, toggleBookmark } from '../../db.js';
-import { loadSpin, stopPlayback, getWinCategory, isSettleField, selectTumble } from '../../services/spinService.js';
+import {
+  loadSpin,
+  stopPlayback,
+  getWinCategory,
+  isSettleField,
+  selectTumble,
+} from '../../services/spinService.js';
 import { globalHistory, rebuildSortedList, setGlobalHistory } from '../../store/historyStore.js';
 import { currentSpinIndex, setCurrentSpinIndex } from '../../store/sessionStore.js';
 import TumbleAudit from './TumbleAudit.jsx';
@@ -12,7 +18,9 @@ function formatTimestamp(ts) {
     const d = new Date(ts);
     if (isNaN(d.getTime())) return ts;
     return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  } catch { return ts; }
+  } catch {
+    return ts;
+  }
 }
 
 function truncateMiddle(str, maxLen = 44) {
@@ -80,23 +88,44 @@ export default function SpinCard(props) {
     };
     input.addEventListener('blur', save);
     input.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
-      if (ev.key === 'Escape') { input.removeEventListener('blur', save); input.blur(); rebuildSortedList(); }
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        input.blur();
+      }
+      if (ev.key === 'Escape') {
+        input.removeEventListener('blur', save);
+        input.blur();
+        rebuildSortedList();
+      }
     });
   }
 
   function handleCardClick(e) {
     const loadMoreBtn = e.target.closest('.load-more-tumbles-btn');
-    if (loadMoreBtn) { e.stopPropagation(); props.spin._showAllTumbles = true; rebuildSortedList(); return; }
+    if (loadMoreBtn) {
+      e.stopPropagation();
+      props.spin._showAllTumbles = true;
+      rebuildSortedList();
+      return;
+    }
 
     const bookmarkBtn = e.target.closest('.bookmark-btn-v5');
-    if (bookmarkBtn) { handleBookmark(e); return; }
+    if (bookmarkBtn) {
+      handleBookmark(e);
+      return;
+    }
 
     const deleteBtn = e.target.closest('.delete-btn-v5');
-    if (deleteBtn) { handleDelete(e); return; }
+    if (deleteBtn) {
+      handleDelete(e);
+      return;
+    }
 
     const tumbleEl = e.target.closest('[data-tumble]');
-    if (tumbleEl) { selectTumble(parseInt(tumbleEl.dataset.tumble), 'initial'); return; }
+    if (tumbleEl) {
+      selectTumble(parseInt(tumbleEl.dataset.tumble), 'initial');
+      return;
+    }
 
     if (props.isActive) return;
     stopPlayback();
@@ -106,9 +135,18 @@ export default function SpinCard(props) {
   function handleKeyDown(e) {
     if (document.activeElement?.hasAttribute('data-tumble')) return;
     if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCardClick(e); }
-    if (e.key === 'ArrowDown') { e.preventDefault(); e.currentTarget.nextElementSibling?.focus(); }
-    if (e.key === 'ArrowUp') { e.preventDefault(); e.currentTarget.previousElementSibling?.focus(); }
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleCardClick(e);
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      e.currentTarget.nextElementSibling?.focus();
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      e.currentTarget.previousElementSibling?.focus();
+    }
   }
 
   return (
@@ -151,13 +189,36 @@ export default function SpinCard(props) {
             title="Bookmark"
             onClick={handleBookmark}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill={isBookmarked() ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2.5">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill={isBookmarked() ? 'currentColor' : 'none'}
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
               <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
             </svg>
           </button>
-          <button class="delete-btn-v5" data-num={props.spin.num} title="Delete Record" onClick={handleDelete}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+          <button
+            class="delete-btn-v5"
+            data-num={props.spin.num}
+            title="Delete Record"
+            onClick={handleDelete}
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M3 6h18" />
+              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
             </svg>
           </button>
         </div>
@@ -184,13 +245,25 @@ export default function SpinCard(props) {
       {/* Footer */}
       <div class="card-footer-v5">
         <div class="meta-items">
-          <span class="m-item">Bet: <b>{bet()}</b></span>
-          <span class="m-item">Mode: <b>{props.spin.spinMode || 'std'}</b></span>
-          <span class="m-item" style="color:var(--text-accent); font-weight:800;">{props.spin.spinType === 'freeSpin' ? 'FreeSpin' : 'BaseSpin'}</span>
-          <span class="m-item multi">Max: <b>{props.spin.maxMultiplier || 1}x</b></span>
-          <span class="m-item tumble">Tumbles: <b>{props.spin.tumbleCount || 0}</b></span>
+          <span class="m-item">
+            Bet: <b>{bet()}</b>
+          </span>
+          <span class="m-item">
+            Mode: <b>{props.spin.spinMode || 'std'}</b>
+          </span>
+          <span class="m-item" style="color:var(--text-accent); font-weight:800;">
+            {props.spin.spinType === 'freeSpin' ? 'FreeSpin' : 'BaseSpin'}
+          </span>
+          <span class="m-item multi">
+            Max: <b>{props.spin.maxMultiplier || 1}x</b>
+          </span>
+          <span class="m-item tumble">
+            Tumbles: <b>{props.spin.tumbleCount || 0}</b>
+          </span>
           <Show when={(props.spin.goldenTransformed || 0) > 0}>
-            <span class="m-item golden" title="Golden Transformed">G-Trans: <b>{props.spin.goldenTransformed}</b></span>
+            <span class="m-item golden" title="Golden Transformed">
+              G-Trans: <b>{props.spin.goldenTransformed}</b>
+            </span>
           </Show>
           <Show when={props.spin.cascadeCount > 0}>
             <span class="m-item cascade">{props.spin.cascadeCount} Cascades</span>

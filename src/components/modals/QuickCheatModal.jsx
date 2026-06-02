@@ -1,44 +1,58 @@
-import { createSignal, Show, onMount } from 'solid-js';
-import { quickCheatOpen, setQuickCheatOpen, apiUrl, playerId } from '../../store/uiStore.js';
+import { createSignal, Show, createMemo } from 'solid-js';
+import { quickCheatOpen, setQuickCheatOpen, apiUrl, playerId, showLoading, hideLoading } from '../../store/uiStore.js';
 import { game } from '../../store/gameStore.js';
-import { showLoading, hideLoading, pushToast } from '../../store/uiStore.js';
+import { allCheatTemplates } from '../features/cheatTemplateStore.js';
 
 export default function QuickCheatModal() {
   const [cheatJson, setCheatJson] = createSignal('');
   const [errorMsg, setErrorMsg] = createSignal('');
   const [sending, setSending] = createSignal(false);
-  const [allTemplates, setAllTemplates] = createSignal({});
   const [selectedTemplate, setSelectedTemplate] = createSignal('');
   const [templateDesc, setTemplateDesc] = createSignal('');
 
-  const templates = () => allTemplates()[game().id] || [];
+  const templates = createMemo(() => allCheatTemplates()[game().id] || []);
 
-  async function loadTemplates() {
-    try {
-      const resp = await fetch('/cheat-tool-templates.json');
-      if (resp.ok) setAllTemplates(await resp.json());
-    } catch (e) {}
+  function buildDefaultJson() {
+    return JSON.stringify({
+      configId: playerId(),
+      gameCode: game().gameCode,
+      config: {
+        baseSpin: {
+          initialScreen: { clusterCount: 5, symbols: [{ symbol: 'WILD', count: 10 }] },
+          cascadeCount: 6,
+          tumbleCount: 20,
+        },
+      },
+    }, null, 2);
   }
-
-  if (typeof window !== 'undefined') loadTemplates();
 
   function openModal() {
     setErrorMsg('');
     setSelectedTemplate('');
     setTemplateDesc('');
     const saved = localStorage.getItem('test_config');
-    if (saved) setCheatJson(saved);
-    else {
-      setCheatJson(JSON.stringify({
-        configId: playerId(),
-        gameCode: game().gameCode,
-        config: { baseSpin: { initialScreen: { clusterCount: 5, symbols: [{ symbol: 'WILD', count: 10 }] }, cascadeCount: 6, tumbleCount: 20 } },
-      }, null, 2));
-    }
+    setCheatJson(saved || buildDefaultJson());
   }
 
   function close() {
     setQuickCheatOpen(false);
+  }
+
+  function handleTemplateChange(idx) {
+    setSelectedTemplate(idx);
+    if (idx === '') { setTemplateDesc(''); return; }
+    const t = templates()[parseInt(idx)];
+    if (!t) return;
+    setTemplateDesc(t.description || '');
+    try {
+      const parsed = JSON.parse(t.json);
+      parsed.configId = playerId();
+      parsed.gameCode = game().gameCode;
+      setCheatJson(JSON.stringify(parsed, null, 2));
+      setErrorMsg('');
+    } catch {
+      setCheatJson(t.json);
+    }
   }
 
   async function handleSend() {
@@ -58,7 +72,6 @@ export default function QuickCheatModal() {
       const text = await response.text();
       let result = {};
       try { result = JSON.parse(text); } catch {}
-
       setSending(false);
 
       if (response.ok && !result.error && !result.errors) {
@@ -83,10 +96,7 @@ export default function QuickCheatModal() {
         method: 'DELETE',
         headers: { accept: '*/*', 'x-signature': 'rgs-local-signature' },
       });
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
-      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       localStorage.removeItem('test_config');
       setSelectedTemplate('');
       setTemplateDesc('');
@@ -112,7 +122,7 @@ export default function QuickCheatModal() {
         <div class="modal-content" style="max-width:560px;">
           <div class="modal-header">
             <h2>⚡ Quick Cheat Config</h2>
-            <button class="btn-ghost" id="closeQuickCheatBtn" onClick={close}>×</button>
+            <button id="closeQuickCheatBtn" class="btn-ghost" onClick={close}>×</button>
           </div>
 
           <div class="modal-body" style="display:flex; flex-direction:column; gap:12px;">
@@ -124,28 +134,10 @@ export default function QuickCheatModal() {
                   id="cheatTemplateSelect"
                   class="settings-input"
                   value={selectedTemplate()}
-                  onChange={(e) => {
-                    const idx = e.target.value;
-                    setSelectedTemplate(idx);
-                    if (idx !== '') {
-                      const t = templates()[parseInt(idx)];
-                      setTemplateDesc(t.description || '');
-                      try {
-                        const parsed = JSON.parse(t.json);
-                        parsed.configId = playerId();
-                        parsed.gameCode = game().gameCode;
-                        setCheatJson(JSON.stringify(parsed, null, 2));
-                        setErrorMsg('');
-                      } catch { setCheatJson(t.json); }
-                    } else {
-                      setTemplateDesc('');
-                    }
-                  }}
+                  onChange={(e) => handleTemplateChange(e.target.value)}
                 >
                   <option value="">-- Select a Template --</option>
-                  {templates().map((t, i) => (
-                    <option value={i}>{t.title}</option>
-                  ))}
+                  {templates().map((t, i) => <option value={i}>{t.title}</option>)}
                 </select>
                 <Show when={templateDesc()}>
                   <div id="cheatTemplateDesc" style="font-size:10px; color:var(--text-muted); margin-top:4px;">{templateDesc()}</div>

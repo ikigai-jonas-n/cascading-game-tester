@@ -21,19 +21,31 @@ export default function ShortcutsModal() {
         style="display:block;"
         open
         onClose={() => setShortcutsOpen(false)}
-        onClick={(e) => { if (e.target.id === 'shortcutsModal') setShortcutsOpen(false); }}
-        onKeyDown={(e) => { if (e.key === 'Escape') setShortcutsOpen(false); }}
+        onClick={(e) => {
+          if (e.target.id === 'shortcutsModal') setShortcutsOpen(false);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') setShortcutsOpen(false);
+        }}
       >
         <div class="modal-content" style="max-width:480px;">
           <div class="modal-header">
             <h2>⌨️ Keyboard Shortcuts</h2>
-            <button id="closeShortcutsBtn" class="btn-ghost" onClick={() => setShortcutsOpen(false)}>×</button>
+            <button
+              id="closeShortcutsBtn"
+              class="btn-ghost"
+              onClick={() => setShortcutsOpen(false)}
+            >
+              ×
+            </button>
           </div>
           <div class="modal-body">
             <table style="width:100%; border-collapse:collapse;">
               {SHORTCUTS.map(({ key, desc }) => (
                 <tr style="border-bottom:1px solid var(--border-color);">
-                  <td style="padding:8px 12px 8px 0; font-family:monospace; font-size:11px; color:var(--bg-accent); font-weight:800; white-space:nowrap; width:40%;">{key}</td>
+                  <td style="padding:8px 12px 8px 0; font-family:monospace; font-size:11px; color:var(--bg-accent); font-weight:800; white-space:nowrap; width:40%;">
+                    {key}
+                  </td>
                   <td style="padding:8px 0; font-size:11px; color:var(--text-muted);">{desc}</td>
                 </tr>
               ))}

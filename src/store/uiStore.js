@@ -53,8 +53,8 @@ export const [showSymbolMap, setShowSymbolMap] = createSignal(
 // ── API / Player Settings ─────────────────────────────────────────────────────
 export const [apiUrl, setApiUrl] = createSignal(
   localStorage.getItem('api_url') ||
-  (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_API_URL : null) ||
-  'http://localhost:9000',
+    (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_API_URL : null) ||
+    'http://localhost:9000',
 );
 
 export const [playerId, setPlayerId] = createSignal(
