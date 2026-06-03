@@ -1,15 +1,9 @@
-/**
- * UI Domain Store
- *
- * Owns transient UI state: modals, loading overlay, toasts,
- * the raw JSON drawer, and display preferences.
- * No business logic — pure presentation state.
- */
 import { createSignal } from 'solid-js';
 import { createStore } from 'solid-js/store';
 
 // ── Raw Drawer ────────────────────────────────────────────────────────────────
-export const [rawDrawerTabs, setRawDrawerTabs] = createStore([]);
+// FIX: Using createSignal so replacing arrays forces a full teardown
+export const [rawDrawerTabs, setRawDrawerTabs] = createSignal([]);
 export const [rawDrawerActiveTab, setRawDrawerActiveTab] = createSignal(0);
 export const [lastSelectedTabLabel, setLastSelectedTabLabel] = createSignal('STEP_1_STATE');
 
@@ -47,7 +41,7 @@ export function dismissToast(id) {
 
 // ── Display Preferences ───────────────────────────────────────────────────────
 export const [showSymbolMap, setShowSymbolMap] = createSignal(
-  localStorage.getItem('show_symbol_map') !== 'false', // default ON
+  localStorage.getItem('show_symbol_map') !== 'false',
 );
 
 // ── API / Player Settings ─────────────────────────────────────────────────────

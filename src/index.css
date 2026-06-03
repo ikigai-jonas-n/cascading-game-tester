@@ -701,6 +701,7 @@ dialog::backdrop {
   backdrop-filter: blur(8px);
 }
 
+/* Modal */
 dialog {
   border: none;
   background: transparent;
@@ -713,6 +714,15 @@ dialog[open] {
   display: flex !important;
   align-items: center;
   justify-content: center;
+  /* FIX: Native <dialog open> doesn't render ::backdrop automatically. Force it via CSS. */
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 99999;
 }
 
 .modal-content {

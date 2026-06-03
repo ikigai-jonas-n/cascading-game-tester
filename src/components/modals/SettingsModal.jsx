@@ -148,7 +148,10 @@ export default function SettingsModal() {
                 id="requestBody"
                 class="settings-textarea"
                 style="height:140px; font-family:monospace; font-size:11px;"
-                value={localStorage.getItem('request_body') || JSON.stringify(game().defaultRequestBody || {}, null, 2)}
+                value={
+                  localStorage.getItem('request_body') ||
+                  JSON.stringify(game().defaultRequestBody || {}, null, 2)
+                }
                 onInput={(e) => localStorage.setItem('request_body', e.target.value)}
               />
               <button
@@ -156,7 +159,12 @@ export default function SettingsModal() {
                 style="font-size:10px; padding:4px 8px; margin-top:4px;"
                 id="syncHistoryBtn"
                 onClick={async () => {
-                  if (!confirm('Re-sync default history from json_files/default_data.json? Existing data will be merged.')) return;
+                  if (
+                    !confirm(
+                      'Re-sync default history from json_files/default_data.json? Existing data will be merged.',
+                    )
+                  )
+                    return;
                   localStorage.removeItem('default_data_loaded');
                   const { loadDefaultData } = await import('../../services/gameService.js');
                   await loadDefaultData(true);

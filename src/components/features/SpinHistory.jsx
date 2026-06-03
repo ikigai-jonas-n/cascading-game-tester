@@ -81,11 +81,7 @@ export default function SpinHistory() {
             const originalIdx = createMemo(() => globalHistory.indexOf(spin));
             const isActive = createMemo(() => originalIdx() === currentSpinIndex());
             return (
-              <SpinCard
-                spin={spin}
-                isActive={isActive()}
-                onClick={() => loadSpin(originalIdx())}
-              />
+              <SpinCard spin={spin} isActive={isActive()} onClick={() => loadSpin(originalIdx())} />
             );
           }}
         </For>
@@ -93,7 +89,10 @@ export default function SpinHistory() {
         {/* Infinite scroll sentinel */}
         <Show when={renderLimit() < currentSortedList().length}>
           <div
-            ref={(el) => { sentinelRef = el; setupObserver(el); }}
+            ref={(el) => {
+              sentinelRef = el;
+              setupObserver(el);
+            }}
             style="height:10px;"
             id="scrollSentinel"
           />

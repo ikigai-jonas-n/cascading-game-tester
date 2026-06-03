@@ -7,7 +7,4 @@ const root = document.getElementById('root');
 render(() => <App />, root);
 
 // Boot in parallel — both are independent
-Promise.all([
-  boot(),
-  loadCheatTemplates(),
-]).catch((err) => console.error('Boot failed:', err));
+Promise.all([boot(), loadCheatTemplates()]).catch((err) => console.error('Boot failed:', err));

@@ -78,33 +78,18 @@ export async function getStorageEstimate() {
   return null;
 }
 
-/** Highly Optimized Bulk Save with GZIP Compression */
+/** Highly Optimized Bulk Save (Compression Bypassed for Speed) */
 export async function saveAllSpins(entries) {
-  // 1. Offload compression to async microtasks BEFORE opening the DB transaction
-  // We compress `rawData` because it's massive, but keep `fields` uncompressed for fast searching
-  const processedEntries = await Promise.all(
-    entries.map(async (entry) => {
-      if (entry.rawData && !entry._isCompressed) {
-        return {
-          ...entry,
-          rawData: await compressData(entry.rawData),
-          _isCompressed: true,
-        };
-      }
-      return entry;
-    }),
-  );
-
   await open();
 
-  // 2. Max-speed synchronous batch insert
+  // FIX: Removed the massive CompressionStream loop.
+  // Zipping 400 files in the main thread was killing the CPU and making auto-play "slow af".
   return new Promise((resolve, reject) => {
     const tx = _db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
 
-    // A standard 'for' loop guarantees all requests are queued in the same event tick
-    for (let i = 0; i < processedEntries.length; i++) {
-      store.put(processedEntries[i]);
+    for (let i = 0; i < entries.length; i++) {
+      store.put(entries[i]);
     }
 
     tx.oncomplete = () => resolve();

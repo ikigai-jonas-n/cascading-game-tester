@@ -1,8 +1,8 @@
 import { createMemo, For, Show, createSignal } from 'solid-js';
 import { game, symbols, emojis } from '../../store/gameStore.js';
 import { gameState } from '../../store/sessionStore.js';
-import { selectTumble } from '../../services/spinService.js';
-import { isSettleField, getFieldEffectiveWin } from '../../services/spinService.js';
+import { selectTumble, isSettleField, getFieldEffectiveWin } from '../../services/spinService.js';
+import { updateSpin } from '../../store/historyStore.js';
 
 const RENDER_LIMIT = 50;
 
@@ -20,7 +20,6 @@ export default function TumbleAudit(props) {
     () => (spin().fields?.length || 0) > RENDER_LIMIT && !spin()._showAllTumbles,
   );
 
-  // Group fields by playground
   const rounds = createMemo(() => {
     const fields = fieldsToRender();
     const metas = spin().fieldMetadata || [];
@@ -54,7 +53,6 @@ export default function TumbleAudit(props) {
 
   function isExpanded(pgIdx) {
     if (expandedRound() === null) {
-      // Auto-expand the round containing the current tumble
       const meta = spin().fieldMetadata?.[currentIdx()];
       return (meta?.playgroundIndex ?? 0) === pgIdx;
     }
@@ -123,11 +121,12 @@ export default function TumbleAudit(props) {
         <button
           class="btn-ghost load-more-tumbles-btn"
           style="width:100%; margin-top:8px; padding:8px; font-size:10px; border:1px dashed var(--border-color); color:var(--text-muted);"
-          onClick={() => {
-            props.spin._showAllTumbles = true;
+          onClick={(e) => {
+            e.stopPropagation();
+            updateSpin(spin().num, { _showAllTumbles: true });
           }}
         >
-          ⚠️ {(props.spin.fields?.length || 0) - RENDER_LIMIT} More Tumbles Hidden. Click to load
+          ⚠️ {(spin().fields?.length || 0) - RENDER_LIMIT} More Tumbles Hidden. Click to load
           all (May lag UI)
         </button>
       </Show>

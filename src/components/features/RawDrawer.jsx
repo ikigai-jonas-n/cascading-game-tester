@@ -6,7 +6,7 @@ import { gameState } from '../../store/sessionStore.js';
 import { selectTumble } from '../../services/spinService.js';
 
 export default function RawDrawer() {
-  const activeTab = createMemo(() => rawDrawerTabs[rawDrawerActiveTab()]);
+  const activeTab = createMemo(() => rawDrawerTabs()[rawDrawerActiveTab()]);
 
   return (
     <div style="display:flex; flex-direction:column; flex:1; overflow:hidden; padding:0 16px;">
@@ -16,7 +16,7 @@ export default function RawDrawer() {
         role="tablist"
         style="display:flex; flex-wrap:wrap; gap:4px; padding:12px 0; border-bottom:1px solid var(--border-color);"
       >
-        <For each={rawDrawerTabs}>
+        <For each={rawDrawerTabs()}>
           {(tab, i) => {
             const isActive = createMemo(() => i() === rawDrawerActiveTab());
             return (
@@ -40,10 +40,10 @@ export default function RawDrawer() {
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'ArrowRight') {
-                    const next = (i() + 1) % rawDrawerTabs.length;
+                    const next = (i() + 1) % rawDrawerTabs().length;
                     selectDrawerTab(next);
                   } else if (e.key === 'ArrowLeft') {
-                    const prev = (i() - 1 + rawDrawerTabs.length) % rawDrawerTabs.length;
+                    const prev = (i() - 1 + rawDrawerTabs().length) % rawDrawerTabs().length;
                     selectDrawerTab(prev);
                   } else if (e.key === 'ArrowDown') {
                     e.preventDefault();
@@ -92,8 +92,8 @@ function TabContent({ tab }) {
     let finalArr = null;
 
     if (isDiff) {
-      initialArr = rawDrawerTabs.find((t) => t.label === 'INITIAL[]')?.data;
-      finalArr = rawDrawerTabs.find((t) => t.label === 'FINAL[]')?.data;
+      initialArr = rawDrawerTabs().find((t) => t.label === 'INITIAL[]')?.data;
+      finalArr = rawDrawerTabs().find((t) => t.label === 'FINAL[]')?.data;
     } else {
       finalArr = tab.data;
     }
@@ -178,7 +178,6 @@ function TabContent({ tab }) {
     );
   }
 
-  // Generic JSON
   return (
     <pre style="margin:0; white-space:pre-wrap; word-break:break-all;" tabIndex={0}>
       {JSON.stringify(tab.data, null, 2)}

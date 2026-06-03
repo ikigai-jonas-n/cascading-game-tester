@@ -1,15 +1,24 @@
 import { createSignal, Show, onMount, For } from 'solid-js';
 import { game } from '../../store/gameStore.js';
 import { playSpin } from '../../services/spinService.js';
-import { autoPlayRunning, setAutoPlayRunning, bypassAnimation, setBypassAnimation } from '../../store/sessionStore.js';
-
-// Shared cheat templates — loaded once at app level, shared across PlayControls + QuickCheatModal
-import { allCheatTemplates, setAllCheatTemplates, cheatTemplatesLoaded, setCheatTemplatesLoaded } from './cheatTemplateStore.js';
+import {
+  autoPlayRunning,
+  setAutoPlayRunning,
+  bypassAnimation,
+  setBypassAnimation,
+} from '../../store/sessionStore.js';
+import { allCheatTemplates } from './cheatTemplateStore.js';
 
 export default function PlayControls() {
-  // ── Spin settings: initialized from request body JSON ──────────────────
   function getRequestBody() {
-    try { return JSON.parse(localStorage.getItem('request_body') || '{}'); } catch { return {}; }
+    try {
+      const stored = localStorage.getItem('request_body');
+      if (stored) return JSON.parse(stored);
+    } catch {
+      // Ignore parse errors
+    }
+    // FIX: Fallback to the active game's default config if localStorage is empty
+    return game().defaultRequestBody || {};
   }
 
   const [spinType, setSpinType] = createSignal('base');
@@ -22,10 +31,9 @@ export default function PlayControls() {
   const [targetCount, setTargetCount] = createSignal(1);
 
   onMount(() => {
-    // Sync selects from request body
     const rb = getRequestBody();
     setBetAmount(rb.betAmount || 20);
-    setStake(rb.spinMode || (rb.stakes?.[0]?.type) || 'commonGame');
+    setStake(rb.spinMode || rb.stakes?.[0]?.type || 'commonGame');
     setSpinType(rb.choice === 1 ? 'free' : 'base');
   });
 
@@ -34,7 +42,7 @@ export default function PlayControls() {
     const updated = { ...rb, ...patch };
     if (patch.betAmount !== undefined) updated.cashBet = patch.betAmount;
     if (patch.spinMode !== undefined && Array.isArray(updated.stakes)) {
-      updated.stakes = updated.stakes.map((s, i) => i === 0 ? { ...s, type: patch.spinMode } : s);
+      updated.stakes = updated.stakes.map((s, i) => (i === 0 ? { ...s, type: patch.spinMode } : s));
     }
     localStorage.setItem('request_body', JSON.stringify(updated, null, 2));
   }
@@ -67,11 +75,13 @@ export default function PlayControls() {
           }}
         >
           <option value="base">BaseSpin</option>
-          <option value="free" disabled>FreeSpin (Legacy/Imported)</option>
+          <option value="free" disabled>FreeSpin (Legacy)</option>
         </select>
 
         <div style="position:relative; width:60px;">
-          <span style="position:absolute; left:6px; top:50%; transform:translateY(-50%); font-size:9px; color:var(--text-muted); pointer-events:none;">Bet</span>
+          <span style="position:absolute; left:6px; top:50%; transform:translateY(-50%); font-size:9px; color:var(--text-muted); pointer-events:none;">
+            Bet
+          </span>
           <input
             type="number"
             id="uiBetAmount"
@@ -116,7 +126,10 @@ export default function PlayControls() {
           id="playMode"
           style="padding:6px; font-size:11px; font-weight:800; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px;"
           value={mode()}
-          onChange={(e) => { setMode(e.target.value); localStorage.setItem('play_mode', e.target.value); }}
+          onChange={(e) => {
+            setMode(e.target.value);
+            localStorage.setItem('play_mode', e.target.value);
+          }}
         >
           <option value="single">Single</option>
           <option value="count">Play N</option>
@@ -134,12 +147,17 @@ export default function PlayControls() {
             value={playCount()}
             placeholder="e.g. 100k"
             style="width:65px; padding:6px; font-size:11px; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px;"
-            onInput={(e) => { setPlayCount(e.target.value); localStorage.setItem('play_count', e.target.value); }}
+            onInput={(e) => {
+              setPlayCount(e.target.value);
+              localStorage.setItem('play_count', e.target.value);
+            }}
           />
         </Show>
 
         <Show when={autoPlayRunning()}>
-          <button id="stopAutoBtn" class="btn-ghost" onClick={() => setAutoPlayRunning(false)}>STOP</button>
+          <button id="stopAutoBtn" class="btn-ghost" onClick={() => setAutoPlayRunning(false)}>
+            STOP
+          </button>
         </Show>
       </div>
 
@@ -190,7 +208,10 @@ export default function PlayControls() {
           type="checkbox"
           id="disableAnimation"
           checked={bypassAnimation()}
-          onChange={(e) => { setBypassAnimation(e.target.checked); localStorage.setItem('bypass_animation', e.target.checked); }}
+          onChange={(e) => {
+            setBypassAnimation(e.target.checked);
+            localStorage.setItem('bypass_animation', e.target.checked);
+          }}
         />
         Skip sequence animation
       </label>

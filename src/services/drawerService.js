@@ -1,9 +1,3 @@
-/**
- * Drawer Service
- *
- * Manages the raw JSON drawer (right panel) tab state and playback label sync.
- * Separated from spinService to avoid circular imports.
- */
 import {
   rawDrawerTabs,
   setRawDrawerTabs,
@@ -13,9 +7,7 @@ import {
 } from '../store/uiStore.js';
 import { gameState, currentSpinIndex, playbackInterval } from '../store/sessionStore.js';
 import { globalHistory } from '../store/historyStore.js';
-import { game } from '../store/gameStore.js';
 
-// Mutable signal refs injected by components — avoids React-style prop drilling
 let _setCurrentPhaseLabel = null;
 let _setCurrentTumbleLabel = null;
 let _setCurrentSpinIdLabel = null;
@@ -56,7 +48,7 @@ export function openRawDrawer(tabs) {
 }
 
 export function selectDrawerTab(index) {
-  const tabs = rawDrawerTabs;
+  const tabs = rawDrawerTabs();
   const label = tabs[index]?.label || '';
   setRawDrawerActiveTab(index);
   setLastSelectedTabLabel(label.includes('TUMBLE_') ? 'TUMBLE_X_FIELD' : label);
