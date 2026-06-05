@@ -3,13 +3,13 @@ import { game, listGames, switchGame } from '../../store/gameStore.js';
 import {
   apiUrl,
   setApiUrl,
-  storageStats,
   autoStatus,
   setSettingsOpen,
   setQuickCheatOpen,
   setShortcutsOpen,
   setCustomGameOpen,
   setPaytableOpen,
+  setMongoRoundImportOpen,
 } from '../../store/uiStore.js';
 import {
   currentSortedList,
@@ -37,7 +37,7 @@ export default function LeftPanel() {
     const startX = e.clientX;
     const startWidth = col1Ref.offsetWidth;
     col1Ref.style.transition = 'none'; // FIX: Remove lag during drag
-    
+
     const onMove = (ev) => {
       const w = Math.max(200, startWidth + (ev.clientX - startX));
       setCol1Width(w + 'px');
@@ -101,9 +101,7 @@ export default function LeftPanel() {
                   triggerFilterUpdate();
                 }}
               >
-                <For each={listGames()}>
-                  {(g) => <option value={g.id}>{g.name}</option>}
-                </For>
+                <For each={listGames()}>{(g) => <option value={g.id}>{g.name}</option>}</For>
               </select>
               <button
                 class="header-btn-v5"
@@ -111,7 +109,9 @@ export default function LeftPanel() {
                 title="Create Custom Sandbox Game"
                 onClick={() => setCustomGameOpen(true)}
               >
-                <span class="icon" style="font-size:12px;">➕</span>
+                <span class="icon" style="font-size:12px;">
+                  ➕
+                </span>
               </button>
               <select
                 id="headerEnvSelect"
@@ -160,13 +160,6 @@ export default function LeftPanel() {
             {autoStatus()}
           </span>
         </Show>
-        <div
-          id="dbStorageStats"
-          style="font-size:9px; color:var(--text-muted); font-family:'JetBrains Mono',monospace; margin-top:4px;"
-        >
-          {storageStats() || 'Storage: Calculating...'}
-        </div>
-
         <FilterBar />
       </header>
 
@@ -211,7 +204,11 @@ function ExportMenu() {
             class="dropdown-item"
             onClick={() => {
               setOpen(false);
-              exportDataDirectFromDb(`slot-filtered-${game().id}-${date()}.json`, 'filtered', false);
+              exportDataDirectFromDb(
+                `slot-filtered-${game().id}-${date()}.json`,
+                'filtered',
+                false,
+              );
             }}
           >
             Export Filtered (Full)
@@ -230,7 +227,11 @@ function ExportMenu() {
             class="dropdown-item"
             onClick={() => {
               setOpen(false);
-              exportDataDirectFromDb(`mapped-filtered-${game().id}-${date()}.json`, 'filtered', true);
+              exportDataDirectFromDb(
+                `mapped-filtered-${game().id}-${date()}.json`,
+                'filtered',
+                true,
+              );
             }}
           >
             Mapped JSON (Filtered)
@@ -277,15 +278,31 @@ function ImportMenu() {
         <div class="dropdown-menu" style="display:block; top:100%; right:0; z-index:1000;">
           <div
             class="dropdown-item"
-            onClick={() => { setOpen(false); triggerImport('merge'); }}
+            onClick={() => {
+              setOpen(false);
+              triggerImport('merge');
+            }}
           >
             Merge with existing
           </div>
           <div
             class="dropdown-item"
-            onClick={() => { setOpen(false); triggerImport('replace'); }}
+            onClick={() => {
+              setOpen(false);
+              triggerImport('replace');
+            }}
           >
             Totally replace
+          </div>
+          <div style="height:1px; background:var(--border-color); margin:4px 0;" />
+          <div
+            class="dropdown-item"
+            onClick={() => {
+              setOpen(false);
+              setMongoRoundImportOpen(true);
+            }}
+          >
+            🍃 Import Mongo Round
           </div>
         </div>
       </Show>
@@ -329,7 +346,8 @@ function ClearMenu() {
                 alert('No filtered results to clear.');
                 return;
               }
-              if (!confirm(`Delete ${filtered().length} filtered spins? This cannot be undone.`)) return;
+              if (!confirm(`Delete ${filtered().length} filtered spins? This cannot be undone.`))
+                return;
               await clearFilteredHistory(filtered());
             }}
           >

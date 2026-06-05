@@ -6,6 +6,7 @@
  */
 import {
   loadAllSpins,
+  loadSpinsCursor,
   saveAllSpins,
   migrateFromLocalStorage,
   getSpinCount,
@@ -22,16 +23,11 @@ import {
   replaceHistory,
   MAX_RAM_HISTORY,
   setSortField,
+  lastLoadedKey,
+  setLastLoadedKey,
 } from '../store/historyStore.js';
 import { currentSpinIndex, setCurrentSpinIndex } from '../store/sessionStore.js';
-import {
-  showLoading,
-  hideLoading,
-  setStorageStats,
-  apiUrl,
-  setApiUrl,
-  pushToast,
-} from '../store/uiStore.js';
+import { showLoading, hideLoading, apiUrl, setApiUrl, pushToast } from '../store/uiStore.js';
 import { loadSpin, isSettleField, getSpinStats } from './spinService.js';
 import { FILTER_DEFS } from '../filters.js';
 
@@ -56,21 +52,6 @@ export async function triggerFilterUpdate() {
   } finally {
     hideLoading();
   }
-}
-
-// ── Storage Stats ─────────────────────────────────────────────────────────────
-
-export async function updateStorageStats() {
-  try {
-    const { getStorageEstimate } = await import('../db.js');
-    const count = await getSpinCount();
-    const est = await getStorageEstimate();
-    if (est) {
-      setStorageStats(
-        `DB: ${count.toLocaleString()} records | Disk: ${est.usageMb}MB used / ${est.quotaMb}MB limit (${est.percent}%)`,
-      );
-    }
-  } catch (e) {}
 }
 
 // ── Backend Health ────────────────────────────────────────────────────────────
@@ -334,13 +315,12 @@ export async function boot() {
     }
   }
 
-  const spins = await loadAllSpins(game().id, MAX_RAM_HISTORY);
+  const spins = await loadSpinsCursor(game().id, null, MAX_RAM_HISTORY);
   replaceHistory(spins);
   rebuildSortedList();
+  if (spins.length > 0) setLastLoadedKey(spins[spins.length - 1].num);
 
   console.log(`Boot: Loaded ${spins.length} spins from IndexedDB for game "${game().id}".`);
-
-  await updateStorageStats();
 
   if (globalHistory.length > 0) {
     const lastIdx = localStorage.getItem('last_spin_index');
@@ -351,6 +331,25 @@ export async function boot() {
   checkVersionOnLoad();
   setInterval(checkVersionPeriodic, 10 * 60 * 1000);
   autoDetectBackend();
+}
+
+// ── Load More (cursor pagination) ────────────────────────────────────────────
+
+export async function loadMoreSpins() {
+  const key = lastLoadedKey();
+  if (key == null) return;
+
+  showLoading('Loading more spins...', 0);
+  try {
+    const spins = await loadSpinsCursor(game().id, key, MAX_RAM_HISTORY);
+    if (spins.length === 0) return;
+
+    setGlobalHistory((prev) => [...prev, ...spins]);
+    rebuildSortedList();
+    setLastLoadedKey(spins[spins.length - 1].num);
+  } finally {
+    hideLoading();
+  }
 }
 
 // ── Clear History ─────────────────────────────────────────────────────────────
@@ -364,7 +363,6 @@ export async function clearCurrentGame() {
     setGlobalHistory((prev) => prev.filter((s) => s.gameId !== game().id));
     setCurrentSpinIndex(-1);
     rebuildSortedList();
-    await updateStorageStats();
   } finally {
     hideLoading();
   }
@@ -377,7 +375,6 @@ export async function clearAllHistory() {
     setGlobalHistory([]);
     setCurrentSpinIndex(-1);
     rebuildSortedList();
-    await updateStorageStats();
   } finally {
     hideLoading();
   }
@@ -392,7 +389,6 @@ export async function clearFilteredHistory(filtered) {
     await deleteSpinsBatch([...numsSet]);
     setGlobalHistory((prev) => prev.filter((s) => !numsSet.has(s.num)));
     rebuildSortedList();
-    await updateStorageStats();
   } finally {
     hideLoading();
   }

@@ -1,12 +1,7 @@
 import { createSignal, Show, onMount, For } from 'solid-js';
 import { game } from '../../store/gameStore.js';
-import { playSpin } from '../../services/spinService.js';
-import {
-  autoPlayRunning,
-  setAutoPlayRunning,
-  bypassAnimation,
-  setBypassAnimation,
-} from '../../store/sessionStore.js';
+import { playSpin, stopAutoPlay } from '../../services/spinService.js';
+import { autoPlayRunning, setAutoPlayRunning } from '../../store/sessionStore.js';
 import { allCheatTemplates } from './cheatTemplateStore.js';
 
 export default function PlayControls() {
@@ -29,6 +24,7 @@ export default function PlayControls() {
   const [targetConditions, setTargetConditions] = createSignal([]);
   const [targetLogic, setTargetLogic] = createSignal('OR');
   const [targetCount, setTargetCount] = createSignal(1);
+  const [spinError, setSpinError] = createSignal('');
 
   onMount(() => {
     const rb = getRequestBody();
@@ -49,16 +45,21 @@ export default function PlayControls() {
 
   async function handlePlay() {
     if (autoPlayRunning()) return;
+    setSpinError('');
     const config = getRequestBody();
-    await playSpin({
-      config,
-      mode: mode(),
-      playCount: playCount(),
-      targetConditions: targetConditions(),
-      targetConditionLogic: targetLogic(),
-      targetCountLimit: targetCount(),
-      cheatTemplates: allCheatTemplates()[game().id] || [],
-    });
+    try {
+      await playSpin({
+        config,
+        mode: mode(),
+        playCount: playCount(),
+        targetConditions: targetConditions(),
+        targetConditionLogic: targetLogic(),
+        targetCountLimit: targetCount(),
+        cheatTemplates: allCheatTemplates()[game().id] || [],
+      });
+    } catch (err) {
+      setSpinError(err.message || 'Spin failed');
+    }
   }
 
   return (
@@ -75,7 +76,9 @@ export default function PlayControls() {
           }}
         >
           <option value="base">BaseSpin</option>
-          <option value="free" disabled>FreeSpin (Legacy)</option>
+          <option value="free" disabled>
+            FreeSpin (Legacy)
+          </option>
         </select>
 
         <div style="position:relative; width:60px;">
@@ -155,15 +158,24 @@ export default function PlayControls() {
         </Show>
 
         <Show when={autoPlayRunning()}>
-          <button id="stopAutoBtn" class="btn-ghost" onClick={() => setAutoPlayRunning(false)}>
+          <button id="stopAutoBtn" class="btn-ghost" onClick={stopAutoPlay}>
             STOP
           </button>
         </Show>
       </div>
 
+      <Show when={spinError()}>
+        <div style="color:var(--error); font-size:11px; padding:8px; background:rgba(244,63,94,0.1); border-radius:6px; border:1px solid rgba(244,63,94,0.3);">
+          {spinError()}
+        </div>
+      </Show>
+
       {/* Until Targets condition picker */}
       <Show when={mode() === 'untilConditionN'}>
-        <div id="targetConditionsGroup" style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+        <div
+          id="targetConditionsGroup"
+          style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;"
+        >
           <div id="targetConditionsCheckboxes" style="display:flex; flex-wrap:wrap; gap:4px;">
             <For each={Object.entries(game().winCategories || {})}>
               {([cat, threshold]) => (
@@ -201,20 +213,6 @@ export default function PlayControls() {
           />
         </div>
       </Show>
-
-      {/* Animation toggle */}
-      <label style="display:flex; align-items:center; gap:6px; font-size:10px; color:var(--text-muted); cursor:pointer;">
-        <input
-          type="checkbox"
-          id="disableAnimation"
-          checked={bypassAnimation()}
-          onChange={(e) => {
-            setBypassAnimation(e.target.checked);
-            localStorage.setItem('bypass_animation', e.target.checked);
-          }}
-        />
-        Skip sequence animation
-      </label>
     </div>
   );
 }

@@ -98,7 +98,7 @@ export async function saveAllSpins(entries) {
 }
 
 /** Load initial batch of spins ONLY for the active game */
-export async function loadAllSpins(gameId, limit = 10000) {
+export async function loadAllSpins(gameId, limit = 5000) {
   await open();
   return new Promise((resolve, reject) => {
     const store = getStore();
@@ -127,35 +127,28 @@ export async function loadAllSpins(gameId, limit = 10000) {
   });
 }
 
-/** Load a specific page of spins using a cursor (Newest First) */
-export async function loadSpinsPage(limit = 30, offset = 0) {
+/**
+ * Load next page of spins using key-range cursor (no skip/offset).
+ * Pass afterKey = last seen spin's `num` to get the next page.
+ * Returns newest-first within the active game.
+ */
+export async function loadSpinsCursor(gameId, afterKey = null, limit = 5000) {
   await open();
   return new Promise((resolve, reject) => {
     const store = getStore();
-    const req = store.openCursor(null, 'prev'); // Descending order
+    const range = afterKey != null ? IDBKeyRange.upperBound(afterKey, true) : null;
+    const req = store.openCursor(range, 'prev');
     const results = [];
-    let advanced = false;
 
     req.onsuccess = (e) => {
       const cursor = e.target.result;
       if (!cursor) {
-        resolve(results); // No more records
-        return;
-      }
-
-      // Skip records for the offset
-      if (offset > 0 && !advanced) {
-        advanced = true;
-        cursor.advance(offset);
-        return;
-      }
-
-      results.push(cursor.value);
-      if (results.length < limit) {
-        cursor.continue();
-      } else {
         resolve(results);
+        return;
       }
+      if (cursor.value.gameId === gameId) results.push(cursor.value);
+      if (results.length < limit) cursor.continue();
+      else resolve(results);
     };
     req.onerror = (e) => reject(e.target.error);
   });

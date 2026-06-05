@@ -7,7 +7,8 @@ import {
 } from '../../store/historyStore.js';
 import { currentSpinIndex } from '../../store/sessionStore.js';
 import { loadSpin } from '../../services/spinService.js';
-import { triggerFilterUpdate } from '../../services/gameService.js';
+import { triggerFilterUpdate, loadMoreSpins } from '../../services/gameService.js';
+import { lastLoadedKey } from '../../store/historyStore.js';
 import SpinCard from './SpinCard.jsx';
 
 const CHUNK = 30;
@@ -96,6 +97,16 @@ export default function SpinHistory() {
             style="height:10px;"
             id="scrollSentinel"
           />
+        </Show>
+
+        {/* Load older spins from DB */}
+        <Show when={lastLoadedKey() != null}>
+          <button
+            onClick={loadMoreSpins}
+            style="width:100%; padding:8px; margin-top:4px; background:var(--surface-2,#2a2a2a); border:1px solid var(--border,#333); color:var(--text-muted,#888); cursor:pointer; font-size:0.75em; border-radius:4px;"
+          >
+            Load older spins…
+          </button>
         </Show>
       </Show>
     </div>

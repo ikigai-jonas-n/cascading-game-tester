@@ -9,6 +9,7 @@ import ShortcutsModal from './modals/ShortcutsModal.jsx';
 import CustomGameModal from './modals/CustomGameModal.jsx';
 import PaytableModal from './modals/PaytableModal.jsx';
 import ChoicePromptModal from './modals/ChoicePromptModal.jsx';
+import MongoRoundImportModal from './modals/MongoRoundImportModal.jsx';
 import ToastContainer from './features/ToastContainer.jsx';
 import {
   navigateFrame,
@@ -19,7 +20,6 @@ import {
 import { currentSpinIndex, setCurrentSpinIndex } from '../store/sessionStore.js';
 import { globalHistory, rebuildSortedList } from '../store/historyStore.js';
 import { game } from '../store/gameStore.js';
-import { setStorageStats } from '../store/uiStore.js';
 
 export default function App() {
   function onKeyDown(e) {
@@ -88,6 +88,7 @@ export default function App() {
       <CustomGameModal />
       <PaytableModal />
       <ChoicePromptModal />
+      <MongoRoundImportModal />
 
       {/* Cell inspector tooltip */}
       <div

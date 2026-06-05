@@ -44,6 +44,25 @@ import {
 import { FILTER_DEFS } from '../filters.js';
 import { openRawDrawer, updatePlaybackLabels, syncPlaybackUI } from './drawerService.js';
 
+// ── Auto-play abort handles ───────────────────────────────────────────────────
+let _autoPlayController = null;
+let _currentWorkers = [];
+let _resolveAutoPlay = null;
+
+export function stopAutoPlay() {
+  setAutoPlayRunning(false);
+  if (_autoPlayController) {
+    _autoPlayController.abort();
+    _autoPlayController = null;
+  }
+  _currentWorkers.forEach((w) => w.terminate());
+  _currentWorkers = [];
+  if (_resolveAutoPlay) {
+    _resolveAutoPlay();
+    _resolveAutoPlay = null;
+  }
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 export function parseSmartNumber(val) {
@@ -188,6 +207,7 @@ export async function fireSpinRequest(config, isInteractive = false) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-signature': 'rgs-local-signature' },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15000),
     });
     const json = await response.json();
     if (!response.ok || json.error) {
@@ -542,13 +562,9 @@ export async function playSpin({
   if (gameState.isAnimating || autoPlayRunning()) return;
 
   if (mode === 'single') {
-    try {
-      const entry = await playSingleSpin(config);
-      rebuildSortedList();
-      await loadSpin(0);
-    } catch (err) {
-      pushToast({ type: 'error', title: 'Spin Failed', message: err.message });
-    }
+    const entry = await playSingleSpin(config);
+    rebuildSortedList();
+    await loadSpin(0);
     return;
   }
 
@@ -558,8 +574,11 @@ export async function playSpin({
       return;
     }
     const originalTestConfig = localStorage.getItem('test_config');
+    _autoPlayController = new AbortController();
+    setAutoPlayRunning(true);
     try {
       for (let i = 0; i < cheatTemplates.length; i++) {
+        if (!autoPlayRunning()) break;
         const t = cheatTemplates[i];
         setAutoStatus(`Running cheat ${i + 1}/${cheatTemplates.length}: ${t.title}`);
 
@@ -580,6 +599,7 @@ export async function playSpin({
             accept: '*/*',
           },
           body: JSON.stringify(parsed),
+          signal: _autoPlayController.signal,
         });
         if (!cheatRes.ok) {
           console.error(`Skipping ${t.title}`);
@@ -593,6 +613,7 @@ export async function playSpin({
     } catch (err) {
       pushToast({ type: 'error', title: 'Template Error', message: err.message });
     } finally {
+      setAutoPlayRunning(false);
       const params = new URLSearchParams({
         gameCode: game().gameCode,
         configId: playerId(),
@@ -606,8 +627,6 @@ export async function playSpin({
       else localStorage.removeItem('test_config');
       rebuildSortedList();
       await loadSpin(0);
-      const { updateStorageStats } = await import('./gameService.js');
-      await updateStorageStats();
     }
     return;
   }
@@ -630,12 +649,14 @@ export async function playSpin({
       { length: coreCount },
       () => new Worker(new URL('../spin-worker.js', import.meta.url), { type: 'module' }),
     );
+    _currentWorkers = workers;
 
     let activeWorkers = 0;
     let lastRenderTime = performance.now();
     let limitReached = false;
 
     await new Promise((resolve) => {
+      _resolveAutoPlay = resolve;
       const dispatchWork = () => {
         if (!autoPlayRunning() || count >= maxSpins || limitReached) {
           if (activeWorkers === 0) resolve();
@@ -669,6 +690,12 @@ export async function playSpin({
         worker.onmessage = async (e) => {
           activeWorkers--;
           const { results } = e.data;
+
+          // Stop was pressed — drain without processing, resolve when all in-flight done
+          if (!autoPlayRunning()) {
+            if (activeWorkers === 0) resolve();
+            return;
+          }
 
           if (results?.length > 0) {
             await saveAllSpins(results);
@@ -745,6 +772,8 @@ export async function playSpin({
     });
 
     workers.forEach((w) => w.terminate());
+    _currentWorkers = [];
+    _resolveAutoPlay = null;
   } catch (err) {
     console.error(err);
     pushToast({ type: 'error', title: 'Auto-play Error', message: err.message });
@@ -754,7 +783,5 @@ export async function playSpin({
     setAutoStatus(`Done: ${count} in ${elapsed}s`);
     rebuildSortedList();
     if (globalHistory.length > 0) await loadSpin(0);
-    const { updateStorageStats } = await import('./gameService.js');
-    await updateStorageStats();
   }
 }

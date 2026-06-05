@@ -23,7 +23,10 @@ export const [sortField, setSortField] = createSignal(
   localStorage.getItem('sort_field') || 'num_desc',
 );
 
-export const MAX_RAM_HISTORY = 10000;
+export const MAX_RAM_HISTORY = 5000;
+
+/** Key of the oldest spin currently in RAM — used for cursor-based "load more" */
+export const [lastLoadedKey, setLastLoadedKey] = createSignal(null);
 
 /** Recompute currentSortedList from globalHistory + activeFilters + sortField */
 export function rebuildSortedList() {
