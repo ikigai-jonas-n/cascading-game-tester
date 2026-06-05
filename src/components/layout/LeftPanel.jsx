@@ -57,11 +57,11 @@ export default function LeftPanel() {
       id="col1"
       ref={col1Ref}
       aria-label="Game History and Controls"
-      style={`width:${col1Width()}; min-width:250px; display:flex; flex-direction:column; overflow:hidden; position:relative;`}
+      style={`width:${col1Width()}; min-width:250px; flex-shrink:0; display:flex; flex-direction:column; overflow:hidden; position:relative;`}
     >
       <header>
-        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-          <div style="display:flex; flex-direction:column; gap:6px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+          <div style="display:flex; flex-direction:column; gap:6px; min-width:180px;">
             <div style="display:flex; align-items:center; gap:4px;">
               <h1>SLOT STUDIO</h1>
               <button
@@ -199,7 +199,7 @@ function ExportMenu() {
         <span class="label">EXPORT</span>
       </button>
       <Show when={open()}>
-        <div class="dropdown-menu" style="display:block; top:100%; right:0; z-index:1000;">
+        <div class="dropdown-menu" style="display:block; top:100%; left:0; z-index:1000;">
           <div
             class="dropdown-item"
             onClick={() => {

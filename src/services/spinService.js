@@ -314,8 +314,6 @@ export async function playSingleSpin(overrideConfig = null, description = null) 
 // ── Load Spin ─────────────────────────────────────────────────────────────────
 
 export async function loadSpin(historyIndex) {
-  setCurrentSpinIndex(historyIndex);
-  localStorage.setItem('last_spin_index', historyIndex);
   const spin = globalHistory[historyIndex];
   if (!spin) return;
 
@@ -325,10 +323,21 @@ export async function loadSpin(historyIndex) {
     spin._isCompressed = false;
   }
 
+  const lastHistoryIndex = parseInt(localStorage.getItem('last_spin_index') || '-1', 10);
+  let tumbleIdx = 0;
+  if (historyIndex === lastHistoryIndex) {
+    const savedTumbleStr = localStorage.getItem('last_tumble_index');
+    tumbleIdx = savedTumbleStr ? parseInt(savedTumbleStr, 10) : 0;
+    tumbleIdx = Math.min(Math.max(0, tumbleIdx), spin.fields.length - 1);
+  }
+
+  setCurrentSpinIndex(historyIndex);
+  localStorage.setItem('last_spin_index', historyIndex);
+
   setGameState({
     fields: spin.fields,
     summary: spin.summary,
-    currentIndex: 0,
+    currentIndex: tumbleIdx,
     isAnimating: false,
   });
 
@@ -348,8 +357,8 @@ export async function loadSpin(historyIndex) {
   if (isAutoplayOnSelect()) {
     startSpinPlayback();
   } else {
-    setGameState({ currentIndex: 0, currentFramePhase: 'initial' });
-    selectTumble(0, 'initial');
+    // If not autoplaying, select the restored tumbleIdx (or 0 if none restored)
+    selectTumble(tumbleIdx, 'initial');
     updatePlaybackLabels();
     syncPlaybackUI();
   }
@@ -397,6 +406,7 @@ export function selectTumble(tIdx, phase) {
 
 export function showTumble(index, phase) {
   setGameState('currentIndex', index);
+  localStorage.setItem('last_tumble_index', index);
 
   const resolvedPhase = showDoubleGrid()
     ? 'final'
@@ -697,74 +707,79 @@ export async function playSpin({
             return;
           }
 
-          if (results?.length > 0) {
-            await saveAllSpins(results);
+            if (results?.length > 0) {
+              await saveAllSpins(results);
 
-            if (mode === 'untilConditionN' && targetConditions?.length > 0) {
-              for (const entry of results) {
-                const category = getWinCategory(entry.totalWin, entry.betAmount);
-                if (targetConditions.includes(category)) {
-                  if (targetConditionLogic === 'OR') {
-                    targetHitCount++;
-                    if (targetHitCount >= targetCountLimit) {
-                      limitReached = true;
-                      setAutoPlayRunning(false);
-                      break;
-                    }
-                  } else {
-                    targetHitMap[category]++;
-                    if (targetConditions.every((c) => targetHitMap[c] >= targetCountLimit)) {
-                      limitReached = true;
-                      setAutoPlayRunning(false);
-                      break;
+              // If stopped while saving to DB, abort before overwriting status
+              if (!autoPlayRunning()) return;
+
+              if (mode === 'untilConditionN' && targetConditions?.length > 0) {
+                for (const entry of results) {
+                  const category = getWinCategory(entry.totalWin, entry.betAmount);
+                  if (targetConditions.includes(category)) {
+                    if (targetConditionLogic === 'OR') {
+                      targetHitCount++;
+                      if (targetHitCount >= targetCountLimit) {
+                        limitReached = true;
+                        setAutoPlayRunning(false);
+                        break;
+                      }
+                    } else {
+                      targetHitMap[category]++;
+                      if (targetConditions.every((c) => targetHitMap[c] >= targetCountLimit)) {
+                        limitReached = true;
+                        setAutoPlayRunning(false);
+                        break;
+                      }
                     }
                   }
                 }
               }
-            }
 
-            if (mode === 'untilFilter' && activeFilters.some((f) => !f.disabled)) {
-              for (const entry of results) {
-                const isMatch = activeFilters.every((af) => {
-                  if (af.disabled) return true;
-                  const def = FILTER_DEFS.find((d) => d.id === af.id);
-                  return def ? def.apply(entry, af.value, game()) : true;
-                });
-                if (isMatch) {
-                  limitReached = true;
-                  setAutoPlayRunning(false);
-                  break;
+              if (mode === 'untilFilter' && activeFilters.some((f) => !f.disabled)) {
+                for (const entry of results) {
+                  const isMatch = activeFilters.every((af) => {
+                    if (af.disabled) return true;
+                    const def = FILTER_DEFS.find((d) => d.id === af.id);
+                    return def ? def.apply(entry, af.value, game()) : true;
+                  });
+                  if (isMatch) {
+                    limitReached = true;
+                    setAutoPlayRunning(false);
+                    break;
+                  }
                 }
               }
+
+              if (mode === 'untilWin' && results.some((e) => e.isWin)) {
+                limitReached = true;
+                setAutoPlayRunning(false);
+              }
+              if (mode === 'untilLoss' && results.some((e) => !e.isWin)) {
+                limitReached = true;
+                setAutoPlayRunning(false);
+              }
+
+              // Update RAM history with OOM protection
+              setGlobalHistory((prev) => {
+                const next = [...results.reverse(), ...prev];
+                if (next.length > MAX_RAM_HISTORY) next.length = MAX_RAM_HISTORY;
+                return next;
+              });
             }
 
-            if (mode === 'untilWin' && results.some((e) => e.isWin)) {
-              limitReached = true;
-              setAutoPlayRunning(false);
+            if (!autoPlayRunning()) return;
+
+            const now = performance.now();
+            const rps = (count / ((now - startTime) / 1000)).toFixed(1);
+            setAutoStatus(`Processing: ${count} / ${maxSpins} (${rps} spins/sec)`);
+
+            if (now - lastRenderTime > 1500) {
+              rebuildSortedList();
+              lastRenderTime = now;
             }
-            if (mode === 'untilLoss' && results.some((e) => !e.isWin)) {
-              limitReached = true;
-              setAutoPlayRunning(false);
-            }
 
-            // Update RAM history with OOM protection
-            setGlobalHistory((prev) => {
-              const next = [...results.reverse(), ...prev];
-              if (next.length > MAX_RAM_HISTORY) next.length = MAX_RAM_HISTORY;
-              return next;
-            });
-          }
-
-          const now = performance.now();
-          const rps = (count / ((now - startTime) / 1000)).toFixed(1);
-          setAutoStatus(`Processing: ${count} / ${maxSpins} (${rps} spins/sec)`);
-
-          if (now - lastRenderTime > 1500) {
-            rebuildSortedList();
-            lastRenderTime = now;
-          }
-
-          dispatchWork();
+            dispatchWork();
         };
       });
 

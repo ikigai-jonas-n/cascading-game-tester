@@ -50,36 +50,10 @@ export default function PlaybackControls() {
   return (
     <nav
       class="glass playback-nav"
-      style="margin-top:40px; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; padding:10px 24px; border-radius:16px; margin-left:auto; margin-right:auto; max-width:fit-content; gap:32px;"
+      style="margin-top:40px; display:flex; flex-direction:column; align-items:center; padding:12px 20px; border-radius:16px; margin-left:auto; margin-right:auto; width:500px; box-sizing:border-box; gap:12px;"
     >
-      {/* Left: Speed */}
-      <div style="display:flex; align-items:center; gap:12px; border-right:1px solid rgba(255,255,255,0.1); padding-right:24px; justify-self:start;">
-        <div style="display:flex; flex-direction:column; gap:2px; min-width:90px;">
-          <span style="font-size:8px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">
-            SPEED
-          </span>
-          <span
-            id="speedValueLabel"
-            style="font-size:12px; font-weight:900; color:var(--bg-accent); font-family:monospace;"
-          >
-            {speedLabel()}
-          </span>
-        </div>
-        <input
-          type="range"
-          id="playbackSpeed"
-          min="0.25"
-          max="4"
-          step="0.25"
-          value={playbackSpeed()}
-          class="speed-slider"
-          style="width:90px;"
-          onInput={handleSpeedChange}
-        />
-      </div>
-
-      {/* Center: Playback Buttons */}
-      <div style="display:flex; flex-direction:column; align-items:center; gap:6px; justify-self:center;">
+      {/* Top Row: Playback Navigation */}
+      <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
         <div class="control-hub" style="display:flex; align-items:flex-start; gap:10px;">
           {/* Prev Spin */}
           <div class="nav-btn-container">
@@ -189,54 +163,83 @@ export default function PlaybackControls() {
         </div>
       </div>
 
-      {/* Right: Auto controls */}
-      <div style="display:flex; align-items:center; gap:8px; border-left:1px solid rgba(255,255,255,0.1); padding-left:24px; justify-self:end;">
-        {/* Auto ON */}
-        <div class="nav-btn-container">
-          <button
-            id="playbackAutoBtn"
-            class={`btn-ghost ${isAutoReplay() ? 'active-pulse' : ''}`}
-            style="padding:6px; border-radius:8px;"
-            title="Auto Replay"
-            onClick={() => {
-              const next = !isAutoReplay();
-              setIsAutoReplay(next);
-              localStorage.setItem('is_auto_replay', next);
-            }}
-          >
-            <span style="font-size:14px;">🔁</span>
-          </button>
-          <span class="nav-label">auto on</span>
+      {/* Bottom Row: Speed & Auto */}
+      <div style="display:flex; justify-content:space-between; align-items:center; width:100%; border-top:1px solid rgba(255,255,255,0.05); padding-top:12px;">
+        {/* Left: Speed */}
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="display:flex; flex-direction:column; gap:2px;">
+            <span style="font-size:8px; color:var(--text-muted); font-weight:700; text-transform:uppercase;">
+              SPEED
+            </span>
+            <span
+              id="speedValueLabel"
+              style="font-size:12px; font-weight:900; color:var(--bg-accent); font-family:monospace;"
+            >
+              {speedLabel()}
+            </span>
+          </div>
+          <input
+            type="range"
+            id="playbackSpeed"
+            min="0.25"
+            max="4"
+            step="0.25"
+            value={playbackSpeed()}
+            class="speed-slider"
+            style="width:90px;"
+            onInput={handleSpeedChange}
+          />
         </div>
-        {/* Replay */}
-        <div class="nav-btn-container">
-          <button
-            id="playbackReplayBtn"
-            class="btn-ghost"
-            style="padding:6px; border-radius:8px;"
-            title="Replay Spin"
-            onClick={startSpinPlayback}
-          >
-            <span style="font-size:14px;">🔄</span>
-          </button>
-          <span class="nav-label">replay</span>
-        </div>
-        {/* Autoplay on Select */}
-        <div class="nav-btn-container">
-          <button
-            id="playbackAutoplayBtn"
-            class={`btn-ghost ${isAutoplayOnSelect() ? 'active-pulse' : ''}`}
-            style="padding:6px; border-radius:8px;"
-            title="Auto-play on select"
-            onClick={() => {
-              const next = !isAutoplayOnSelect();
-              setIsAutoplayOnSelect(next);
-              localStorage.setItem('autoplay_on_select', next);
-            }}
-          >
-            <span style="font-size:14px;">▶️</span>
-          </button>
-          <span class="nav-label">repeat</span>
+
+        {/* Right: Auto controls */}
+        <div style="display:flex; align-items:center; gap:8px;">
+          {/* Auto ON */}
+          <div class="nav-btn-container">
+            <button
+              id="playbackAutoBtn"
+              class={`btn-ghost ${isAutoReplay() ? 'active-pulse' : ''}`}
+              style="padding:6px; border-radius:8px;"
+              title="Auto Replay"
+              onClick={() => {
+                const next = !isAutoReplay();
+                setIsAutoReplay(next);
+                localStorage.setItem('is_auto_replay', next);
+              }}
+            >
+              <span style="font-size:14px;">🔁</span>
+            </button>
+            <span class="nav-label">auto on</span>
+          </div>
+          {/* Replay */}
+          <div class="nav-btn-container">
+            <button
+              id="playbackReplayBtn"
+              class="btn-ghost"
+              style="padding:6px; border-radius:8px;"
+              title="Replay Spin"
+              onClick={startSpinPlayback}
+            >
+              <span style="font-size:14px;">🔄</span>
+            </button>
+            <span class="nav-label">replay</span>
+          </div>
+          {/* Autoplay on Select */}
+          <div class="nav-btn-container">
+            <button
+              id="playbackAutoplayBtn"
+              class={`btn-ghost ${isAutoplayOnSelect() ? 'active-pulse' : ''}`}
+              style="padding:6px; border-radius:8px;"
+              title="Auto-play on select"
+              onClick={() => {
+                const next = !isAutoplayOnSelect();
+                setIsAutoplayOnSelect(next);
+                localStorage.setItem('autoplay_on_select', next);
+              }}
+            >
+              <span style="font-size:14px;">▶️</span>
+            </button>
+            <span class="nav-label">repeat</span>
+          </div>
         </div>
       </div>
     </nav>

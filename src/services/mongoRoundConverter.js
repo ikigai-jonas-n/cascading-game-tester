@@ -29,10 +29,12 @@ function extractFieldsFromPlayResult(playResult) {
   const fieldMetadata = [];
   const playgroundStats = [];
   let hasFreeSpin = false;
+  let hasBaseSpin = false;
   let playgroundCounter = 0;
 
   (playResult.step?.gamePhases || []).forEach((phase) => {
     if (phase.type === 'freeSpin') hasFreeSpin = true;
+    if (phase.type === 'regular') hasBaseSpin = true;
     let roundCounter = 0;
     (phase.playgrounds || []).forEach((pg) => {
       let pgTumbles = 0;
@@ -62,6 +64,7 @@ function extractFieldsFromPlayResult(playResult) {
     fieldMetadata,
     playgroundStats,
     hasFreeSpin,
+    hasBaseSpin,
     playgroundCount: playgroundCounter,
   };
 }
@@ -89,6 +92,7 @@ export function convertMongoRoundToSpins(rawDoc, startNum) {
   const allFieldMetadata = [];
   const allPlaygroundStats = [];
   let hasFreeSpin = false;
+  let hasBaseSpin = false;
   let hasMaxWin = false;
   let firstMetaPublic = {};
   let allChoices = [];
@@ -102,12 +106,14 @@ export function convertMongoRoundToSpins(rawDoc, startNum) {
       fieldMetadata,
       playgroundStats,
       hasFreeSpin: phaseHasFS,
+      hasBaseSpin: phaseHasBS,
     } = extractFieldsFromPlayResult(pr);
 
     allFields.push(...fields);
     allFieldMetadata.push(...fieldMetadata);
     allPlaygroundStats.push(...playgroundStats);
     if (phaseHasFS) hasFreeSpin = true;
+    if (phaseHasBS) hasBaseSpin = true;
     if (pr.step.summary?.hasMaxWin) hasMaxWin = true;
     if (!firstMetaPublic.betAmount && pr.meta?.public) firstMetaPublic = pr.meta.public;
     if (pr.choices?.length) allChoices.push(...pr.choices);
@@ -142,7 +148,7 @@ export function convertMongoRoundToSpins(rawDoc, startNum) {
     betAmount,
     spinMode,
     spinType: hasFreeSpin ? 'freeSpin' : 'baseSpin',
-    hasBaseSpin: true,
+    hasBaseSpin,
     hasFreeSpin,
     playgroundCount: allPlaygroundStats.length,
     roundTags: roundDoc.roundTags || [],

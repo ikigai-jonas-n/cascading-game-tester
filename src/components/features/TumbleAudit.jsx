@@ -1,4 +1,4 @@
-import { createMemo, For, Show, createSignal } from 'solid-js';
+import { createMemo, For, Show, createSignal, onMount, onCleanup, createEffect } from 'solid-js';
 import { game, symbols, emojis } from '../../store/gameStore.js';
 import { gameState } from '../../store/sessionStore.js';
 import { selectTumble, isSettleField, getFieldEffectiveWin } from '../../services/spinService.js';
@@ -118,17 +118,10 @@ export default function TumbleAudit(props) {
       </For>
 
       <Show when={hasMore()}>
-        <button
-          class="btn-ghost load-more-tumbles-btn"
-          style="width:100%; margin-top:8px; padding:8px; font-size:10px; border:1px dashed var(--border-color); color:var(--text-muted);"
-          onClick={(e) => {
-            e.stopPropagation();
-            updateSpin(spin().num, { _showAllTumbles: true });
-          }}
-        >
-          ⚠️ {(spin().fields?.length || 0) - RENDER_LIMIT} More Tumbles Hidden. Click to load
-          all (May lag UI)
-        </button>
+        <AutoLoadMoreButton
+          count={(spin().fields?.length || 0) - RENDER_LIMIT}
+          onLoad={() => updateSpin(spin().num, { _showAllTumbles: true })}
+        />
       </Show>
     </div>
   );
@@ -140,6 +133,7 @@ function TumbleRow(props) {
   const g = game;
 
   const isWinStep = createMemo(() => parseFloat(props.f.coins || 0) > 0 && isSettleField(props.f));
+  const hasWinStats = createMemo(() => isWinStep() || (Array.isArray(props.f.symbols?.payouts) && props.f.symbols.payouts.length > 0));
   const effectiveWin = createMemo(() => getFieldEffectiveWin(props.f));
 
   const goldenPositions = createMemo(() => props.f.features?.golden || []);
@@ -169,8 +163,22 @@ function TumbleRow(props) {
     () => initialSyms().filter((id, pos) => id === wildId() && payoutPositions().has(pos)).length,
   );
 
+  let rowRef;
+  createEffect(() => {
+    if (props.isCurrent) {
+      const isInitial = !window.hasDoneInitialScroll;
+      // const delay = isInitial ? 1 : 1;
+
+      setTimeout(() => {
+        if (rowRef) rowRef.scrollIntoView({ behavior: isInitial ? 'auto' : 'smooth', block: 'center' });
+        window.hasDoneInitialScroll = true;
+      }, 1);
+    }
+  });
+
   return (
     <div
+      ref={rowRef}
       data-tumble={props.tIdx}
       class={`glass ${props.isCurrent ? 'active-tumble-item' : ''}`}
       style={`padding:8px; border-radius:8px; background:${props.isCurrent ? 'rgba(34,197,94,0.12)' : 'transparent'}; border:1px solid ${props.isCurrent ? 'rgba(34,197,94,0.4)' : 'transparent'}; cursor:pointer; margin-top:4px;`}
@@ -202,7 +210,7 @@ function TumbleRow(props) {
       </div>
 
       {/* Win breakdown */}
-      <Show when={isWinStep()}>
+      <Show when={hasWinStats()}>
         <div style="margin-top:6px; border-top:1px dashed rgba(255,255,255,0.05); padding-top:4px;">
           <For each={[...winningGolden().entries()]}>
             {([sid, count]) => (
@@ -269,5 +277,33 @@ function TumbleRow(props) {
         </div>
       </Show>
     </div>
+  );
+}
+
+function AutoLoadMoreButton(props) {
+  let btnRef;
+
+  onMount(() => {
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        props.onLoad();
+      }
+    }, { rootMargin: '150px' });
+    if (btnRef) observer.observe(btnRef);
+    onCleanup(() => observer.disconnect());
+  });
+
+  return (
+    <button
+      ref={btnRef}
+      class="btn-ghost load-more-tumbles-btn"
+      style="width:100%; margin-top:8px; padding:8px; font-size:10px; border:1px dashed var(--border-color); color:var(--text-muted);"
+      onClick={(e) => {
+        e.stopPropagation();
+        props.onLoad();
+      }}
+    >
+      ⚠️ {props.count} More Tumbles Hidden. Scrolling to load all (May lag UI)
+    </button>
   );
 }

@@ -76,7 +76,7 @@ export default function App() {
       <LoadingOverlay />
       <ToastContainer />
 
-      <div id="appLayout" style="display:flex; height:100vh; overflow:hidden;">
+      <div id="appLayout" style="display:flex; height:100vh; width:100vw; overflow:hidden;">
         <LeftPanel />
         <CenterPanel />
         <RightPanel />

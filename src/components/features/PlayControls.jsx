@@ -65,10 +65,10 @@ export default function PlayControls() {
   return (
     <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:8px;">
       {/* Spin type / bet / stake row */}
-      <section class="spin-settings-ui" style="display:flex; gap:6px; margin-bottom:8px;">
+      <section class="spin-settings-ui" style="display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap;">
         <select
           id="uiSpinType"
-          style="flex:1; padding:6px; font-size:11px; font-weight:800; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px;"
+          style="flex:1; min-width:110px; padding:6px; font-size:11px; font-weight:800; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px;"
           value={spinType()}
           onChange={(e) => {
             setSpinType(e.target.value);
@@ -81,84 +81,88 @@ export default function PlayControls() {
           </option>
         </select>
 
-        <div style="position:relative; width:60px;">
-          <span style="position:absolute; left:6px; top:50%; transform:translateY(-50%); font-size:9px; color:var(--text-muted); pointer-events:none;">
-            Bet
-          </span>
-          <input
-            type="number"
-            id="uiBetAmount"
-            value={betAmount()}
-            style="width:100%; padding:6px 6px 6px 24px; font-size:11px; font-weight:800; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px;"
-            onInput={(e) => {
-              const v = parseFloat(e.target.value) || 20;
-              setBetAmount(v);
-              updateRequestBody({ betAmount: v });
-            }}
-          />
-        </div>
+        <div style="display:flex; gap:6px; flex:2; min-width:180px;">
+          <div style="position:relative; width:70px; flex-shrink:0;">
+            <span style="position:absolute; left:6px; top:50%; transform:translateY(-50%); font-size:9px; color:var(--text-muted); pointer-events:none;">
+              Bet
+            </span>
+            <input
+              type="number"
+              id="uiBetAmount"
+              value={betAmount()}
+              style="width:100%; padding:6px 6px 6px 24px; font-size:11px; font-weight:800; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px;"
+              onInput={(e) => {
+                const v = parseFloat(e.target.value) || 20;
+                setBetAmount(v);
+                updateRequestBody({ betAmount: v });
+              }}
+            />
+          </div>
 
-        <select
-          id="uiStake"
-          style="flex:1; padding:6px; font-size:11px; font-weight:800; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px;"
-          value={stake()}
-          onChange={(e) => {
-            setStake(e.target.value);
-            updateRequestBody({ spinMode: e.target.value });
-          }}
-        >
-          <option value="commonGame">commonGame</option>
-          <option value="anteBet">anteBet</option>
-          <option value="buyBonusGame">buyBonusGame</option>
-        </select>
+          <select
+            id="uiStake"
+            style="flex:1; padding:6px; font-size:11px; font-weight:800; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px;"
+            value={stake()}
+            onChange={(e) => {
+              setStake(e.target.value);
+              updateRequestBody({ spinMode: e.target.value });
+            }}
+          >
+            <option value="commonGame">commonGame</option>
+            <option value="anteBet">anteBet</option>
+            <option value="buyBonusGame">buyBonusGame</option>
+          </select>
+        </div>
       </section>
 
       {/* Play row */}
-      <div style="display:flex; gap:6px; align-items:center;">
+      <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
         <button
           id="spinBtn"
           class="btn-primary"
-          style="flex:1; height:36px; font-size:13px; font-weight:900;"
+          style="flex:2; min-width:120px; height:36px; font-size:13px; font-weight:900;"
           disabled={autoPlayRunning()}
           onClick={handlePlay}
         >
           {autoPlayRunning() ? 'RUNNING...' : '▶ PLAY'}
         </button>
 
-        <select
-          id="playMode"
-          style="padding:6px; font-size:11px; font-weight:800; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px;"
-          value={mode()}
-          onChange={(e) => {
-            setMode(e.target.value);
-            localStorage.setItem('play_mode', e.target.value);
-          }}
-        >
-          <option value="single">Single</option>
-          <option value="count">Play N</option>
-          <option value="allCheatTemplates">All Cheats</option>
-          <option value="untilWin">Until Win</option>
-          <option value="untilLoss">Until Loss</option>
-          <option value="untilFilter">Until Filter</option>
-          <option value="untilConditionN">Until Targets</option>
-        </select>
-
-        <Show when={mode() === 'count'}>
-          <input
-            type="text"
-            id="playCount"
-            value={playCount()}
-            placeholder="e.g. 100k"
-            style="width:65px; padding:6px; font-size:11px; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px;"
-            onInput={(e) => {
-              setPlayCount(e.target.value);
-              localStorage.setItem('play_count', e.target.value);
+        <div style="display:flex; gap:6px; flex:1; min-width:140px;">
+          <select
+            id="playMode"
+            style="flex:1; padding:6px; font-size:11px; font-weight:800; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px;"
+            value={mode()}
+            onChange={(e) => {
+              setMode(e.target.value);
+              localStorage.setItem('play_mode', e.target.value);
             }}
-          />
-        </Show>
+          >
+            <option value="single">Single</option>
+            <option value="count">Play N</option>
+            <option value="allCheatTemplates">All Cheats</option>
+            <option value="untilWin">Until Win</option>
+            <option value="untilLoss">Until Loss</option>
+            <option value="untilFilter">Until Filter</option>
+            <option value="untilConditionN">Until Targets</option>
+          </select>
+
+          <Show when={mode() === 'count'}>
+            <input
+              type="text"
+              id="playCount"
+              value={playCount()}
+              placeholder="e.g. 100k"
+              style="width:65px; flex-shrink:0; padding:6px; font-size:11px; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px;"
+              onInput={(e) => {
+                setPlayCount(e.target.value);
+                localStorage.setItem('play_count', e.target.value);
+              }}
+            />
+          </Show>
+        </div>
 
         <Show when={autoPlayRunning()}>
-          <button id="stopAutoBtn" class="btn-ghost" onClick={stopAutoPlay}>
+          <button id="stopAutoBtn" class="btn-ghost" style="flex-shrink:0;" onClick={stopAutoPlay}>
             STOP
           </button>
         </Show>

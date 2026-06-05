@@ -1,4 +1,4 @@
-import { For, Show, createSignal, createMemo, onCleanup } from 'solid-js';
+import { For, Show, createSignal, createMemo, onCleanup, createEffect } from 'solid-js';
 import {
   currentSortedList,
   globalHistory,
@@ -18,31 +18,60 @@ export default function SpinHistory() {
   let sentinelRef;
   let observer;
 
-  // Expand render limit if active item is past current limit
-  const effectiveLimit = createMemo(() => {
+  const [windowStart, setWindowStart] = createSignal(0);
+  const [windowEnd, setWindowEnd] = createSignal(CHUNK);
+  let topSentinelRef, bottomSentinelRef;
+  let topObserver, bottomObserver;
+  const ESTIMATED_ROW_HEIGHT = 68; // approx collapsed height
+
+  // Jump to active index if it goes outside our window
+  createEffect(() => {
     const sorted = currentSortedList();
-    const limit = renderLimit();
     const activeIdx = sorted.findIndex((s) => globalHistory.indexOf(s) === currentSpinIndex());
-    return activeIdx >= limit ? activeIdx + 5 : limit;
+    if (activeIdx !== -1) {
+      if (activeIdx < windowStart() || activeIdx >= windowEnd()) {
+        setWindowStart(Math.max(0, activeIdx - 10));
+        setWindowEnd(Math.min(sorted.length, activeIdx + Math.max(CHUNK, 20)));
+      }
+    }
   });
 
-  const visibleSpins = createMemo(() => currentSortedList().slice(0, effectiveLimit()));
+  const visibleSpins = createMemo(() => {
+    const sorted = currentSortedList();
+    return sorted.slice(windowStart(), windowEnd());
+  });
 
-  function setupObserver(sentinel) {
-    if (observer) observer.disconnect();
-    if (!sentinel) return;
-    observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          setRenderLimit((prev) => Math.min(prev + CHUNK, currentSortedList().length));
-        }
-      },
-      { rootMargin: '200px' },
-    );
-    observer.observe(sentinel);
+  function setupTopObserver(el) {
+    if (topObserver) topObserver.disconnect();
+    if (!el) return;
+    topObserver = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && windowStart() > 0) {
+        setWindowStart((prev) => Math.max(0, prev - CHUNK));
+      }
+    }, { rootMargin: '400px' });
+    topObserver.observe(el);
   }
 
-  onCleanup(() => observer?.disconnect());
+  function setupBottomObserver(el) {
+    if (bottomObserver) bottomObserver.disconnect();
+    if (!el) return;
+    bottomObserver = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        const sorted = currentSortedList();
+        if (windowEnd() < sorted.length) {
+          setWindowEnd((prev) => Math.min(sorted.length, prev + CHUNK));
+        } else if (lastLoadedKey() != null) {
+          import('../../services/spinService.js').then(({ loadMoreSpins }) => loadMoreSpins());
+        }
+      }
+    }, { rootMargin: '400px' });
+    bottomObserver.observe(el);
+  }
+
+  onCleanup(() => {
+    topObserver?.disconnect();
+    bottomObserver?.disconnect();
+  });
 
   const isEmpty = createMemo(() => currentSortedList().length === 0);
   const hasHistory = createMemo(() => globalHistory.length > 0);
@@ -66,9 +95,13 @@ export default function SpinHistory() {
                 id="clearFiltersBtn"
                 style="background:none; border:none; color:var(--accent); cursor:pointer; text-decoration:underline; font-size:1em; margin-top:8px;"
                 onClick={async () => {
-                  setActiveFilters([]);
-                  localStorage.setItem('active_filters', '[]');
-                  await triggerFilterUpdate();
+                  import('../../store/historyStore.js').then(({ setActiveFilters }) => {
+                    setActiveFilters([]);
+                    localStorage.setItem('active_filters', '[]');
+                  });
+                  import('../../services/gameService.js').then(({ triggerFilterUpdate }) => {
+                    triggerFilterUpdate();
+                  });
                 }}
               >
                 Clear all filters
@@ -77,36 +110,34 @@ export default function SpinHistory() {
           </Show>
         }
       >
+        <Show when={windowStart() > 0}>
+          <div style={`height:${windowStart() * ESTIMATED_ROW_HEIGHT}px;`} />
+        </Show>
+        <div
+          ref={setupTopObserver}
+          style={`height:${windowStart() > 0 ? 10 : 0}px;`}
+        />
+
         <For each={visibleSpins()}>
           {(spin) => {
             const originalIdx = createMemo(() => globalHistory.indexOf(spin));
             const isActive = createMemo(() => originalIdx() === currentSpinIndex());
             return (
-              <SpinCard spin={spin} isActive={isActive()} onClick={() => loadSpin(originalIdx())} />
+              <SpinCard spin={spin} isActive={isActive()} onClick={() => import('../../services/spinService.js').then(({ loadSpin }) => loadSpin(originalIdx()))} />
             );
           }}
         </For>
 
-        {/* Infinite scroll sentinel */}
-        <Show when={renderLimit() < currentSortedList().length}>
+        {/* Infinite scroll sentinel (RAM or DB) */}
+        <Show when={windowEnd() < currentSortedList().length || lastLoadedKey() != null}>
           <div
-            ref={(el) => {
-              sentinelRef = el;
-              setupObserver(el);
-            }}
+            ref={setupBottomObserver}
             style="height:10px;"
             id="scrollSentinel"
           />
         </Show>
-
-        {/* Load older spins from DB */}
-        <Show when={lastLoadedKey() != null}>
-          <button
-            onClick={loadMoreSpins}
-            style="width:100%; padding:8px; margin-top:4px; background:var(--surface-2,#2a2a2a); border:1px solid var(--border,#333); color:var(--text-muted,#888); cursor:pointer; font-size:0.75em; border-radius:4px;"
-          >
-            Load older spins…
-          </button>
+        <Show when={windowEnd() < currentSortedList().length}>
+          <div style={`height:${(currentSortedList().length - windowEnd()) * ESTIMATED_ROW_HEIGHT}px;`} />
         </Show>
       </Show>
     </div>

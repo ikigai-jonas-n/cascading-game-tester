@@ -902,8 +902,17 @@ try {
   activeFilters = [];
 }
 
+let _searchAbortMainJs = null;
+
 async function triggerFilterUpdate() {
-  showLoading('Searching entire database...', 0);
+  // Cancel any running search immediately
+  if (_searchAbortMainJs) {
+    _searchAbortMainJs.abort();
+  }
+  _searchAbortMainJs = new AbortController();
+  const { signal } = _searchAbortMainJs;
+
+  showLoading('Searching database...', -1);
   try {
     localStorage.setItem('active_filters', JSON.stringify(activeFilters));
     const { loadAllSpins, searchEntireDb } = await import('./db.js');
@@ -911,12 +920,12 @@ async function triggerFilterUpdate() {
     const hasActiveFilters = activeFilters.some((f) => !f.disabled);
 
     if (!hasActiveFilters) {
-      // Safely load the newest 10k spins strictly for the active game
       globalHistory = await loadAllSpins(game.id, MAX_RAM_HISTORY);
     } else {
-      // Instantly search millions of spins using the IndexedDB cursor
-      globalHistory = await searchEntireDb(activeFilters, game, 5000);
+      globalHistory = await searchEntireDb(activeFilters, game, 5000, signal);
     }
+
+    if (signal.aborted) return; // a newer search took over
 
     // FIX: Use the globally attached function instead of the local scoped one
     if (window._renderFilterChips) {
@@ -925,10 +934,14 @@ async function triggerFilterUpdate() {
 
     renderSpinHistory(true); // Paint the results
   } catch (err) {
+    if (err?.name === 'AbortError') return;
     console.error('Filter search error:', err);
     alert('Search failed: ' + err.message);
   } finally {
-    hideLoading();
+    if (!signal.aborted) {
+      hideLoading();
+      _searchAbortMainJs = null;
+    }
   }
 }
 

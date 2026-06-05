@@ -4,7 +4,7 @@ import { showSymbolMap, setShowSymbolMap } from '../../store/uiStore.js';
 
 export default function SymbolMap() {
   return (
-    <div style="padding:12px 16px; border-top:1px solid var(--border-color);">
+    <div style="padding:12px 16px; border-top:1px solid var(--border-color); display:flex; flex-direction:column; max-height:40vh;">
       <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
         <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:9px; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">
           <input
@@ -21,7 +21,7 @@ export default function SymbolMap() {
       </div>
 
       <Show when={showSymbolMap()}>
-        <div id="symbolMapOverlay" style="font-size:10px; font-family:monospace;">
+        <div id="symbolMapOverlay" style="font-size:10px; font-family:monospace; overflow-y:auto; flex:1;">
           {Object.entries(game().symbols || {}).map(([id, name]) => {
             const emoji = (game().emojis || {})[id] || '';
             const color = (game().colors || {})[id] || '#666';

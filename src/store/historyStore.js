@@ -18,6 +18,9 @@ export const [activeFilters, setActiveFilters] = createStore([]);
 /** The sorted+filtered view — rebuilt on every filter/sort change */
 export const [currentSortedList, setCurrentSortedList] = createSignal([]);
 
+/** True count of spins in the DB for the active game */
+export const [totalDbCount, setTotalDbCount] = createSignal(0);
+
 /** Sort preference */
 export const [sortField, setSortField] = createSignal(
   localStorage.getItem('sort_field') || 'num_desc',

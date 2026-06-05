@@ -80,15 +80,6 @@ export default function GameGrid() {
     new Array(g().grid.rows * g().grid.cols).fill(g().emptySymbolId),
   );
 
-  // Grow-phase payout overlay
-  const growPayouts = createMemo(() => {
-    const f = field();
-    if (!f) return [];
-    const isGrow =
-      phase() === 'final' && !isSettleField(f) && (f.symbols?.payouts || []).length > 0;
-    if (!isGrow) return [];
-    return f.symbols.payouts || [];
-  });
 
   return (
     <div class="grid-area">
@@ -163,10 +154,6 @@ export default function GameGrid() {
         </Show>
       </Show>
 
-      {/* Grow-phase overlay */}
-      <Show when={growPayouts().length > 0}>
-        <GrowPayoutOverlay payouts={growPayouts()} />
-      </Show>
     </div>
   );
 }
@@ -247,37 +234,6 @@ function GridCell(props) {
   );
 }
 
-function GrowPayoutOverlay({ payouts }) {
-  const sym = symbols;
-  const emo = emojis;
-
-  return (
-    <div id="growPayoutOverlay" style="margin-top:8px; font-size:10px; color:#aaa;">
-      <For each={payouts}>
-        {(p) => {
-          const sid =
-            p.symbolId !== undefined ? p.symbolId : p.symbol !== undefined ? p.symbol : p.id;
-          const name = sym()[sid] || String(sid);
-          const emoji = emo()[sid] || '';
-          const count = p.oak || p.count || 0;
-          const rawWin = parseFloat(p.coins || 0);
-          return (
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
-              <span style="display:flex; align-items:center; gap:4px; white-space:nowrap;">
-                <span>{emoji}</span>
-                <b>{name}</b>
-              </span>
-              <span style="white-space:nowrap; text-align:right;">
-                <span style="color:#aaa;">×{count} → </span>
-                <span style="color:#4ade80;">{rawWin}</span>
-              </span>
-            </div>
-          );
-        }}
-      </For>
-    </div>
-  );
-}
 
 function isSettleField(field) {
   if (field?.features && 'isSettle' in field.features) return field.features.isSettle === true;

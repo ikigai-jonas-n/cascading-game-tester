@@ -12,47 +12,71 @@ const SHORTCUTS = [
   { key: 'Tab', desc: 'Move focus through interactive elements' },
 ];
 
+const S = {
+  overlay: `
+    position:fixed; inset:0; z-index:1000;
+    background:rgba(0,0,0,0.75); backdrop-filter:blur(4px);
+    display:flex; align-items:center; justify-content:center;
+  `,
+  panel: `
+    width:calc(100vw - 40px); max-width:520px;
+    max-height:calc(100vh - 40px);
+    background:#0f1318;
+    border:1px solid rgba(255,255,255,0.1);
+    border-radius:12px;
+    display:flex; flex-direction:column;
+    overflow:hidden;
+    box-shadow:0 24px 80px rgba(0,0,0,0.7);
+  `,
+  header: `
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 24px 16px;
+    border-bottom:1px solid rgba(255,255,255,0.07);
+    flex-shrink:0;
+  `,
+  title: `font-size:15px; font-weight:700; color:#e2e8f0; letter-spacing:0.03em; margin:0;`,
+  closeBtn: `
+    width:32px; height:32px; border-radius:6px;
+    background:transparent; border:1px solid rgba(255,255,255,0.1);
+    color:#94a3b8; font-size:18px; line-height:1;
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:background 0.15s, color 0.15s;
+  `,
+  body: `flex:1; overflow-y:auto; padding:20px 24px;`,
+};
+
 export default function ShortcutsModal() {
+  const close = () => setShortcutsOpen(false);
   return (
     <Show when={shortcutsOpen()}>
-      <dialog
-        id="shortcutsModal"
-        class="modal-dialog"
-        style="display:block;"
-        open
-        onClose={() => setShortcutsOpen(false)}
-        onClick={(e) => {
-          if (e.target.id === 'shortcutsModal') setShortcutsOpen(false);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') setShortcutsOpen(false);
-        }}
+      <div
+        style={S.overlay}
+        onClick={(e) => { if (e.target === e.currentTarget) close(); }}
+        onKeyDown={(e) => { if (e.key === 'Escape') close(); }}
       >
-        <div class="modal-content" style="max-width:480px;">
-          <div class="modal-header">
-            <h2>⌨️ Keyboard Shortcuts</h2>
+        <div style={S.panel} onKeyDown={(e) => { if (e.key === 'Escape') close(); }}>
+          <div style={S.header}>
+            <h2 style={S.title}>⌨️ Keyboard Shortcuts</h2>
             <button
               id="closeShortcutsBtn"
-              class="btn-ghost"
-              onClick={() => setShortcutsOpen(false)}
-            >
-              ×
-            </button>
+              style={S.closeBtn}
+              onClick={close}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#e2e8f0'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#94a3b8'; }}
+            >×</button>
           </div>
-          <div class="modal-body">
+          <div style={S.body}>
             <table style="width:100%; border-collapse:collapse;">
               {SHORTCUTS.map(({ key, desc }) => (
-                <tr style="border-bottom:1px solid var(--border-color);">
-                  <td style="padding:8px 12px 8px 0; font-family:monospace; font-size:11px; color:var(--bg-accent); font-weight:800; white-space:nowrap; width:40%;">
-                    {key}
-                  </td>
-                  <td style="padding:8px 0; font-size:11px; color:var(--text-muted);">{desc}</td>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.06);">
+                  <td style="padding:10px 12px 10px 0; font-family:monospace; font-size:11px; color:#f59e0b; font-weight:800; white-space:nowrap; width:40%;">{key}</td>
+                  <td style="padding:10px 0; font-size:11px; color:#94a3b8;">{desc}</td>
                 </tr>
               ))}
             </table>
           </div>
         </div>
-      </dialog>
+      </div>
     </Show>
   );
 }

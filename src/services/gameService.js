@@ -25,6 +25,7 @@ import {
   setSortField,
   lastLoadedKey,
   setLastLoadedKey,
+  setTotalDbCount,
 } from '../store/historyStore.js';
 import { currentSpinIndex, setCurrentSpinIndex } from '../store/sessionStore.js';
 import { showLoading, hideLoading, apiUrl, setApiUrl, pushToast } from '../store/uiStore.js';
@@ -33,26 +34,46 @@ import { FILTER_DEFS } from '../filters.js';
 
 // ── Filter Update (DB Search) ─────────────────────────────────────────────────
 
+/** Abort controller for the in-flight search — cancelled if filters change */
+let _searchAbort = null;
+
 export async function triggerFilterUpdate() {
-  showLoading('Searching entire database...', 0);
+  // Cancel any running search immediately
+  if (_searchAbort) {
+    _searchAbort.abort();
+  }
+  _searchAbort = new AbortController();
+  const { signal } = _searchAbort;
+
+  showLoading('Searching database...', -1);
   try {
     localStorage.setItem('active_filters', JSON.stringify(activeFilters));
-    const { loadAllSpins: loadAll, searchEntireDb } = await import('../db.js');
+    const { loadAllSpins: loadAll, searchEntireDb, getSpinCount } = await import('../db.js');
+
+    const count = await getSpinCount(game().id);
+    setTotalDbCount(count);
 
     const hasActive = activeFilters.some((f) => !f.disabled);
     const spins = hasActive
-      ? await searchEntireDb(activeFilters, game(), 5000)
+      ? await searchEntireDb(activeFilters, game(), 5000, signal)
       : await loadAll(game().id, MAX_RAM_HISTORY);
+
+    if (signal.aborted) return; // a newer search took over — discard these results
 
     replaceHistory(spins);
     rebuildSortedList();
   } catch (err) {
+    if (err?.name === 'AbortError') return;
     console.error('Filter search error:', err);
     pushToast({ type: 'error', title: 'Search Failed', message: err.message });
   } finally {
-    hideLoading();
+    if (!signal.aborted) {
+      hideLoading();
+      _searchAbort = null;
+    }
   }
 }
+
 
 // ── Backend Health ────────────────────────────────────────────────────────────
 
@@ -314,6 +335,10 @@ export async function boot() {
       localStorage.setItem('request_body', JSON.stringify(g.defaultRequestBody, null, 2));
     }
   }
+
+  const { getSpinCount } = await import('../db.js');
+  const count = await getSpinCount(game().id);
+  setTotalDbCount(count);
 
   const spins = await loadSpinsCursor(game().id, null, MAX_RAM_HISTORY);
   replaceHistory(spins);

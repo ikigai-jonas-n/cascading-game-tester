@@ -8,6 +8,7 @@ import {
   sortField,
   setSortField,
   rebuildSortedList,
+  totalDbCount,
 } from '../../store/historyStore.js';
 import { triggerFilterUpdate } from '../../services/gameService.js';
 import { game } from '../../store/gameStore.js';
@@ -92,7 +93,7 @@ export default function FilterBar() {
           id="filterCount"
           style="font-size:9px; color:var(--text-muted); font-family:monospace;"
         >
-          {currentSortedList().length}/{globalHistory.length}
+          {currentSortedList().length}/{totalDbCount()}
         </span>
       </div>
 

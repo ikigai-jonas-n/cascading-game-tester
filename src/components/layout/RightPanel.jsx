@@ -31,7 +31,7 @@ export default function RightPanel() {
       id="col3"
       ref={col3Ref}
       aria-label="JSON Audit"
-      style={`width: ${col3Width()}; min-width: 200px; display: flex; flex-direction: column; overflow: hidden; position: relative;`}
+      style={`width: ${col3Width()}; min-width: 200px; flex-shrink: 0; display: flex; flex-direction: column; overflow: hidden; position: relative;`}
     >
       <div class="resizer" data-target="col3" onMouseDown={startResize} />
 

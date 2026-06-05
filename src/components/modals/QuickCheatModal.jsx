@@ -8,7 +8,85 @@ import {
   hideLoading,
 } from '../../store/uiStore.js';
 import { game } from '../../store/gameStore.js';
-import { allCheatTemplates } from '../features/cheatTemplateStore.js';
+import { allCheatTemplates, loadCheatTemplates } from '../features/cheatTemplateStore.js';
+
+const S = {
+  overlay: `
+    position:fixed; inset:0; z-index:1000;
+    background:rgba(0,0,0,0.75); backdrop-filter:blur(4px);
+    display:flex; align-items:center; justify-content:center;
+  `,
+  panel: `
+    width:calc(100vw - 40px); max-width:680px;
+    height:calc(100vh - 40px); max-height:860px;
+    background:#0f1318;
+    border:1px solid rgba(255,255,255,0.1);
+    border-radius:12px;
+    display:flex; flex-direction:column;
+    overflow:hidden;
+    box-shadow:0 24px 80px rgba(0,0,0,0.7);
+  `,
+  header: `
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 24px 16px;
+    border-bottom:1px solid rgba(255,255,255,0.07);
+    flex-shrink:0;
+    background:rgba(245,158,11,0.04);
+  `,
+  title: `
+    font-size:15px; font-weight:700; color:#e2e8f0;
+    letter-spacing:0.03em; margin:0;
+  `,
+  closeBtn: `
+    width:32px; height:32px; border-radius:6px;
+    background:transparent; border:1px solid rgba(255,255,255,0.1);
+    color:#94a3b8; font-size:18px; line-height:1;
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:background 0.15s, color 0.15s;
+  `,
+  body: `
+    flex:1; display:flex; flex-direction:column; overflow-y:auto; padding:0; min-height:0;
+  `,
+  section: `
+    padding:20px 24px;
+    border-bottom:1px solid rgba(255,255,255,0.05);
+  `,
+  sectionLabel: `
+    font-size:10px; font-weight:700; letter-spacing:0.1em;
+    text-transform:uppercase; color:#f59e0b; margin:0 0 12px;
+  `,
+  select: `
+    width:100%; box-sizing:border-box;
+    background:#1a1f2e; border:1px solid rgba(255,255,255,0.1);
+    border-radius:6px; color:#e2e8f0;
+    font-size:12px; padding:9px 12px;
+    outline:none; cursor:pointer;
+  `,
+  textarea: `
+    width:100%; box-sizing:border-box; flex:1; min-height:150px;
+    background:#1a1f2e; border:1px solid rgba(255,255,255,0.1);
+    border-radius:6px; color:#e2e8f0;
+    font-size:11px; font-family:'JetBrains Mono',monospace;
+    padding:10px 12px; resize:none;
+    outline:none; transition:border-color 0.15s;
+  `,
+  primaryBtn: `
+    font-size:12px; font-weight:600; letter-spacing:0.04em;
+    padding:10px 16px; border-radius:6px;
+    background:rgba(245,158,11,0.15);
+    border:1px solid rgba(245,158,11,0.3);
+    color:#f59e0b; cursor:pointer; flex:1;
+    transition:background 0.15s;
+  `,
+  dangerBtn: `
+    font-size:12px; font-weight:600; letter-spacing:0.04em;
+    padding:10px 16px; border-radius:6px;
+    background:rgba(244,63,94,0.08);
+    border:1px solid rgba(244,63,94,0.3);
+    color:#f43f5e; cursor:pointer; flex:1;
+    transition:background 0.15s;
+  `
+};
 
 export default function QuickCheatModal() {
   const [cheatJson, setCheatJson] = createSignal('');
@@ -35,9 +113,9 @@ export default function QuickCheatModal() {
     );
   }
 
-  // FIX: Run side-effects when the modal is opened
   createEffect(() => {
     if (quickCheatOpen()) {
+      loadCheatTemplates();
       setErrorMsg('');
       setSelectedTemplate('');
       setTemplateDesc('');
@@ -138,36 +216,45 @@ export default function QuickCheatModal() {
 
   return (
     <Show when={quickCheatOpen()}>
-      <dialog
-        id="quickCheatModal"
-        class="modal-dialog"
-        style="display:block;"
-        open
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') close();
+      <div
+        style={S.overlay}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) close();
         }}
       >
         <div
-          class="modal-content"
-          style="width:calc(100vw - 40px); max-width:unset; height:calc(100vh - 40px); max-height:unset; display:flex; flex-direction:column; padding:24px; box-sizing:border-box; overflow:hidden;"
+          style={S.panel}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') close();
+          }}
         >
-          <div class="modal-header" style="flex-shrink:0; margin-bottom:16px;">
-            <h2>⚡ Quick Cheat Config</h2>
-            <button id="closeQuickCheatBtn" class="btn-ghost" onClick={close}>
+          {/* Header */}
+          <div style={S.header}>
+            <h2 style={S.title}>⚡ Quick Cheat Config</h2>
+            <button
+              style={S.closeBtn}
+              onClick={close}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                e.currentTarget.style.color = '#e2e8f0';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = '#94a3b8';
+              }}
+            >
               ×
             </button>
           </div>
 
-          <div
-            class="modal-body"
-            style="flex:1; display:flex; flex-direction:column; gap:12px; overflow-y:auto; min-height:0;"
-          >
+          {/* Body */}
+          <div style={S.body}>
             <Show when={templates().length > 0}>
-              <div class="settings-group">
-                <label class="settings-label">Template</label>
+              <div style={S.section}>
+                <p style={S.sectionLabel}>Template</p>
                 <select
                   id="cheatTemplateSelect"
-                  class="settings-input"
+                  style={S.select}
                   value={selectedTemplate()}
                   onChange={(e) => handleTemplateChange(e.target.value)}
                 >
@@ -177,41 +264,65 @@ export default function QuickCheatModal() {
                   ))}
                 </select>
                 <Show when={templateDesc()}>
-                  <div style="font-size:10px; color:var(--text-muted); margin-top:4px;">
+                  <div style="font-size:10px; color:var(--text-muted); margin-top:8px;">
                     {templateDesc()}
                   </div>
                 </Show>
               </div>
             </Show>
 
-            <div class="settings-group">
-              <label class="settings-label">Test Config JSON</label>
+            <div style={{...S.section, "flex": "1", "display": "flex", "flex-direction": "column", "min-height": "0", "padding-bottom": "12px"}}>
+              <p style={S.sectionLabel}>Test Config JSON</p>
               <textarea
                 id="quickTestConfigInput"
-                class="settings-textarea"
-                style="flex:1; min-height:180px; font-family:monospace; font-size:11px;"
+                style={S.textarea}
                 value={cheatJson()}
+                onFocus={(e) => {
+                  e.target.style.borderColor = 'rgba(245,158,11,0.5)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'rgba(255,255,255,0.1)';
+                }}
                 onInput={(e) => setCheatJson(e.target.value)}
               />
             </div>
 
             <Show when={errorMsg()}>
-              <div style="color:var(--error); font-size:11px; padding:8px; background:rgba(244,63,94,0.1); border-radius:6px; border:1px solid rgba(244,63,94,0.3);">
+              <div style="margin: 0 24px; color:var(--error); font-size:11px; padding:10px; background:rgba(244,63,94,0.1); border-radius:6px; border:1px solid rgba(244,63,94,0.3);">
                 {errorMsg()}
               </div>
             </Show>
 
-            <div style="display:flex; gap:8px;">
-              <button class="btn-primary" style="flex:1;" disabled={sending()} onClick={handleSend}>
+            <div style={{...S.section, "display": "flex", "gap": "12px", "border-bottom": "none", "padding-top": errorMsg() ? "12px" : "20px"}}>
+              <button
+                style={S.primaryBtn}
+                disabled={sending()}
+                onClick={handleSend}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(245,158,11,0.25)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(245,158,11,0.15)';
+                }}
+              >
                 {sending() ? 'SENDING...' : '⚡ SEND CHEAT CONFIG'}
               </button>
-              <button class="btn-ghost" style="flex:1;" onClick={handleClear}>
+              <button
+                style={S.dangerBtn}
+                onClick={handleClear}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(244,63,94,0.16)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(244,63,94,0.08)';
+                }}
+              >
                 🗑️ CLEAR CONFIG
               </button>
             </div>
           </div>
         </div>
-      </dialog>
+      </div>
     </Show>
   );
 }
