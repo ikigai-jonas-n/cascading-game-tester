@@ -57,11 +57,9 @@ export function replaceHistory(spins) {
 
 /** Prepend new spins to the front */
 export function prependSpins(newSpins) {
-  setGlobalHistory((prev) => {
-    const next = [...newSpins, ...prev];
-    if (next.length > MAX_RAM_HISTORY) next.length = MAX_RAM_HISTORY;
-    return next;
-  });
+  const next = [...newSpins, ...globalHistory];
+  if (next.length > MAX_RAM_HISTORY) next.length = MAX_RAM_HISTORY;
+  setGlobalHistory(reconcile(next));
 }
 
 /** Mutate a single spin in-place (e.g. bookmark, description) */

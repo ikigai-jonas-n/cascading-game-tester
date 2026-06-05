@@ -98,7 +98,15 @@ self.onmessage = async (e) => {
         (phase.playgrounds || []).forEach((pg) => {
           let pgTumbles = 0;
           let pgCascades = 0;
-          (pg.fields || []).forEach((f) => {
+          (pg.fields || []).forEach((rawF) => {
+            const f = {
+              ...rawF,
+              symbols: {
+                initial: rawF.symbols?.initial || rawF.initialSyms,
+                final: rawF.symbols?.final || rawF.tumblingSyms || rawF.symbols?.initial || rawF.initialSyms,
+                payouts: rawF.symbols?.payouts || rawF.payouts,
+              }
+            };
             fields.push(f);
             fieldMetadata.push({
               playgroundIndex: playgroundCounter,

@@ -57,38 +57,30 @@ export default function CenterPanel() {
         ref={contentRef}
         style={`display:flex; flex-direction:column; align-items:stretch; justify-content:center; width:max-content; height:max-content; transform:scale(${scale()}); transform-origin:center center;`}
       >
-        <Show 
-          when={currentSpin()}
-          fallback={
-            <div style="display:flex; flex-direction:column; align-items:center; gap:24px; padding:60px 80px; background:rgba(255,255,255,0.02); border-radius:24px; border:1px dashed rgba(255,255,255,0.1); text-align:center;">
-              <div style="font-size:64px; opacity:0.8; filter:drop-shadow(0 4px 12px rgba(0,0,0,0.5));">{globalHistory.length > 0 ? '👈' : '🎰'}</div>
-              <div>
-                <h3 style="margin:0 0 12px 0; color:var(--text-primary); font-size:24px; font-weight:800; letter-spacing:0.5px;">
-                  {globalHistory.length > 0 ? 'Select a Spin' : 'No Data Available'}
-                </h3>
-                <p style="margin:0; color:var(--text-muted); font-size:14px; max-width:300px; line-height:1.6;">
-                  {globalHistory.length > 0 
-                    ? 'Please select a spin history card from the left panel to view its full details and playback.' 
-                    : 'Run a test config or play a spin to generate history data.'}
-                </p>
-              </div>
-            </div>
-          }
-        >
-          {/* Top HUD */}
-          <HudDisplay spin={currentSpin()} />
-
-          {/* Grid Area */}
-          <div style="display:flex; align-items:center; justify-content:center; position:relative;">
-            <div
-              id="grid-main-wrapper"
-              style="display:flex; flex-direction:column; align-items:center; gap:16px;"
-            >
-              <GameGrid />
-            </div>
+        <Show when={!currentSpin()}>
+          <div style="display:flex; flex-direction:column; align-items:center; gap:8px; margin-bottom:24px; padding:20px; background:rgba(255,255,255,0.02); border-radius:16px; border:1px dashed rgba(255,255,255,0.1); text-align:center;">
+            <h3 style="margin:0; color:var(--text-primary); font-size:18px; font-weight:800; letter-spacing:0.5px;">
+              {globalHistory.length > 0 ? 'Select a Spin' : 'No Data Available'}
+            </h3>
+            <p style="margin:0; color:var(--text-muted); font-size:13px; max-width:300px;">
+              {globalHistory.length > 0 
+                ? 'Select a spin card from the left panel to playback.' 
+                : 'Play a spin to generate history.'}
+            </p>
           </div>
+        </Show>
 
-          {/* Playback Controls */}
+        <Show when={currentSpin()}>
+          <HudDisplay spin={currentSpin()} />
+        </Show>
+
+        <div style="display:flex; align-items:center; justify-content:center; position:relative;">
+          <div id="grid-main-wrapper" style="display:flex; flex-direction:column; align-items:center; gap:16px;">
+            <GameGrid />
+          </div>
+        </div>
+
+        <Show when={currentSpin()}>
           <PlaybackControls />
         </Show>
       </div>

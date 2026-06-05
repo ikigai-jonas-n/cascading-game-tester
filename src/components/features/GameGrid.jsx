@@ -10,7 +10,11 @@ import { game, symbols, emojis, symbolColors } from '../../store/gameStore.js';
 import { gameState, showDoubleGrid } from '../../store/sessionStore.js';
 
 function computeCells(symbolList, payouts, goldenSet, g) {
-  const { rows, cols } = g.grid;
+  const { cols = 1 } = g?.grid || {};
+  let rows = g?.grid?.rows;
+  if (!rows) {
+    rows = symbolList && symbolList.length > 0 ? Math.ceil(symbolList.length / cols) : 1;
+  }
   const winPos = new Set();
   (payouts || []).forEach((p) => {
     if (Array.isArray(p.positions)) p.positions.forEach((pos) => winPos.add(pos));
@@ -40,7 +44,7 @@ function GridSubPanel({ symbolList, payouts, goldenSet, label, labelId }) {
   const g = game;
   const cells = createMemo(() => computeCells(symbolList(), payouts(), goldenSet(), g()));
   const gridStyle = createMemo(() => {
-    const { cols } = g().grid;
+    const { cols = 1 } = g().grid || {};
     return `display:grid; grid-template-columns:repeat(${cols},76px); gap:8px;`;
   });
 
@@ -76,9 +80,15 @@ export default function GameGrid() {
   });
   const finalSymbols = createMemo(() => field()?.symbols?.final || []);
   const payouts = createMemo(() => field()?.symbols?.payouts || []);
-  const emptyGrid = createMemo(() =>
-    new Array(g().grid.rows * g().grid.cols).fill(g().emptySymbolId),
-  );
+  const emptyGrid = createMemo(() => {
+    let rows = g().grid?.rows;
+    const cols = g().grid?.cols || 1;
+    if (!rows) {
+      const len = initialSymbols().length || finalSymbols().length;
+      rows = len > 0 ? Math.ceil(len / cols) : 1;
+    }
+    return new Array(rows * cols).fill(g().emptySymbolId);
+  });
 
 
   return (
