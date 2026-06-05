@@ -10,10 +10,14 @@ import { game, symbols, emojis, symbolColors } from '../../store/gameStore.js';
 import { gameState, showDoubleGrid } from '../../store/sessionStore.js';
 
 function computeCells(symbolList, payouts, goldenSet, g) {
-  const { cols = 1 } = g?.grid || {};
-  let rows = g?.grid?.rows;
-  if (!rows) {
-    rows = symbolList && symbolList.length > 0 ? Math.ceil(symbolList.length / cols) : 1;
+  let { rows, cols } = g?.grid || {};
+  const len = symbolList && symbolList.length > 0 ? symbolList.length : 0;
+  if (!rows && !cols) {
+    rows = 1; cols = 1;
+  } else if (!rows) {
+    rows = len > 0 ? Math.ceil(len / cols) : 1;
+  } else if (!cols) {
+    cols = len > 0 ? Math.ceil(len / rows) : 1;
   }
   const winPos = new Set();
   (payouts || []).forEach((p) => {
@@ -44,7 +48,13 @@ function GridSubPanel({ symbolList, payouts, goldenSet, label, labelId }) {
   const g = game;
   const cells = createMemo(() => computeCells(symbolList(), payouts(), goldenSet(), g()));
   const gridStyle = createMemo(() => {
-    const { cols = 1 } = g().grid || {};
+    let { rows, cols } = g().grid || {};
+    const len = symbolList().length;
+    if (!rows && !cols) {
+      cols = 1;
+    } else if (!cols) {
+      cols = len > 0 ? Math.ceil(len / rows) : 1;
+    }
     return `display:grid; grid-template-columns:repeat(${cols},76px); gap:8px;`;
   });
 
@@ -81,11 +91,14 @@ export default function GameGrid() {
   const finalSymbols = createMemo(() => field()?.symbols?.final || []);
   const payouts = createMemo(() => field()?.symbols?.payouts || []);
   const emptyGrid = createMemo(() => {
-    let rows = g().grid?.rows;
-    const cols = g().grid?.cols || 1;
-    if (!rows) {
-      const len = initialSymbols().length || finalSymbols().length;
+    let { rows, cols } = g().grid || {};
+    const len = initialSymbols().length || finalSymbols().length;
+    if (!rows && !cols) {
+      rows = 1; cols = 1;
+    } else if (!rows) {
       rows = len > 0 ? Math.ceil(len / cols) : 1;
+    } else if (!cols) {
+      cols = len > 0 ? Math.ceil(len / rows) : 1;
     }
     return new Array(rows * cols).fill(g().emptySymbolId);
   });
@@ -113,54 +126,32 @@ export default function GameGrid() {
             !initialSymbols().every((v, i) => v === finalSymbols()[i])
           }
           fallback={
-            <div id="grid-container-final" class="grid-sub-container">
-              <div
-                class="grid-inner"
-                style={`display:grid; grid-template-columns:repeat(${g().grid.cols},76px); gap:8px;`}
-              >
-                <For
-                  each={createMemo(() => {
-                    const syms = phase() === 'initial' ? initialSymbols() : finalSymbols();
-                    const pays = phase() === 'initial' ? payouts() : [];
-                    const golden = phase() === 'initial' ? goldenInitial() : goldenFinal();
-                    return computeCells(syms, pays, golden, g());
-                  })()}
-                >
-                  {(cell) => <GridCell {...cell} />}
-                </For>
-              </div>
-            </div>
+            <GridSubPanel
+              symbolList={() => (phase() === 'initial' ? initialSymbols() : finalSymbols())}
+              payouts={() => (phase() === 'initial' ? payouts() : [])}
+              goldenSet={() => (phase() === 'initial' ? goldenInitial() : goldenFinal())}
+              label={null}
+              labelId="grid-container-final"
+            />
           }
         >
           {/* Double-grid: initial left, final right */}
-          <div id="grid-container-initial" class="grid-sub-container">
-            <div class="grid-sub-label">INITIAL</div>
-            <div
-              class="grid-inner"
-              style={`display:grid; grid-template-columns:repeat(${g().grid.cols},76px); gap:8px;`}
-            >
-              <For
-                each={createMemo(() =>
-                  computeCells(initialSymbols(), payouts(), goldenInitial(), g()),
-                )()}
-              >
-                {(cell) => <GridCell {...cell} />}
-              </For>
-            </div>
-          </div>
-          <div id="grid-container-final" class="grid-sub-container">
-            <div id="grid-final-label" class="grid-sub-label">
-              FINAL
-            </div>
-            <div
-              class="grid-inner"
-              style={`display:grid; grid-template-columns:repeat(${g().grid.cols},76px); gap:8px;`}
-            >
-              <For each={createMemo(() => computeCells(finalSymbols(), [], goldenFinal(), g()))()}>
-                {(cell) => <GridCell {...cell} />}
-              </For>
-            </div>
-          </div>
+          <>
+            <GridSubPanel
+              symbolList={initialSymbols}
+              payouts={payouts}
+              goldenSet={goldenInitial}
+              label="INITIAL"
+              labelId="grid-container-initial"
+            />
+            <GridSubPanel
+              symbolList={finalSymbols}
+              payouts={() => []}
+              goldenSet={goldenFinal}
+              label="FINAL"
+              labelId="grid-container-final"
+            />
+          </>
         </Show>
       </Show>
 

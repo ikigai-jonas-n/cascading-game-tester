@@ -2,7 +2,7 @@ export default {
   id: 'mr-booms-rocketman',
   name: 'Mr Booms',
   gameCode: 'LGS-005',
-  grid: { cols: 1 },
+  grid: { rows: 1 },
   emptySymbolId: 10,
   scatterSymbolId: 9,
   wildSymbolId: 0,
