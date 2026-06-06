@@ -46,29 +46,34 @@
       "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"config\": {\n    \"freeSpin\": {\n      \"freeSpinConfigs\": [\n        { \"cascade\": { \"cascadeCount\": 1, \"cascadeConfigs\": [{ \"growCount\": 2 }] } },\n        { \"cascade\": { \"cascadeCount\": 2 } }\n      ]\n    }\n  }\n}"
     },
     {
-      "title": "10. Big Win (20x - 50x)",
-      "description": "Target: 400 - 1,000 coins. Strategy: 14 H1_Watermelon (600 coins payout). cascadeCount 1 ensures a safe non-winning refill. Payout: 30x bet.",
-      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Watermelon\", \"count\": 14 }\n        ]\n      },\n      \"cascade\": {\n        \"cascadeCount\": 1\n      }\n    }\n  }\n}"
+      "title": "10. No Win",
+      "description": "Target: 0 coins. Strategy: cascadeCount: 0 , backend randomly generates screens with no cluster forming at all.",
+      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"test:sexyfruits:no-win\",\n  \"config\": {\n    \"baseSpin\": {\n      \"cascade\": {\n        \"cascadeCount\": 0\n      }\n    }\n  }\n}"
     },
     {
-      "title": "11. Mega Win (50x - 100x)",
-      "description": "Target: 1,000 - 2,000 coins. Strategy: 15 H1_Watermelon (1,200 coins payout). cascadeCount 1 ensures a safe non-winning refill. Payout: 60x bet.",
-      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Watermelon\", \"count\": 15 }\n        ]\n      },\n      \"cascade\": {\n        \"cascadeCount\": 1\n      }\n    }\n  }\n}"
+      "title": "11. Big Win (20x - 50x)",
+      "description": "BetBase: 20 coins. Target: 400 - 1,000 coins. Strategy: We drop 14 H1_Watermelon symbols. The paytable for exactly 14 H1s is 600 coins. With cascadeCount: 1 and no extra growths, the multiplier stays at 1x. Total payout is exactly 600 coins (30x bet).",
+      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"test:sexyfruits:big-win\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Watermelon\", \"count\": 14 }\n        ]\n      },\n      \"cascade\": {\n        \"cascadeCount\": 1\n      }\n    }\n  }\n}"
     },
     {
-      "title": "12. Super Win (100x - 150x)",
-      "description": "Target: 2,000 - 3,000 coins. Strategy: 15 H1_Watermelon (1,200 payout) + growCount 1 (Multiplier 2x). Payout: 2,400 coins (120x bet).",
-      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Watermelon\", \"count\": 15 }\n        ]\n      },\n      \"cascade\": {\n        \"cascadeCount\": 1,\n        \"cascadeConfigs\": [\n          { \"growCount\": 1 }\n        ]\n      }\n    }\n  }\n}"
+      "title": "12. Mega Win (50x - 100x)",
+      "description": "BetBase: 20 coins. Target: 1,000 - 2,000 coins. Strategy: We increase the cluster to 15 H1_Watermelon symbols. The paytable caps out at 15+ symbols, paying exactly 1,200 coins. Multiplier remains 1x, giving us exactly 1,200 coins (60x bet).",
+      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"test:sexyfruits:mega-win\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Watermelon\", \"count\": 15 }\n        ]\n      },\n      \"cascade\": {\n        \"cascadeCount\": 1\n      }\n    }\n  }\n}"
     },
     {
-      "title": "13. Epic Win (150x - 5000x)",
-      "description": "Target: 3,000 - 100,000 coins. Strategy: 15 H1_Watermelon (1,200 payout) + growCount 4 (Multiplier 5x). Payout: 6,000 coins (300x bet).",
-      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Watermelon\", \"count\": 15 }\n        ]\n      },\n      \"cascade\": {\n        \"cascadeCount\": 1,\n        \"cascadeConfigs\": [\n          { \"growCount\": 4 }\n        ]\n      }\n    }\n  }\n}"
+      "title": "13. Super Win (100x - 150x)",
+      "description": "BetBase: 20 coins. Target: 2,000 - 3,000 coins. Strategy: We use a 15+ H1 cluster (1,200 payout) but force it to grow exactly 1 time during the hold phase (growCount: 1). This bumps the multiplier to 2x. The single pop resolves as 1200 * 2 = 2,400 coins (120x bet).",
+      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"test:sexyfruits:super-win\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Watermelon\", \"count\": 15 }\n        ]\n      },\n      \"cascade\": {\n        \"cascadeCount\": 1,\n        \"cascadeConfigs\": [\n          { \"growCount\": 1 }\n        ]\n      }\n    }\n  }\n}"
     },
     {
-      "title": "14. Max Win (5000x+)",
-      "description": "Target: 100,000+ coins. Strategy: 15 H1_Watermelon (1,200 payout) + growCount 83 (Multiplier 84x). Shatters the 100k cap on the very first pop.",
-      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Watermelon\", \"count\": 15 }\n        ]\n      },\n      \"cascade\": {\n        \"cascadeCount\": 1,\n        \"cascadeConfigs\": [\n          { \"growCount\": 83 }\n        ]\n      }\n    }\n  }\n}"
+      "title": "14. Epic Win (150x - 5000x)",
+      "description": "BetBase: 20 coins. Target: 3,000 - 100,000 coins. Strategy: We take the 15+ H1 cluster (1,200 payout) and force it to grow 4 times (growCount: 4). This builds the multiplier up to 5x before the pop. The payout resolves as 1200 * 5 = 6,000 coins (300x bet).",
+      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"test:sexyfruits:epic-win\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Watermelon\", \"count\": 15 }\n        ]\n      },\n      \"cascade\": {\n        \"cascadeCount\": 1,\n        \"cascadeConfigs\": [\n          { \"growCount\": 4 }\n        ]\n      }\n    }\n  }\n}"
+    },
+    {
+      "title": "15. Max Win (5000x+)",
+      "description": "BetBase: 20 coins. Target: 100,000+ coins (Caps out the game). Strategy: We try to win some H1 and H2 cluster win at BaseSpin initial screen. Then let backend generates 150 cascades, allowing the accumulated win x 200 at final.",
+      "json": "{\n  \"gameCode\": \"LGS-008\",\n  \"configId\": \"test:sexyfruits:max-win\",\n  \"config\": {\n    \"baseSpin\": {\n      \"initialScreen\": {\n        \"symbols\": [\n          {\n            \"symbol\": \"H1_Watermelon\",\n            \"count\": 15\n          },\n          {\n            \"symbol\": \"H2_Grapes\",\n            \"count\": 5\n          }\n        ]\n      },\n      \"cascade\": {\n        \"cascadeCount\": 250\n      }\n    }\n  }\n}"
     }
   ],
   "magic-g": [

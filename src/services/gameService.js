@@ -74,7 +74,6 @@ export async function triggerFilterUpdate() {
   }
 }
 
-
 // ── Backend Health ────────────────────────────────────────────────────────────
 
 export async function checkBackendHealth(url) {

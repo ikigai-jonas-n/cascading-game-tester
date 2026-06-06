@@ -7,7 +7,6 @@ import {
   setSettingsOpen,
   setQuickCheatOpen,
   setShortcutsOpen,
-  setCustomGameOpen,
   setPaytableOpen,
   setMongoRoundImportOpen,
 } from '../../store/uiStore.js';
@@ -101,18 +100,9 @@ export default function LeftPanel() {
                   triggerFilterUpdate();
                 }}
               >
-                <For each={listGames()}>{(g) => <option value={g.id}>{g.name}</option>}</For>
+                <For each={listGames()}>{(g) => <option value={g.id}>{g.gameCode || g.id}: {g.name || 'Unnamed'}</option>}</For>
               </select>
-              <button
-                class="header-btn-v5"
-                style="min-width:unset; padding:4px; height:100%;"
-                title="Create Custom Sandbox Game"
-                onClick={() => setCustomGameOpen(true)}
-              >
-                <span class="icon" style="font-size:12px;">
-                  ➕
-                </span>
-              </button>
+
               <select
                 id="headerEnvSelect"
                 style="background:rgba(255,255,255,0.05); color:var(--info); font-size:10px; font-weight:800; border:1px solid var(--border-color); border-radius:4px; padding:4px;"

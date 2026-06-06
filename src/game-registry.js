@@ -46,42 +46,17 @@ Object.values(gameModules).forEach((module) => {
   if (module.default) register(module.default);
 });
 
-// --- Hydrate Backend Data ---
-let backendData = {};
-import('./games/backend-extracted-data.json')
-  .then((module) => {
-    backendData = module.default || module;
-  })
-  .catch(() => console.warn('backend-extracted-data.json not found. Run the extraction script.'));
 
-// --- Hydrate Custom Games from LocalStorage ---
-export function loadCustomGames() {
-  try {
-    const custom = JSON.parse(localStorage.getItem('custom_games') || '[]');
-    custom.forEach(register);
-  } catch (e) {
-    console.error('Failed to load custom games', e);
-  }
-}
-loadCustomGames();
-
-export function saveCustomGame(config) {
-  if (!config || !config.id) throw new Error("Config must have an 'id'");
-  register(config);
-  try {
-    const custom = JSON.parse(localStorage.getItem('custom_games') || '[]');
-    const existingIdx = custom.findIndex((g) => g.id === config.id);
-    if (existingIdx >= 0) custom[existingIdx] = config;
-    else custom.push(config);
-    localStorage.setItem('custom_games', JSON.stringify(custom));
-  } catch (e) {
-    console.error('Failed to save custom game', e);
-  }
-}
 
 /** @returns {GameConfig[]} */
 export function listGames() {
-  return [...registry.values()];
+  return [...registry.values()]
+    .filter(g => g.isEnabled !== false)
+    .sort((a, b) => {
+      const codeA = a.gameCode || '';
+      const codeB = b.gameCode || '';
+      return codeA.localeCompare(codeB);
+    });
 }
 
 /** @returns {GameConfig|undefined} */
@@ -97,11 +72,6 @@ export function getActiveGame() {
   let active = registry.values().next().value;
   if (stored && registry.has(stored)) {
     active = registry.get(stored);
-  }
-
-  // Attach the raw backend configs to the active game object at runtime
-  if (backendData[active.id]) {
-    active.rawBackendConfig = backendData[active.id].rawConfig;
   }
 
   return active;

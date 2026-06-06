@@ -6,7 +6,7 @@ import LoadingOverlay from './modals/LoadingOverlay.jsx';
 import SettingsModal from './modals/SettingsModal.jsx';
 import QuickCheatModal from './modals/QuickCheatModal.jsx';
 import ShortcutsModal from './modals/ShortcutsModal.jsx';
-import CustomGameModal from './modals/CustomGameModal.jsx';
+
 import PaytableModal from './modals/PaytableModal.jsx';
 import ChoicePromptModal from './modals/ChoicePromptModal.jsx';
 import MongoRoundImportModal from './modals/MongoRoundImportModal.jsx';
@@ -85,7 +85,7 @@ export default function App() {
       <SettingsModal />
       <QuickCheatModal />
       <ShortcutsModal />
-      <CustomGameModal />
+
       <PaytableModal />
       <ChoicePromptModal />
       <MongoRoundImportModal />

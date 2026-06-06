@@ -2,10 +2,8 @@ export default {
   id: 'eldorado2',
   name: 'Eldorado 2',
   gameCode: 'LGS-006',
-  grid: { cols: 5, rows: 5 },
   emptySymbolId: 10,
   scatterSymbolId: 9,
-  wildSymbolId: 0,
   symbols: {},
   emojis: {},
   colors: {},
@@ -22,4 +20,74 @@ export default {
     { id: 1, desc: 'Continue' },
     { id: 2, desc: 'Cash Out' },
   ],
+  isEnabled: true,
+  wildSymbolId: 0,
+    grid: { rows: 3, cols: 4 },
+    paytable: [
+          [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            200,
+            500
+          ],
+          [
+            0,
+            0,
+            0,
+            100,
+            200
+          ],
+          [
+            0,
+            0,
+            0,
+            50,
+            150
+          ],
+          [
+            0,
+            0,
+            0,
+            40,
+            80
+          ],
+          [
+            0,
+            0,
+            0,
+            20,
+            40
+          ],
+          [
+            0,
+            0,
+            0,
+            20,
+            40
+          ],
+          [
+            0,
+            0,
+            0,
+            10,
+            20
+          ],
+          [
+            0,
+            0,
+            0,
+            10,
+            20
+          ]
+        ],
+    winCap: 895400,
+    betBase: 100
 };

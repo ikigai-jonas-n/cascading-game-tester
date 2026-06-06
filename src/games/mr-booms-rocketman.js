@@ -1,25 +1,9 @@
+/** @type {import('../game-registry.js').GameConfig} */
 export default {
   id: 'mr-booms-rocketman',
-  name: 'Mr Booms',
-  gameCode: 'LGS-005',
-  grid: { rows: 1 },
-  emptySymbolId: 10,
-  scatterSymbolId: 9,
-  wildSymbolId: 0,
-  symbols: {},
-  emojis: {},
-  colors: {},
-  winCategories: { BIG_WIN: 20, MEGA_WIN: 50, HUGE_WIN: 150, MAX_WIN: 5000 },
-  defaultRequestBody: {
-    betAmount: 20,
-    cashBet: '20',
-    currencyDec: 2,
-    stakes: [{ type: 'commonGame' }],
-    rtpOption: 'RTP_97',
-  },
-  playerId: 'cascading-game-tester',
-  actions: [
-    { id: 1, desc: 'Continue' },
-    { id: 2, desc: 'Cash Out' },
-  ],
+  gameCode: 'mr-booms-rocketman',
+  isEnabled: false,
+  hooks: {},
+    winCap: 5000,
+    betBase: 1
 };

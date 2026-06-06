@@ -59,7 +59,7 @@ export const [playerId, setPlayerId] = createSignal(
 export const [settingsOpen, setSettingsOpen] = createSignal(false);
 export const [quickCheatOpen, setQuickCheatOpen] = createSignal(false);
 export const [shortcutsOpen, setShortcutsOpen] = createSignal(false);
-export const [customGameOpen, setCustomGameOpen] = createSignal(false);
+
 export const [paytableOpen, setPaytableOpen] = createSignal(false);
 export const [mongoRoundImportOpen, setMongoRoundImportOpen] = createSignal(false);
 export const [choicePromptOpen, setChoicePromptOpen] = createSignal(false);

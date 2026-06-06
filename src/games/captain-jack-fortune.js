@@ -1,118 +1,78 @@
 /** @type {import('../game-registry.js').GameConfig} */
 export default {
-  id: 'jungle',
-  gameCode: 'jungle',
+  id: 'captain-jack-fortune',
+  gameCode: 'captain-jack-fortune',
   isEnabled: false,
   hooks: {},
-    grid: { rows: 3, cols: 5 },
+    grid: { rows: 3, cols: 3 },
     paytable: [
           [
             0,
             0,
             0,
-            80,
-            200,
-            500
+            10
           ],
           [
             0,
             0,
             0,
-            60,
-            160,
-            400
+            4
           ],
           [
             0,
             0,
             0,
-            48,
-            120,
-            300
+            3
           ],
           [
             0,
             0,
             0,
-            40,
-            100,
-            200
+            2
           ],
           [
             0,
             0,
             0,
-            40,
-            100,
-            200
+            0.8
           ],
           [
             0,
             0,
             0,
-            32,
-            80,
-            100
+            0.6
           ],
           [
             0,
             0,
             0,
-            32,
-            80,
-            100
+            0.4
           ],
           [
             0,
             0,
-            0,
-            20,
-            40,
-            60
-          ],
-          [
-            0,
-            0,
-            0,
-            20,
-            40,
-            60
-          ],
-          [
-            0,
-            0,
-            0,
-            8,
-            20,
-            40
-          ],
-          [
-            0,
-            0,
-            0,
-            8,
-            20,
-            40
-          ],
-          [
-            0,
-            0,
-            0,
-            8,
-            20,
-            40
-          ],
-          [
-            0,
-            0,
-            0,
-            500,
             0,
             0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            5
           ]
         ],
     winCap: 500000,
-    betBase: 100,
-    wildSymbolId: 0,
-    scatterSymbolId: 12
+    betBase: 1
 };

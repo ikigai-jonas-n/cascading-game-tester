@@ -3,10 +3,6 @@ export default {
   id: 'sexy-fruits',
   name: 'Sexy Fruits',
   gameCode: 'LGS-008',
-  grid: { rows: 5, cols: 5 },
-  emptySymbolId: 10,
-  scatterSymbolId: 9,
-  wildSymbolId: 0,
   symbols: {
     0: 'WILD',
     1: 'WMELON H1',
@@ -81,4 +77,10 @@ export default {
     /** SexyFruits uses golden[] positions to highlight transformed symbols. */
     goldenEnabled: true,
   },
+  isEnabled: true,
+    grid: { rows: 5, cols: 5 },
+    betBase: 20,
+    wildSymbolId: 0,
+    scatterSymbolId: 9,
+    emptySymbolId: 10
 };

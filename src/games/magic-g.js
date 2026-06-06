@@ -2,10 +2,7 @@
 export default {
   id: 'magic-g',
   name: 'Magic G',
-  gameCode: 'LGS-004', // Change if your gameCode is different
-  grid: { rows: 5, cols: 6 }, // 30 symbols per field
-  emptySymbolId: 11,
-  scatterSymbolId: 9,
+  gameCode: 'LGS-004', // Change if your gameCode is different // 30 symbols per field
   wildSymbolId: -1, // Magic G doesn't use a wild, it uses a multiplier
   symbols: {
     0: 'H1 ALADDIN',
@@ -82,4 +79,57 @@ export default {
     /** MagicG does not use golden[] for visual highlighting. */
     goldenEnabled: false,
   },
+  isEnabled: true,
+  scatterSymbolId: 9,
+  emptySymbolId: 11,
+    grid: { rows: 5, cols: 6 },
+    paytable: [
+          [
+            200,
+            500,
+            1000
+          ],
+          [
+            50,
+            200,
+            500
+          ],
+          [
+            40,
+            100,
+            300
+          ],
+          [
+            30,
+            40,
+            240
+          ],
+          [
+            20,
+            30,
+            200
+          ],
+          [
+            16,
+            24,
+            160
+          ],
+          [
+            10,
+            20,
+            100
+          ],
+          [
+            8,
+            18,
+            80
+          ],
+          [
+            5,
+            15,
+            40
+          ]
+        ],
+    winCap: 100000,
+    betBase: 20
 };

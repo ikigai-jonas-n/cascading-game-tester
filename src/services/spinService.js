@@ -182,9 +182,10 @@ function extractFields(data) {
           ...rawF,
           symbols: {
             initial: rawF.symbols?.initial || rawF.initialSyms,
-            final: rawF.symbols?.final || rawF.tumblingSyms || rawF.symbols?.initial || rawF.initialSyms,
+            final:
+              rawF.symbols?.final || rawF.tumblingSyms || rawF.symbols?.initial || rawF.initialSyms,
             payouts: rawF.symbols?.payouts || rawF.payouts,
-          }
+          },
         };
         fields.push(f);
         fieldMetadata.push({
@@ -732,7 +733,7 @@ export async function playSpin({
           !limitReached
         ) {
           const worker = workers[activeWorkers % coreCount];
-          const batchSize = Math.min(maxSpins - count, 50);
+          const batchSize = Math.min(maxSpins - count, Math.max(1, Math.ceil(20 / coreCount)));
           worker.postMessage({
             apiUrl: apiUrl(),
             config,
@@ -767,75 +768,75 @@ export async function playSpin({
             return;
           }
 
-            if (results?.length > 0) {
-              await saveAllSpins(results);
+          if (results?.length > 0) {
+            await saveAllSpins(results);
 
-              // If stopped while saving to DB, abort before overwriting status
-              if (!autoPlayRunning()) return;
+            // If stopped while saving to DB, abort before overwriting status
+            if (!autoPlayRunning()) return;
 
-              if (mode === 'untilConditionN' && targetConditions?.length > 0) {
-                for (const entry of results) {
-                  const category = getWinCategory(entry.totalWin, entry.betAmount);
-                  if (targetConditions.includes(category)) {
-                    if (targetConditionLogic === 'OR') {
-                      targetHitCount++;
-                      if (targetHitCount >= targetCountLimit) {
-                        limitReached = true;
-                        setAutoPlayRunning(false);
-                        break;
-                      }
-                    } else {
-                      targetHitMap[category]++;
-                      if (targetConditions.every((c) => targetHitMap[c] >= targetCountLimit)) {
-                        limitReached = true;
-                        setAutoPlayRunning(false);
-                        break;
-                      }
+            if (mode === 'untilConditionN' && targetConditions?.length > 0) {
+              for (const entry of results) {
+                const category = getWinCategory(entry.totalWin, entry.betAmount);
+                if (targetConditions.includes(category)) {
+                  if (targetConditionLogic === 'OR') {
+                    targetHitCount++;
+                    if (targetHitCount >= targetCountLimit) {
+                      limitReached = true;
+                      setAutoPlayRunning(false);
+                      break;
+                    }
+                  } else {
+                    targetHitMap[category]++;
+                    if (targetConditions.every((c) => targetHitMap[c] >= targetCountLimit)) {
+                      limitReached = true;
+                      setAutoPlayRunning(false);
+                      break;
                     }
                   }
                 }
               }
+            }
 
-              if (mode === 'untilFilter' && activeFilters.some((f) => !f.disabled)) {
-                for (const entry of results) {
-                  const isMatch = activeFilters.every((af) => {
-                    if (af.disabled) return true;
-                    const def = FILTER_DEFS.find((d) => d.id === af.id);
-                    return def ? def.apply(entry, af.value, game()) : true;
-                  });
-                  if (isMatch) {
-                    limitReached = true;
-                    setAutoPlayRunning(false);
-                    break;
-                  }
+            if (mode === 'untilFilter' && activeFilters.some((f) => !f.disabled)) {
+              for (const entry of results) {
+                const isMatch = activeFilters.every((af) => {
+                  if (af.disabled) return true;
+                  const def = FILTER_DEFS.find((d) => d.id === af.id);
+                  return def ? def.apply(entry, af.value, game()) : true;
+                });
+                if (isMatch) {
+                  limitReached = true;
+                  setAutoPlayRunning(false);
+                  break;
                 }
               }
-
-              if (mode === 'untilWin' && results.some((e) => e.isWin)) {
-                limitReached = true;
-                setAutoPlayRunning(false);
-              }
-              if (mode === 'untilLoss' && results.some((e) => !e.isWin)) {
-                limitReached = true;
-                setAutoPlayRunning(false);
-              }
-
-              // Update RAM history with OOM protection
-              prependSpins(results.reverse());
             }
 
-            if (!autoPlayRunning()) return;
-
-            const now = performance.now();
-            const rps = (count / ((now - startTime) / 1000)).toFixed(1);
-            setAutoStatus(`Processing: ${count} / ${maxSpins} (${rps} spins/sec)`);
-
-            if (now - lastRenderTime > 1500) {
-              rebuildSortedList();
-              lastRenderTime = now;
+            if (mode === 'untilWin' && results.some((e) => e.isWin)) {
+              limitReached = true;
+              setAutoPlayRunning(false);
+            }
+            if (mode === 'untilLoss' && results.some((e) => !e.isWin)) {
+              limitReached = true;
+              setAutoPlayRunning(false);
             }
 
-            dispatchWork();
+            // Update RAM history with OOM protection
+            prependSpins(results.reverse());
+          }
+
+          if (!autoPlayRunning()) return;
+
+          const now = performance.now();
+          const rps = (count / ((now - startTime) / 1000)).toFixed(1);
+          setAutoStatus(`Processing: ${count} / ${maxSpins} (${rps} spins/sec)`);
+
+          if (now - lastRenderTime > 1500) {
+            rebuildSortedList();
+            lastRenderTime = now;
+          }
+
+          dispatchWork();
         };
       });
 

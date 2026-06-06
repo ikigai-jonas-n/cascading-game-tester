@@ -127,39 +127,37 @@ export default function PlayControls() {
           {autoPlayRunning() ? 'RUNNING...' : '▶ PLAY'}
         </button>
 
-        <div style="display:flex; gap:6px; flex:1; min-width:140px;">
-          <select
-            id="playMode"
-            style="flex:1; padding:6px; font-size:11px; font-weight:800; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px;"
-            value={mode()}
-            onChange={(e) => {
-              setMode(e.target.value);
-              localStorage.setItem('play_mode', e.target.value);
-            }}
-          >
-            <option value="single">Single</option>
-            <option value="count">Play N</option>
-            <option value="allCheatTemplates">All Cheats</option>
-            <option value="untilWin">Until Win</option>
-            <option value="untilLoss">Until Loss</option>
-            <option value="untilFilter">Until Filter</option>
-            <option value="untilConditionN">Until Targets</option>
-          </select>
+        <select
+          id="playMode"
+          style="flex:1; min-width:90px; padding:6px; font-size:11px; font-weight:800; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px;"
+          value={mode()}
+          onChange={(e) => {
+            setMode(e.target.value);
+            localStorage.setItem('play_mode', e.target.value);
+          }}
+        >
+          <option value="single">Single</option>
+          <option value="count">Play N</option>
+          <option value="allCheatTemplates">All Cheats</option>
+          <option value="untilWin">Until Win</option>
+          <option value="untilLoss">Until Loss</option>
+          <option value="untilFilter">Until Filter</option>
+          <option value="untilConditionN">Until Targets</option>
+        </select>
 
-          <Show when={mode() === 'count'}>
-            <input
-              type="text"
-              id="playCount"
-              value={playCount()}
-              placeholder="e.g. 100k"
-              style="width:65px; flex-shrink:0; padding:6px; font-size:11px; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px;"
-              onInput={(e) => {
-                setPlayCount(e.target.value);
-                localStorage.setItem('play_count', e.target.value);
-              }}
-            />
-          </Show>
-        </div>
+        <Show when={mode() === 'count'}>
+          <input
+            type="text"
+            id="playCount"
+            value={playCount()}
+            placeholder="e.g. 100k"
+            style="width:65px; flex-shrink:0; padding:6px; font-size:11px; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-primary); border-radius:6px;"
+            onInput={(e) => {
+              setPlayCount(e.target.value);
+              localStorage.setItem('play_count', e.target.value);
+            }}
+          />
+        </Show>
 
         <Show when={autoPlayRunning()}>
           <button id="stopAutoBtn" class="btn-ghost" style="flex-shrink:0;" onClick={stopAutoPlay}>

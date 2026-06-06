@@ -72,26 +72,41 @@ export default function PaytableModal() {
                 ⚠️ No backend data found. Run the node extraction script.
               </div>
             </Show>
-            <Show when={game().paytable && Object.keys(game().paytable || {}).length > 0}>
-              <For each={Object.entries(game().paytable || {})}>
-                {([id, rule]) => {
-                  const emoji = game().emojis?.[id] || '';
-                  const name = game().symbols?.[id] !== undefined ? game().symbols[id] : `Symbol ${id}`;
-                  const color = game().colors?.[id] || '#666';
-                  return (
-                    <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.03); padding:12px; border-radius:8px; border:1px solid rgba(255,255,255,0.07);">
-                      <div style="display:flex; align-items:center; gap:12px;">
-                        <div style="font-size:24px; width:32px; text-align:center;">{emoji}</div>
-                        <div style="display:flex; flex-direction:column;">
-                          <span style={`color:${color}; font-weight:900; font-size:12px; text-transform:uppercase;`}>{name}</span>
-                          <span style="color:#64748b; font-size:9px; font-family:monospace;">ID: {id}</span>
-                        </div>
+            <Show when={game().symbols && game().symbols.length > 0}>
+              <div style="margin-bottom: 20px;">
+                <h3 style="color:#e2e8f0; font-size:12px; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:4px;">Symbols</h3>
+                <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                  <For each={game().symbols}>
+                    {(sym) => (
+                      <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:4px 8px; font-size:10px;">
+                        <span style="color:#94a3b8; margin-right:6px;">ID: {sym.id}</span>
+                        <span style="color:#10b981; font-weight:bold;">{sym.category}</span>
                       </div>
-                      <div style="color:#10b981; font-weight:800; font-size:11px; text-align:right; max-width:60%;">{rule}</div>
+                    )}
+                  </For>
+                </div>
+              </div>
+            </Show>
+            <Show when={game().paytable && game().paytable.length > 0}>
+              <h3 style="color:#e2e8f0; font-size:12px; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:4px;">Payout Matrix</h3>
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <For each={game().paytable}>
+                  {(row, rowIndex) => (
+                    <div style="display:flex; align-items:center; background:rgba(255,255,255,0.03); padding:8px; border-radius:6px; border:1px solid rgba(255,255,255,0.07);">
+                      <div style="width:40px; color:#64748b; font-size:10px; font-weight:bold;">ID: {rowIndex()}</div>
+                      <div style="display:flex; gap:8px; flex:1;">
+                        <For each={row}>
+                          {(val, colIndex) => (
+                            <div style={`flex:1; text-align:center; font-size:10px; font-family:monospace; ${val > 0 ? 'color:#10b981; font-weight:bold;' : 'color:#475569;'}`}>
+                              {val}
+                            </div>
+                          )}
+                        </For>
+                      </div>
                     </div>
-                  );
-                }}
-              </For>
+                  )}
+                </For>
+              </div>
             </Show>
           </div>
         </div>

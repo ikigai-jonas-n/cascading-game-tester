@@ -103,9 +103,13 @@ self.onmessage = async (e) => {
               ...rawF,
               symbols: {
                 initial: rawF.symbols?.initial || rawF.initialSyms,
-                final: rawF.symbols?.final || rawF.tumblingSyms || rawF.symbols?.initial || rawF.initialSyms,
+                final:
+                  rawF.symbols?.final ||
+                  rawF.tumblingSyms ||
+                  rawF.symbols?.initial ||
+                  rawF.initialSyms,
                 payouts: rawF.symbols?.payouts || rawF.payouts,
-              }
+              },
             };
             fields.push(f);
             fieldMetadata.push({
