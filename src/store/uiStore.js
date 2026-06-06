@@ -50,7 +50,7 @@ export const [rightPanelFontSize, setRightPanelFontSize] = createSignal(
   parseInt(localStorage.getItem('right_panel_font_size') || '12', 10),
 );
 export const [showFloatingTumbleStats, setShowFloatingTumbleStats] = createSignal(
-  localStorage.getItem('show_floating_tumble_stats') !== 'false',
+  localStorage.getItem('show_floating_tumble_stats') === 'true',
 );
 export const [floatingStatsWidth, setFloatingStatsWidth] = createSignal(
   parseInt(localStorage.getItem('floating_stats_width') || '200', 10),

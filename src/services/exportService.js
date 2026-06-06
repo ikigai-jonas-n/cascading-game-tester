@@ -49,6 +49,7 @@ export async function exportDataDirectFromDb(defaultFileName, exportMode, isMapp
         rightPanelFontSize: localStorage.getItem('right_panel_font_size') || '12',
         floatingStatsWidth: localStorage.getItem('floating_stats_width') || '200',
         floatingStatsHeight: localStorage.getItem('floating_stats_height') || '200',
+        showFloatingTumbleStats: localStorage.getItem('show_floating_tumble_stats') ?? 'false',
       };
       const v2 = {
         v: 2,

@@ -38,6 +38,7 @@ import {
   setRightPanelFontSize,
   setFloatingStatsWidth,
   setFloatingStatsHeight,
+  setShowFloatingTumbleStats,
 } from '../store/uiStore.js';
 import { loadSpin, isSettleField, getSpinStats } from './spinService.js';
 import { FILTER_DEFS } from '../filters.js';
@@ -206,15 +207,25 @@ export function restoreSettingsFromImport(settings, filters) {
     localStorage.setItem('right_panel_font_size', val);
     setRightPanelFontSize(val);
   }
-  if (settings.floatingStatsWidth) {
+  if (settings.floatingStatsWidth != null) {
     const val = parseInt(settings.floatingStatsWidth, 10);
-    localStorage.setItem('floating_stats_width', val);
-    setFloatingStatsWidth(val);
+    if (!isNaN(val)) {
+      localStorage.setItem('floating_stats_width', val);
+      setFloatingStatsWidth(val);
+    }
   }
-  if (settings.floatingStatsHeight) {
+  if (settings.floatingStatsHeight != null) {
     const val = parseInt(settings.floatingStatsHeight, 10);
-    localStorage.setItem('floating_stats_height', val);
-    setFloatingStatsHeight(val);
+    if (!isNaN(val)) {
+      localStorage.setItem('floating_stats_height', val);
+      setFloatingStatsHeight(val);
+    }
+  }
+  if (settings.showFloatingTumbleStats != null) {
+    const val =
+      settings.showFloatingTumbleStats !== 'false' && settings.showFloatingTumbleStats !== false;
+    localStorage.setItem('show_floating_tumble_stats', val ? 'true' : 'false');
+    setShowFloatingTumbleStats(val);
   }
 }
 

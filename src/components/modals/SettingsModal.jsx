@@ -383,7 +383,7 @@ export default function SettingsModal() {
                       onChange={(e) => {
                         const checked = e.target.checked;
                         setShowFloatingTumbleStats(checked);
-                        localStorage.setItem('show_floating_tumble_stats', checked);
+                        localStorage.setItem('show_floating_tumble_stats', checked ? 'true' : 'false');
                       }}
                     />
                     <span class="slider round"></span>
