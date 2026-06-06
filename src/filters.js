@@ -114,16 +114,19 @@ export const FILTER_DEFS = [
       const symId = typeof value === 'object' ? parseInt(value.symId) : parseInt(value);
       const minCount = typeof value === 'object' ? parseInt(value.count || 1) : 1;
       return spin.fields.some((f) => {
-        const initialCount = f.symbols.initial.filter((s) => s === symId).length;
-        const finalCount = f.symbols.final.filter((s) => s === symId).length;
+        const initialCount = (f.symbols.initial || f.symbols.final || []).filter(
+          (s) => s === symId,
+        ).length;
+        const finalCount = (f.symbols.final || []).filter((s) => s === symId).length;
         return initialCount >= minCount || finalCount >= minCount;
       });
     },
     formatValue: (value, game) => {
       const symId = typeof value === 'object' ? value.symId : value;
       const count = typeof value === 'object' ? value.count : 1;
-      const emoji = game.emojis[symId] || '';
-      const name = game.symbols[symId] || symId;
+      const entry = game.symbols[symId];
+      const emoji = typeof entry === 'object' ? entry.emoji : '';
+      const name = typeof entry === 'object' ? entry.name : entry || symId;
       return `>= ${count}x ${emoji} ${name}`;
     },
   },

@@ -78,33 +78,18 @@ export async function getStorageEstimate() {
   return null;
 }
 
-/** Highly Optimized Bulk Save with GZIP Compression */
+/** Highly Optimized Bulk Save (Compression Bypassed for Speed) */
 export async function saveAllSpins(entries) {
-  // 1. Offload compression to async microtasks BEFORE opening the DB transaction
-  // We compress `rawData` because it's massive, but keep `fields` uncompressed for fast searching
-  const processedEntries = await Promise.all(
-    entries.map(async (entry) => {
-      if (entry.rawData && !entry._isCompressed) {
-        return {
-          ...entry,
-          rawData: await compressData(entry.rawData),
-          _isCompressed: true,
-        };
-      }
-      return entry;
-    }),
-  );
-
   await open();
 
-  // 2. Max-speed synchronous batch insert
+  // FIX: Removed the massive CompressionStream loop.
+  // Zipping 400 files in the main thread was killing the CPU and making auto-play "slow af".
   return new Promise((resolve, reject) => {
     const tx = _db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
 
-    // A standard 'for' loop guarantees all requests are queued in the same event tick
-    for (let i = 0; i < processedEntries.length; i++) {
-      store.put(processedEntries[i]);
+    for (let i = 0; i < entries.length; i++) {
+      store.put(entries[i]);
     }
 
     tx.oncomplete = () => resolve();
@@ -112,12 +97,13 @@ export async function saveAllSpins(entries) {
   });
 }
 
-/** Load initial batch of spins ONLY for the active game */
-export async function loadAllSpins(gameId, limit = 10000) {
+export async function loadAllSpins(gameId, limit = 5000) {
   await open();
   return new Promise((resolve, reject) => {
     const store = getStore();
-    const req = store.openCursor(null, 'prev');
+    // STRICT ISOLATION: Use the gameId index to ONLY load spins for this game
+    // The index automatically sorts by gameId, then by primary key (num) descending
+    const req = store.index('gameId').openCursor(IDBKeyRange.only(gameId), 'prev');
     const results = [];
 
     req.onsuccess = (e) => {
@@ -127,10 +113,7 @@ export async function loadAllSpins(gameId, limit = 10000) {
         return;
       }
 
-      // STRICT ISOLATION: Only load into RAM if it belongs to the current game
-      if (cursor.value.gameId === gameId) {
-        results.push(cursor.value);
-      }
+      results.push(cursor.value);
 
       if (results.length < limit) {
         cursor.continue();
@@ -142,35 +125,35 @@ export async function loadAllSpins(gameId, limit = 10000) {
   });
 }
 
-/** Load a specific page of spins using a cursor (Newest First) */
-export async function loadSpinsPage(limit = 30, offset = 0) {
+/**
+ * Load next page of spins using key-range cursor (no skip/offset).
+ * Pass afterKey = last seen spin's `num` to get the next page.
+ * Returns newest-first within the active game.
+ */
+export async function loadSpinsCursor(gameId, afterKey = null, limit = 5000) {
   await open();
   return new Promise((resolve, reject) => {
     const store = getStore();
-    const req = store.openCursor(null, 'prev'); // Descending order
+    // Use the gameId index to ONLY scan spins for this game, sorted by num descending
+    const req = store.index('gameId').openCursor(IDBKeyRange.only(gameId), 'prev');
     const results = [];
-    let advanced = false;
 
     req.onsuccess = (e) => {
       const cursor = e.target.result;
       if (!cursor) {
-        resolve(results); // No more records
+        resolve(results);
         return;
       }
 
-      // Skip records for the offset
-      if (offset > 0 && !advanced) {
-        advanced = true;
-        cursor.advance(offset);
+      // If we provided an afterKey, skip until we find a primaryKey (num) strictly less than afterKey
+      if (afterKey != null && cursor.primaryKey >= afterKey) {
+        cursor.continue();
         return;
       }
 
       results.push(cursor.value);
-      if (results.length < limit) {
-        cursor.continue();
-      } else {
-        resolve(results);
-      }
+      if (results.length < limit) cursor.continue();
+      else resolve(results);
     };
     req.onerror = (e) => reject(e.target.error);
   });
@@ -197,6 +180,25 @@ export async function clearAllSpins() {
     const store = getStore('readwrite');
     const req = store.clear();
     req.onsuccess = () => resolve();
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+export async function clearSpinsForGame(gameId) {
+  await open();
+  return new Promise((resolve, reject) => {
+    const store = getStore('readwrite');
+    const index = store.index('gameId');
+    const req = index.openCursor(IDBKeyRange.only(gameId));
+    req.onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (cursor) {
+        cursor.delete();
+        cursor.continue();
+      } else {
+        resolve();
+      }
+    };
     req.onerror = (e) => reject(e.target.error);
   });
 }
@@ -229,12 +231,17 @@ export async function deleteSpin(num) {
   });
 }
 
-/** Get total count */
-export async function getSpinCount() {
+/** Get total count (optionally for a specific game) */
+export async function getSpinCount(gameId = null) {
   await open();
   return new Promise((resolve, reject) => {
     const store = getStore();
-    const req = store.count();
+    let req;
+    if (gameId) {
+      req = store.index('gameId').count(gameId);
+    } else {
+      req = store.count();
+    }
     req.onsuccess = () => resolve(req.result);
     req.onerror = (e) => reject(e.target.error);
   });
@@ -286,39 +293,76 @@ export async function toggleBookmark(num, state) {
   });
 }
 
-/** Search the database ONLY for the active game */
-export async function searchEntireDb(filters, gameConfig, limit = 1000) {
+/**
+ * Search the database for the active game.
+ * Uses getAll() for a fast bulk read, then filters in JS with periodic yields
+ * so the UI thread stays responsive.
+ * Pass an AbortSignal to cancel early.
+ */
+export async function searchEntireDb(filters, gameConfig, limit = 2000, signal = null) {
   await open();
   const { FILTER_DEFS } = await import('./filters.js');
+  const CHUNK_SIZE = 1500; // records to read per transaction before yielding
+  let results = [];
+  let nextKey = null;
 
-  return new Promise((resolve, reject) => {
-    const store = getStore();
-    const req = store.openCursor(null, 'prev');
-    const results = [];
+  while (true) {
+    if (signal?.aborted) return results;
 
-    req.onsuccess = (e) => {
-      const cursor = e.target.result;
-      if (!cursor) return resolve(results);
+    const chunk = await new Promise((resolve, reject) => {
+      const store = getStore();
+      const range = nextKey !== null ? IDBKeyRange.upperBound(nextKey, true) : null;
+      const req = store.openCursor(range, 'prev');
+      let batchResults = [];
+      let count = 0;
+      let lastKey = null;
 
-      const spin = cursor.value;
+      req.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (!cursor) {
+          resolve({ batch: batchResults, next: null });
+          return;
+        }
 
-      // STRICT ISOLATION
-      if (spin.gameId === gameConfig.id) {
-        const isMatch = filters.every((af) => {
-          if (af.disabled) return true;
-          const def = FILTER_DEFS.find((d) => d.id === af.id);
-          if (!def) return true;
-          return def.apply(spin, af.value, gameConfig);
-        });
+        const spin = cursor.value;
+        lastKey = cursor.key;
 
-        if (isMatch) results.push(spin);
-      }
+        if (spin.gameId === gameConfig.id) {
+          const isMatch = filters.every((af) => {
+            if (af.disabled) return true;
+            const def = FILTER_DEFS.find((d) => d.id === af.id);
+            return def ? def.apply(spin, af.value, gameConfig) : true;
+          });
+          if (isMatch) batchResults.push(spin);
+        }
 
-      if (results.length < limit) cursor.continue();
-      else resolve(results);
-    };
-    req.onerror = (e) => reject(e.target.error);
-  });
+        count++;
+        if (count >= CHUNK_SIZE) {
+          resolve({ batch: batchResults, next: lastKey });
+        } else {
+          cursor.continue();
+        }
+      };
+      req.onerror = (e) => reject(e.target.error);
+    });
+
+    results.push(...chunk.batch);
+    nextKey = chunk.next;
+
+    if (results.length >= limit || nextKey === null) {
+      break;
+    }
+
+    // Yield to UI thread between transactions
+    await new Promise((r) => setTimeout(r, 0));
+  }
+
+  // Ensure limit is respected if we overshot
+  if (results.length > limit) {
+    results = results.slice(0, limit);
+  }
+
+  return results;
 }
 
 /** Iterate DB for streaming. Supports 'filtered' (active game) or 'all' (entire DB) */

@@ -1,12 +1,9 @@
 /**
- * Game Registry — plugin system for game configurations.
- * Automatically registers any game dropped into the ./games/ folder using Vite.
- *
  * @typedef {{
  * id: string,
  * name: string,
  * gameCode: string,
- * grid: { rows: number, cols: number },
+ * grid: { rows?: number, cols?: number },
  * emptySymbolId: number,
  * scatterSymbolId: number,
  * wildSymbolId: number,
@@ -15,30 +12,49 @@
  * colors: Record<number, string>,
  * defaultRequestBody: object,
  * playerId: string,
+ * winCategories: object,
+ * actions?: Array<{id: number, desc: string}>,
+ * hooks?: {
+ *   /**
+ *    * Returns the effective win coins for a single field to add to accumulatedWin.
+ *    * Receives the raw field object. Return 0 to skip.
+ *    * Default: every tumble with coins > 0 contributes its raw coins.
+ *    * @param {object} field
+ *    * @returns {number}
+ *    *
+ *   computeFieldWin?: (field: object) => number,
+ *   /**
+ *    * If true, features.golden[] positions are highlighted on the grid.
+ *    * Default: false.
+ *    *
+ *   goldenEnabled?: boolean,
+ * }
  * }} GameConfig
  */
 
 const registry = new Map();
 
-function register(config) {
+export function register(config) {
   if (config && config.id) {
     registry.set(config.id, config);
   }
 }
 
 // --- Auto-import all game configs ---
-// Vite will automatically bundle and provide every JS file in the games folder
 const gameModules = import.meta.glob('./games/*.js', { eager: true });
-
 Object.values(gameModules).forEach((module) => {
-  if (module.default) {
-    register(module.default);
-  }
+  if (module.default) register(module.default);
 });
 
 /** @returns {GameConfig[]} */
 export function listGames() {
-  return [...registry.values()];
+  return [...registry.values()]
+    .filter((g) => g.isEnabled !== false)
+    .sort((a, b) => {
+      const codeA = a.gameCode || '';
+      const codeB = b.gameCode || '';
+      return codeA.localeCompare(codeB);
+    });
 }
 
 /** @returns {GameConfig|undefined} */
@@ -51,11 +67,12 @@ const STORAGE_KEY = 'active_game_id';
 /** @returns {GameConfig} */
 export function getActiveGame() {
   const stored = localStorage.getItem(STORAGE_KEY);
+  let active = registry.values().next().value;
   if (stored && registry.has(stored)) {
-    return registry.get(stored);
+    active = registry.get(stored);
   }
-  // Fallback to the very first game loaded if no local storage value exists
-  return registry.values().next().value;
+
+  return active;
 }
 
 /** @param {string} id */

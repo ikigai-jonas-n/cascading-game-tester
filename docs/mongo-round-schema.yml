@@ -1,0 +1,197 @@
+# MongoDB Round Document Schema
+# Source: remote-game-server/src/play/models/round-real.model.ts (+ all imports)
+# Fully resolved — no TypeScript imports needed to interpret this file.
+
+Round:
+  _id: ObjectId                      # MongoDB auto-generated
+  roundId: string                    # UUID, unique per round
+  status: RoundStatus                # see RoundStatus enum
+  gameCode: string                   # e.g. "letsgo"
+  sessionId: string
+  externalSessionId?: string
+  balanceStart: string               # decimal string (coins)
+  bet: string                        # total charged (bet * buyBonus multiplier)
+  betNoMultiplier: string            # bet sent to game server (no buy-bonus)
+  win: string                        # decimal string (coins)
+  externalPlayerId?: string
+  isTestingPlayer?: boolean
+  finishedAt: Date | null
+  roundContext?: string
+  gameVersion?: string
+  createdAt: Date
+  updatedAt: Date
+
+  # Only on RoundReal (not RoundDemo)
+  operator: string
+  brand: string
+  playerId: string
+  currency: string                   # e.g. "USD"
+  restorable: boolean
+  roundTags?: string[]
+  pendingStatus?: string
+  transactionAt?: Date
+  transactionStatusHistory?: TransactionStatusHistory[]
+  freeSpinProgressMetadata?: FreeSpinProgressMetadata
+
+  stakes: Stake[]
+  roundEvents: RoundEvent[]
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+RoundStatus:
+  values:
+    - initiated       # stake requested on operator side
+    - opened          # stake confirmed on operator side
+    - ongoing         # round in progress
+    - finished        # game server finished
+    - pending         # operator transaction pending
+    - completed       # full round complete
+    - failed
+    - refund-ok
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+TransactionStatusHistory:
+  status: RoundTransactionStatus
+  at: Date
+
+RoundTransactionStatus:
+  values:
+    - credit-pending
+    - manual-credit-pending
+    - complete
+    - refund-pending
+    - manual-refund-pending
+    - refunded
+    - debit-failed
+    - credit-failed
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+FreeSpinProgressMetadata:
+  createdAt: Date
+  updatedAt: Date
+  spinIndex: number       # current free spin index (-1 = not started)
+  freeSpinNumber: number  # total free spins awarded
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+Stake:
+  stakeId: string
+  status: StakeStatus     # initiated | confirmed
+  amount: string          # decimal string
+  type: string            # GameStakeMode.type — e.g. "normal", "buyBonus"
+  multiplier?: number     # default 1
+  name?: string           # display name
+  createdAt: Date
+  updatedAt: Date
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+RoundEvent:
+  # One event = one "spin action" (base spin OR one free spin phase)
+  status: RoundEventStatus    # progress | completed
+  playResult?: PlayResult
+  createdAt: Date
+  updatedAt: Date
+
+RoundEventStatus:
+  values:
+    - progress
+    - completed
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+PlayResult:
+  step: PlayFullResponse
+  meta?: Meta
+  rng: object                 # raw RNG seed data (opaque)
+  finished: boolean           # true = round is fully done after this event
+  choices?: number[]          # player choices (e.g. wheel game picks), min 1 item
+  roundTags?: string[]
+
+PlayFullResponse:
+  gamePhases: GamePhase[]
+  summary: Summary
+
+Summary:
+  coins: string           # total win coins for this spin event
+  hasMaxWin: boolean
+
+Meta:
+  private:
+    decimalPlace: number
+    baseGameWin: string   # coins
+  public:
+    betAmount: string
+    spinMode: string      # e.g. "normal" | "freeSpin"
+    baseGameWin: string
+    freeSpinWin?: string
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+GamePhase:
+  type: GamePhaseType   # regular | freeSpin | wheelGame
+  coins: string         # total coins won in this phase
+  playgrounds: Playground[]
+
+GamePhaseType:
+  values:
+    - regular
+    - freeSpin
+    - wheelGame
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+Playground:
+  type: PlaygroundType  # basic | map | miniGame
+  coins: string         # total coins won in this playground
+  fields: Field[]       # each Field = one tumble/cascade step
+
+PlaygroundType:
+  values:
+    - basic
+    - map
+    - miniGame
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+Field:
+  # One Field = one tumble/cascade within a spin
+  coins: string         # coins won in this tumble
+  symbols: SymbolState
+  features: Features
+
+SymbolState:
+  coins: string         # total symbol win coins
+  initial: number[]     # symbol IDs on grid BEFORE this tumble (length = rows*cols, e.g. 25 for 5x5)
+  final: number[]       # symbol IDs on grid AFTER this tumble (same length)
+  payouts: Payout[]
+
+Payout:
+  symbol: number        # symbol ID
+  coins: string         # coins awarded for this cluster
+  oak: number           # "of a kind" — cluster size
+  positions: any        # position data (mixed shape, array or object)
+
+Features:
+  # All optional — only present when triggered
+  triggerFreeSpin?: boolean
+  freeSpins?: number                  # how many free spins awarded
+  cumulativeMultiplier: number        # current multiplier (present on all fields)
+  golden: number[]                    # positions of golden symbols
+  isSettle: boolean                   # whether this field is the final settle step
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DATA INTERPRETATION NOTES
+#
+# Conversion to SpinHistory card logic:
+#   - roundEvents[0]          → base game spin
+#   - roundEvents[1..n]       → free spin phases
+#   - roundEvent.playResult.step.gamePhases[i].playgrounds[0].fields
+#       → array of tumble/cascade steps for that phase
+#   - field index 0           → initial spin (first tumble)
+#   - field index 1..n        → cascade steps
+#   - field.features.triggerFreeSpin = true → this spin triggered free spins
+#   - field.features.cumulativeMultiplier   → tumble multiplier at this step
+#   - meta.public.spinMode = "freeSpin"     → this event is a free spin round
