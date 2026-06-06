@@ -7,6 +7,8 @@ const DB_NAME = 'slot_studio';
 const DB_VERSION = 1;
 const STORE_NAME = 'spins';
 
+import { unwrap } from 'solid-js/store';
+
 /** @type {IDBDatabase|null} */
 let _db = null;
 
@@ -44,7 +46,7 @@ export async function saveSpin(entry) {
   await open();
   return new Promise((resolve, reject) => {
     const store = getStore('readwrite');
-    const req = store.put(entry);
+    const req = store.put(unwrap(entry));
     req.onsuccess = () => resolve();
     req.onerror = (e) => reject(e.target.error);
   });
@@ -89,7 +91,7 @@ export async function saveAllSpins(entries) {
     const store = tx.objectStore(STORE_NAME);
 
     for (let i = 0; i < entries.length; i++) {
-      store.put(entries[i]);
+      store.put(unwrap(entries[i]));
     }
 
     tx.oncomplete = () => resolve();

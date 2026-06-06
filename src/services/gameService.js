@@ -31,6 +31,7 @@ import { currentSpinIndex, setCurrentSpinIndex } from '../store/sessionStore.js'
 import { showLoading, hideLoading, apiUrl, setApiUrl, pushToast } from '../store/uiStore.js';
 import { loadSpin, isSettleField, getSpinStats } from './spinService.js';
 import { FILTER_DEFS } from '../filters.js';
+import { convertMongoRoundToSpins } from './mongoRoundConverter.js';
 
 // ── Filter Update (DB Search) ─────────────────────────────────────────────────
 
@@ -225,7 +226,28 @@ export async function loadDefaultData(manual = false) {
       const mapped = allHistory
         .map((entry, idx) => {
           const r = entry.rawData || entry.r || entry;
-          if (!r || !r.step) return null;
+          if (!r) return null;
+
+          // Mongo round: has roundEvents instead of step — use the converter
+          if (r.roundEvents) {
+            const targetGameId = entry.gameId || entry.g || null;
+            const { entries } = convertMongoRoundToSpins(
+              r,
+              entry.num || entry.n || idx + 1,
+              targetGameId,
+            );
+            if (!entries || entries.length === 0) return null;
+            const e = entries[0];
+            return {
+              ...e,
+              gameId: targetGameId || e.gameId,
+              bookmarked: entry.b || entry.bookmarked || false,
+              description: entry.desc || entry.description || null,
+              hasGolden: entry.hg || entry.hasGolden || false,
+            };
+          }
+
+          if (!r.step) return null;
 
           let spinType = 'basic';
           const fields = [];

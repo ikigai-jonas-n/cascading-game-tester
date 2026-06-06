@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script type="module">
+  import { convertMongoRoundToSpins } from './src/services/mongoRoundConverter.js';
+  fetch('/json_files/default_data.json').then(r => r.json()).then(data => {
+    const r = data.h[0].r;
+    try {
+      const res = convertMongoRoundToSpins(r, 717);
+      console.log('Result:', res);
+      document.body.innerHTML = '<pre>' + JSON.stringify(res, null, 2) + '</pre>';
+    } catch(e) {
+      document.body.innerHTML = '<pre style="color:red">' + e.stack + '</pre>';
+    }
+  });
+</script>
+</body>
+</html>
