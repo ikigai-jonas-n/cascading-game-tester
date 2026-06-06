@@ -1,7 +1,7 @@
 import { createSignal } from 'solid-js';
 import RawDrawer from '../features/RawDrawer.jsx';
 import SymbolMap from '../features/SymbolMap.jsx';
-import { rightPanelFontSize, setRightPanelFontSize } from '../../store/uiStore.js';
+import { rightPanelFontSize, setRightPanelFontSize, rightCollapsed, setRightCollapsed } from '../../store/uiStore.js';
 
 export default function RightPanel() {
   let col3Ref;
@@ -27,14 +27,32 @@ export default function RightPanel() {
     document.addEventListener('mouseup', onUp);
   }
 
+  const toggleCollapse = () => {
+    const next = !rightCollapsed();
+    setRightCollapsed(next);
+    localStorage.setItem('right_panel_collapsed', next);
+  };
+
   return (
     <aside
       id="col3"
       ref={col3Ref}
       aria-label="JSON Audit"
-      style={`width: ${col3Width()}; min-width: 200px; flex-shrink: 0; display: flex; flex-direction: column; overflow: hidden; position: relative;`}
+      style={`
+        width: ${rightCollapsed() ? '0px' : col3Width()};
+        min-width: 0;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: visible;
+        position: relative;
+        transition: width 0.22s cubic-bezier(0.4,0,0.2,1);
+        border-left: ${rightCollapsed() ? 'none' : '1px solid var(--border-color)'};
+        z-index: 10;
+      `}
     >
-      <div class="resizer" data-target="col3" onMouseDown={startResize} />
+      <div style={`display: flex; flex-direction: column; width: ${col3Width()}; height: 100%; overflow: hidden; opacity: ${rightCollapsed() ? 0 : 1}; transition: opacity 0.1s;`}>
+        <div class="resizer" data-target="col3" onMouseDown={startResize} style={`display: ${rightCollapsed() ? 'none' : 'block'};`} />
 
       <div style="padding: 16px; display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--border-color);">
         <span style="font-size:12px;">📋</span>
@@ -61,6 +79,40 @@ export default function RightPanel() {
 
       <RawDrawer />
       <SymbolMap />
+      </div>
+
+      {/* Collapse toggle tab — sticks out on the LEFT edge */}
+      <button
+        aria-label={rightCollapsed() ? 'Expand right panel' : 'Collapse right panel'}
+        title={rightCollapsed() ? 'Expand panel (JSON Audit)' : 'Collapse panel'}
+        onClick={toggleCollapse}
+        style={`
+          position: absolute;
+          top: 50%;
+          left: ${rightCollapsed() ? '-28px' : '-14px'};
+          transform: translateY(-50%);
+          z-index: 20;
+          width: 28px;
+          height: 56px;
+          background: var(--bg-sidebar);
+          border: 1px solid var(--border-color);
+          border-right: ${rightCollapsed() ? '1px solid var(--border-color)' : 'none'};
+          border-radius: ${rightCollapsed() ? '8px 0 0 8px' : '8px 0 0 8px'};
+          color: var(--text-muted);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+          transition: background 0.15s, color 0.15s, left 0.22s cubic-bezier(0.4,0,0.2,1);
+          padding: 0;
+          line-height: 1;
+        `}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(245,158,11,0.12)'; e.currentTarget.style.color = 'var(--bg-accent)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-sidebar)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+      >
+        {rightCollapsed() ? '‹' : '›'}
+      </button>
     </aside>
   );
 }

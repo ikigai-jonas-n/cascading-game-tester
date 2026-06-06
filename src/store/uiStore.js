@@ -49,6 +49,15 @@ export const [leftPanelFontSize, setLeftPanelFontSize] = createSignal(
 export const [rightPanelFontSize, setRightPanelFontSize] = createSignal(
   parseInt(localStorage.getItem('right_panel_font_size') || '12', 10),
 );
+export const [showFloatingTumbleStats, setShowFloatingTumbleStats] = createSignal(
+  localStorage.getItem('show_floating_tumble_stats') !== 'false',
+);
+export const [floatingStatsWidth, setFloatingStatsWidth] = createSignal(
+  parseInt(localStorage.getItem('floating_stats_width') || '200', 10),
+);
+export const [floatingStatsHeight, setFloatingStatsHeight] = createSignal(
+  parseInt(localStorage.getItem('floating_stats_height') || '200', 10),
+);
 
 // ── API / Player Settings ─────────────────────────────────────────────────────
 export const [apiUrl, setApiUrl] = createSignal(
@@ -70,6 +79,14 @@ export const [paytableOpen, setPaytableOpen] = createSignal(false);
 export const [mongoRoundImportOpen, setMongoRoundImportOpen] = createSignal(false);
 export const [choicePromptOpen, setChoicePromptOpen] = createSignal(false);
 export const [choicePromptChoices, setChoicePromptChoices] = createSignal([]);
+
+// ── Panel Collapse ────────────────────────────────────────────────────────────
+export const [leftCollapsed, setLeftCollapsed] = createSignal(
+  localStorage.getItem('left_panel_collapsed') === 'true',
+);
+export const [rightCollapsed, setRightCollapsed] = createSignal(
+  localStorage.getItem('right_panel_collapsed') === 'true',
+);
 
 // ── Auto-play status text ─────────────────────────────────────────────────────
 export const [autoStatus, setAutoStatus] = createSignal('');

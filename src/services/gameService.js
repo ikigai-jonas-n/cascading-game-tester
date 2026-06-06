@@ -36,6 +36,8 @@ import {
   pushToast,
   setLeftPanelFontSize,
   setRightPanelFontSize,
+  setFloatingStatsWidth,
+  setFloatingStatsHeight,
 } from '../store/uiStore.js';
 import { loadSpin, isSettleField, getSpinStats } from './spinService.js';
 import { FILTER_DEFS } from '../filters.js';
@@ -203,6 +205,16 @@ export function restoreSettingsFromImport(settings, filters) {
     const val = parseInt(settings.rightPanelFontSize, 10);
     localStorage.setItem('right_panel_font_size', val);
     setRightPanelFontSize(val);
+  }
+  if (settings.floatingStatsWidth) {
+    const val = parseInt(settings.floatingStatsWidth, 10);
+    localStorage.setItem('floating_stats_width', val);
+    setFloatingStatsWidth(val);
+  }
+  if (settings.floatingStatsHeight) {
+    const val = parseInt(settings.floatingStatsHeight, 10);
+    localStorage.setItem('floating_stats_height', val);
+    setFloatingStatsHeight(val);
   }
 }
 

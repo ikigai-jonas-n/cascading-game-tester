@@ -124,7 +124,7 @@ export default function TumbleAudit(props) {
   );
 }
 
-function TumbleRow(props) {
+export function TumbleRow(props) {
   const sym = symbols;
   const g = game;
 
@@ -222,7 +222,7 @@ function TumbleRow(props) {
                   <span style="color:#fbbf24; font-weight:800; font-size:10px; font-family:monospace;">
                     {getSymEntry(sid).name}
                   </span>
-                  <span style="font-size:10px;">{getSymEntry(sid).emoji} (GOLDEN 🟡)</span>
+                  <span style="font-size:10px;">{getSymEntry(sid).emoji} 🟡</span>
                 </div>
                 <div style="font-size:10px; color:var(--text-muted); font-weight:800;">
                   x{count}

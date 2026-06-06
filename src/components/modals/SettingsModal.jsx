@@ -10,6 +10,8 @@ import {
   setLeftPanelFontSize,
   rightPanelFontSize,
   setRightPanelFontSize,
+  showFloatingTumbleStats,
+  setShowFloatingTumbleStats,
 } from '../../store/uiStore.js';
 import { clearAllDataAndReload } from '../../services/gameService.js';
 import {
@@ -369,7 +371,23 @@ export default function SettingsModal() {
                     }}
                     style="flex: 1;"
                   />
-                  <span style="width: 30px; text-align: right;">{rightPanelFontSize()}px</span>
+                  <span>{rightPanelFontSize()}px</span>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.03); padding:10px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+                  <span style="color:var(--text-main); font-weight:600;">Floating Tumble Stats</span>
+                  <label class="switch">
+                    <input
+                      type="checkbox"
+                      checked={showFloatingTumbleStats()}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setShowFloatingTumbleStats(checked);
+                        localStorage.setItem('show_floating_tumble_stats', checked);
+                      }}
+                    />
+                    <span class="slider round"></span>
+                  </label>
                 </div>
               </div>
             </div>

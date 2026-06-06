@@ -10,6 +10,8 @@ import {
   setPaytableOpen,
   setMongoRoundImportOpen,
   leftPanelFontSize,
+  leftCollapsed,
+  setLeftCollapsed,
 } from '../../store/uiStore.js';
 import {
   currentSortedList,
@@ -52,14 +54,33 @@ export default function LeftPanel() {
     document.addEventListener('mouseup', onUp);
   }
 
+  const toggleCollapse = () => {
+    const next = !leftCollapsed();
+    setLeftCollapsed(next);
+    localStorage.setItem('left_panel_collapsed', next);
+  };
+
   return (
     <aside
       id="col1"
       ref={col1Ref}
       aria-label="Game History and Controls"
-      style={`width:${col1Width()}; min-width:250px; flex-shrink:0; display:flex; flex-direction:column; overflow:hidden; position:relative; font-size:${leftPanelFontSize()}px;`}
+      style={`
+        width: ${leftCollapsed() ? '0px' : col1Width()};
+        min-width: 0;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: visible;
+        position: relative;
+        font-size: ${leftPanelFontSize()}px;
+        transition: width 0.22s cubic-bezier(0.4,0,0.2,1);
+        border-right: ${leftCollapsed() ? 'none' : '1px solid var(--border-color)'};
+        z-index: 10;
+      `}
     >
-      <header>
+      <div style={`display: flex; flex-direction: column; width: ${col1Width()}; height: 100%; overflow: hidden; opacity: ${leftCollapsed() ? 0 : 1}; transition: opacity 0.1s;`}>
+        <header>
         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
           <div style="display:flex; flex-direction:column; gap:6px; min-width:180px;">
             <div style="display:flex; align-items:center; gap:4px;">
@@ -157,8 +178,42 @@ export default function LeftPanel() {
       <section id="spinHistory" role="list" style="flex:1; overflow-y:auto; padding:20px;">
         <SpinHistory />
       </section>
+      </div>
 
-      <div class="resizer" data-target="col1" onMouseDown={startResize} />
+      <div class="resizer" data-target="col1" onMouseDown={startResize} style={`display: ${leftCollapsed() ? 'none' : 'block'};`} />
+
+      {/* Collapse toggle tab — sticks out on the RIGHT edge */}
+      <button
+        aria-label={leftCollapsed() ? 'Expand left panel' : 'Collapse left panel'}
+        title={leftCollapsed() ? 'Expand panel (History)' : 'Collapse panel'}
+        onClick={toggleCollapse}
+        style={`
+          position: absolute;
+          top: 50%;
+          right: ${leftCollapsed() ? '-28px' : '-14px'};
+          transform: translateY(-50%);
+          z-index: 20;
+          width: 28px;
+          height: 56px;
+          background: var(--bg-sidebar);
+          border: 1px solid var(--border-color);
+          border-left: ${leftCollapsed() ? '1px solid var(--border-color)' : 'none'};
+          border-radius: ${leftCollapsed() ? '0 8px 8px 0' : '0 8px 8px 0'};
+          color: var(--text-muted);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+          transition: background 0.15s, color 0.15s, right 0.22s cubic-bezier(0.4,0,0.2,1);
+          padding: 0;
+          line-height: 1;
+        `}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(245,158,11,0.12)'; e.currentTarget.style.color = 'var(--bg-accent)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-sidebar)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+      >
+        {leftCollapsed() ? '›' : '‹'}
+      </button>
     </aside>
   );
 }
