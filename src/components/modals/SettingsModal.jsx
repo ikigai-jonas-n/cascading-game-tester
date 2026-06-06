@@ -6,6 +6,10 @@ import {
   setApiUrl,
   playerId,
   setPlayerId,
+  leftPanelFontSize,
+  setLeftPanelFontSize,
+  rightPanelFontSize,
+  setRightPanelFontSize,
 } from '../../store/uiStore.js';
 import { clearAllDataAndReload } from '../../services/gameService.js';
 import {
@@ -14,9 +18,8 @@ import {
   singleViewMode,
   setSingleViewMode,
 } from '../../store/sessionStore.js';
-import { game, switchGame, listGames } from '../../store/gameStore.js';
+import { game } from '../../store/gameStore.js';
 import { checkBackendHealth } from '../../services/gameService.js';
-import { triggerFilterUpdate } from '../../services/gameService.js';
 
 const S = {
   overlay: `
@@ -261,26 +264,6 @@ export default function SettingsModal() {
               />
             </div>
 
-            {/* Game Selector */}
-            <div style={S.section}>
-              <p style={S.sectionLabel}>Active Game</p>
-              <select
-                id="gameSelect"
-                style={S.select}
-                onChange={(e) => {
-                  switchGame(e.target.value);
-                  localStorage.removeItem('request_body');
-                  triggerFilterUpdate();
-                }}
-              >
-                {listGames().map((g) => (
-                  <option value={g.id} selected={g.id === game().id}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             {/* Request Body */}
             <div style={S.section}>
               <p style={S.sectionLabel}>Request Body (JSON)</p>
@@ -327,7 +310,7 @@ export default function SettingsModal() {
             {/* Display Options */}
             <div style={S.section}>
               <p style={S.sectionLabel}>Display</p>
-              <div style="display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; flex-direction:column; gap:16px;">
                 <label style={S.checkRow}>
                   <input
                     type="checkbox"
@@ -341,7 +324,7 @@ export default function SettingsModal() {
                   Show Initial + Final side-by-side
                 </label>
                 <div style="display:flex; align-items:center; gap:10px; font-size:12px; color:#94a3b8;">
-                  <span>Grid View:</span>
+                  <span style="min-width: 140px;">Grid View:</span>
                   <select
                     id="singleViewModeSelect"
                     style={S.selectSmall}
@@ -355,6 +338,38 @@ export default function SettingsModal() {
                     <option value="initial">Initial only</option>
                     <option value="final">Final only</option>
                   </select>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px; font-size:12px; color:#94a3b8;">
+                  <span style="min-width: 140px;">Left Panel Font Size:</span>
+                  <input
+                    type="range"
+                    min="10"
+                    max="24"
+                    value={leftPanelFontSize()}
+                    onInput={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      setLeftPanelFontSize(val);
+                      localStorage.setItem('left_panel_font_size', val);
+                    }}
+                    style="flex: 1;"
+                  />
+                  <span style="width: 30px; text-align: right;">{leftPanelFontSize()}px</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px; font-size:12px; color:#94a3b8;">
+                  <span style="min-width: 140px;">JSON Audit Font Size:</span>
+                  <input
+                    type="range"
+                    min="10"
+                    max="24"
+                    value={rightPanelFontSize()}
+                    onInput={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      setRightPanelFontSize(val);
+                      localStorage.setItem('right_panel_font_size', val);
+                    }}
+                    style="flex: 1;"
+                  />
+                  <span style="width: 30px; text-align: right;">{rightPanelFontSize()}px</span>
                 </div>
               </div>
             </div>

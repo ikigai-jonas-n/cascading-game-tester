@@ -1,6 +1,7 @@
 import { createSignal } from 'solid-js';
 import RawDrawer from '../features/RawDrawer.jsx';
 import SymbolMap from '../features/SymbolMap.jsx';
+import { rightPanelFontSize, setRightPanelFontSize } from '../../store/uiStore.js';
 
 export default function RightPanel() {
   let col3Ref;
@@ -40,6 +41,22 @@ export default function RightPanel() {
         <span style="font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:1px; color:var(--text-primary);">
           JSON AUDIT
         </span>
+        <div style="margin-left: auto; display:flex; align-items:center; gap:6px; font-size:10px; color:var(--text-muted);">
+          <span>A-</span>
+          <input
+            type="range"
+            min="10"
+            max="24"
+            value={rightPanelFontSize()}
+            onInput={(e) => {
+              const val = parseInt(e.target.value, 10);
+              setRightPanelFontSize(val);
+              localStorage.setItem('right_panel_font_size', val);
+            }}
+            style="width: 60px; height: 4px;"
+          />
+          <span>A+</span>
+        </div>
       </div>
 
       <RawDrawer />

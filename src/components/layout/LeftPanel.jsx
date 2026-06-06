@@ -9,6 +9,7 @@ import {
   setShortcutsOpen,
   setPaytableOpen,
   setMongoRoundImportOpen,
+  leftPanelFontSize,
 } from '../../store/uiStore.js';
 import {
   currentSortedList,
@@ -56,7 +57,7 @@ export default function LeftPanel() {
       id="col1"
       ref={col1Ref}
       aria-label="Game History and Controls"
-      style={`width:${col1Width()}; min-width:250px; flex-shrink:0; display:flex; flex-direction:column; overflow:hidden; position:relative;`}
+      style={`width:${col1Width()}; min-width:250px; flex-shrink:0; display:flex; flex-direction:column; overflow:hidden; position:relative; font-size:${leftPanelFontSize()}px;`}
     >
       <header>
         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:8px;">

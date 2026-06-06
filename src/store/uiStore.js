@@ -43,6 +43,12 @@ export function dismissToast(id) {
 export const [showSymbolMap, setShowSymbolMap] = createSignal(
   localStorage.getItem('show_symbol_map') !== 'false',
 );
+export const [leftPanelFontSize, setLeftPanelFontSize] = createSignal(
+  parseInt(localStorage.getItem('left_panel_font_size') || '14', 10),
+);
+export const [rightPanelFontSize, setRightPanelFontSize] = createSignal(
+  parseInt(localStorage.getItem('right_panel_font_size') || '12', 10),
+);
 
 // ── API / Player Settings ─────────────────────────────────────────────────────
 export const [apiUrl, setApiUrl] = createSignal(

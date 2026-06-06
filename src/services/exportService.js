@@ -45,6 +45,8 @@ export async function exportDataDirectFromDb(defaultFileName, exportMode, isMapp
         playCount: localStorage.getItem('play_count') || '10',
         requestBody: localStorage.getItem('request_body') || '',
         activeGame: game().id,
+        leftPanelFontSize: localStorage.getItem('left_panel_font_size') || '14',
+        rightPanelFontSize: localStorage.getItem('right_panel_font_size') || '12',
       };
       const v2 = {
         v: 2,

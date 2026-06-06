@@ -1,5 +1,5 @@
 import { createMemo, For, Show } from 'solid-js';
-import { rawDrawerTabs, rawDrawerActiveTab } from '../../store/uiStore.js';
+import { rawDrawerTabs, rawDrawerActiveTab, rightPanelFontSize } from '../../store/uiStore.js';
 import { selectDrawerTab } from '../../services/drawerService.js';
 import { game } from '../../store/gameStore.js';
 import { gameState } from '../../store/sessionStore.js';
@@ -84,7 +84,7 @@ export default function RawDrawer() {
       <div
         id="rawContent"
         tabIndex={0}
-        style="flex:1;overflow-y:auto;padding:12px 16px;font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.7;outline:none;"
+        style={`flex:1;overflow-y:auto;padding:12px 16px;font-family:'JetBrains Mono',monospace;font-size:${rightPanelFontSize()}px;line-height:1.7;outline:none;`}
         onKeyDown={(e) => {
           if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
             e.preventDefault();

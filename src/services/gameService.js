@@ -28,7 +28,15 @@ import {
   setTotalDbCount,
 } from '../store/historyStore.js';
 import { currentSpinIndex, setCurrentSpinIndex } from '../store/sessionStore.js';
-import { showLoading, hideLoading, apiUrl, setApiUrl, pushToast } from '../store/uiStore.js';
+import {
+  showLoading,
+  hideLoading,
+  apiUrl,
+  setApiUrl,
+  pushToast,
+  setLeftPanelFontSize,
+  setRightPanelFontSize,
+} from '../store/uiStore.js';
 import { loadSpin, isSettleField, getSpinStats } from './spinService.js';
 import { FILTER_DEFS } from '../filters.js';
 import { convertMongoRoundToSpins } from './mongoRoundConverter.js';
@@ -185,6 +193,17 @@ export function restoreSettingsFromImport(settings, filters) {
   }
   if (settings.playMode) localStorage.setItem('play_mode', settings.playMode);
   if (settings.playCount) localStorage.setItem('play_count', settings.playCount);
+
+  if (settings.leftPanelFontSize) {
+    const val = parseInt(settings.leftPanelFontSize, 10);
+    localStorage.setItem('left_panel_font_size', val);
+    setLeftPanelFontSize(val);
+  }
+  if (settings.rightPanelFontSize) {
+    const val = parseInt(settings.rightPanelFontSize, 10);
+    localStorage.setItem('right_panel_font_size', val);
+    setRightPanelFontSize(val);
+  }
 }
 
 // ── Default Data Load ─────────────────────────────────────────────────────────
