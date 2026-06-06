@@ -123,13 +123,34 @@ function extractBackendData() {
     const sourceFile = project.addSourceFileAtPath(configFilePath);
     const gameConfigClass = sourceFile.getClass('GameConfig') || sourceFile.getClasses()[0];
 
-    const paytable = extractValueFromClass(gameConfigClass, 'paytable');
+    // Support both naming conventions: 'paytable' (MagicG) and 'payTable' (SexyFruits)
+    const paytableRaw = extractValueFromClass(gameConfigClass, 'paytable')
+                     ?? extractValueFromClass(gameConfigClass, 'payTable');
     const screenXSize = extractValueFromClass(gameConfigClass, 'screenXSize');
     const screenYSize = extractValueFromClass(gameConfigClass, 'screenYSize');
-    const winCap = extractValueFromClass(gameConfigClass, 'winCap');
+    // Support both 'winCap' and 'winCapCoins'
+    const winCap = extractValueFromClass(gameConfigClass, 'winCap')
+                ?? extractValueFromClass(gameConfigClass, 'winCapCoins');
     const betBase = extractValueFromClass(gameConfigClass, 'betBase');
+    const minClusterSize = extractValueFromClass(gameConfigClass, 'minClusterSize');
+    const scatterPayoutCoins = extractValueFromClass(gameConfigClass, 'scatterPayoutCoins');
+    const anteBetMultiplier = extractValueFromClass(gameConfigClass, 'anteBetMultiplier');
+    const buyFeatureMultiplier = extractValueFromClass(gameConfigClass, 'buyFeatureMultiplier')
+                              ?? extractValueFromClass(gameConfigClass, 'buyBonusMultiplier');
+    // wildIndex/scatterIndex/emptyIndex — fallbacks for games that don't use a symbol enum file
+    const wildIndex     = extractValueFromClass(gameConfigClass, 'wildIndex');
+    const scatterIndex  = extractValueFromClass(gameConfigClass, 'scatterIndex');
+    const emptyIndex    = extractValueFromClass(gameConfigClass, 'emptyIndex');
 
     let wildSymbolId, scatterSymbolId, emptySymbolId;
+    /** id -> category string, e.g. { 0: 'WILD', 1: 'H1_Watermelon', ... } */
+    const backendSymbolNames = {};
+
+    // Seed from inline config properties (e.g. SexyFruits uses wildIndex/scatterIndex/emptyIndex)
+    if (wildIndex    !== null && wildIndex    !== undefined) wildSymbolId    = wildIndex;
+    if (scatterIndex !== null && scatterIndex !== undefined) scatterSymbolId = scatterIndex;
+    if (emptyIndex   !== null && emptyIndex   !== undefined) emptySymbolId   = emptyIndex;
+
     const symbolFiles = fs
       .readdirSync(configDir)
       .filter((f) => f.includes('symbol-enum') || f.includes('game-symbol.ts'));
@@ -145,6 +166,7 @@ function extractBackendData() {
               if (args.length >= 2) {
                 const id = evaluateLiteral(args[0]);
                 const category = args[1].getText().split('.').pop();
+                backendSymbolNames[id] = category;
                 if (category === 'WILD') wildSymbolId = id;
                 if (category === 'SCATTER') scatterSymbolId = id;
                 if (category === 'EMPTY') emptySymbolId = id;
@@ -184,16 +206,96 @@ export default {
           if (screenXSize && screenYSize) {
             setObjProp(objExpr, 'grid', `{ rows: ${screenYSize}, cols: ${screenXSize} }`);
           }
-          if (paytable) setObjProp(objExpr, 'paytable', JSON.stringify(paytable, null, 2));
+          if (paytableRaw) {
+            // Detect whether this is a compact paytable (SexyFruits-style) or already a full matrix.
+            //
+            // SexyFruits compact format:
+            //   - Row 0 corresponds to symbol ordinal 1 (first non-wild paying symbol)
+            //   - Columns start at minClusterSize, not at 0
+            //   => We need to:
+            //     a) Prepend minClusterSize zeroed columns to each row
+            //     b) Shift rows down by 1 (insert empty row 0 for WILD)
+            //
+            // A full matrix (MagicG-style) already has a row per symbol starting at index 0,
+            // with columns starting at 0. We detect by checking if minClusterSize > 0.
+            let paytable;
+            if (minClusterSize > 0) {
+              // Compact: prepend (minClusterSize) zeros to each row, then prepend WILD row
+              const padding = Array(minClusterSize).fill(0);
+              const expandedRows = paytableRaw.map((row) => [...padding, ...row]);
+              // Row 0 in the raw array = symbol ordinal 1 (first H symbol)
+              // Insert an all-zero row for symbol 0 (WILD)
+              paytable = [Array(minClusterSize + (paytableRaw[0]?.length ?? 0)).fill(0), ...expandedRows];
+            } else {
+              paytable = paytableRaw;
+            }
+            setObjProp(objExpr, 'paytable', JSON.stringify(paytable, null, 2));
+          }
           if (winCap !== null && winCap !== undefined)
             setObjProp(objExpr, 'winCap', String(winCap));
           if (betBase !== null && betBase !== undefined)
             setObjProp(objExpr, 'betBase', String(betBase));
+          if (minClusterSize !== null && minClusterSize !== undefined)
+            setObjProp(objExpr, 'minClusterSize', String(minClusterSize));
+          if (scatterPayoutCoins !== null && scatterPayoutCoins !== undefined)
+            setObjProp(objExpr, 'scatterPayoutCoins', String(scatterPayoutCoins));
+          if (anteBetMultiplier !== null && anteBetMultiplier !== undefined)
+            setObjProp(objExpr, 'anteBetMultiplier', String(anteBetMultiplier));
+          if (buyFeatureMultiplier !== null && buyFeatureMultiplier !== undefined)
+            setObjProp(objExpr, 'buyFeatureMultiplier', String(buyFeatureMultiplier));
+
           if (wildSymbolId !== undefined) setObjProp(objExpr, 'wildSymbolId', String(wildSymbolId));
           if (scatterSymbolId !== undefined)
             setObjProp(objExpr, 'scatterSymbolId', String(scatterSymbolId));
           if (emptySymbolId !== undefined)
             setObjProp(objExpr, 'emptySymbolId', String(emptySymbolId));
+
+          // Build/merge unified symbols object
+          if (Object.keys(backendSymbolNames).length > 0) {
+            // Read any existing frontend symbols to preserve emoji + color
+            const existingSymbolsProp = objExpr.getProperty(
+              (p) => (p.getName && p.getName() === 'symbols') || p.getText().startsWith('symbols:'),
+            );
+            const preserved = {}; // id -> { emoji, color }
+            if (existingSymbolsProp) {
+              try {
+                const init = existingSymbolsProp.getInitializer?.();
+                if (init && init.getKind() === SyntaxKind.ObjectLiteralExpression) {
+                  for (const prop of init.getProperties()) {
+                    if (prop.getKind() !== SyntaxKind.PropertyAssignment) continue;
+                    const id = prop.getName();
+                    const valInit = prop.getInitializer();
+                    if (valInit && valInit.getKind() === SyntaxKind.ObjectLiteralExpression) {
+                      // Already unified format: { name, emoji, color }
+                      const existing = evaluateLiteral(valInit);
+                      preserved[id] = { emoji: existing?.emoji || '', color: existing?.color || '' };
+                    }
+                    // If string format (old) — no emoji/color to preserve
+                  }
+                }
+              } catch (_) { /* ignore parse errors */ }
+            }
+
+            // Build the unified symbols object literal string
+            const entries = Object.entries(backendSymbolNames)
+              .sort((a, b) => Number(a[0]) - Number(b[0]))
+              .map(([id, backendName]) => {
+                const p = preserved[id] || {};
+                const emoji = p.emoji || '';
+                const color = p.color || '#666';
+                return `  ${id}: { name: '${backendName}', emoji: '${emoji}', color: '${color}' }`;
+              })
+              .join(',\n');
+            setObjProp(objExpr, 'symbols', `{\n${entries}\n}`);
+
+            // Remove legacy top-level emojis and colors keys if they exist
+            for (const legacyKey of ['emojis', 'colors']) {
+              const legacyProp = objExpr.getProperty(
+                (p) => (p.getName && p.getName() === legacyKey) || p.getText().startsWith(legacyKey + ':'),
+              );
+              if (legacyProp) legacyProp.remove();
+            }
+          }
 
           // Ensure isEnabled exists, but don't overwrite if it does
           setObjProp(objExpr, 'isEnabled', 'false', false);

@@ -8,8 +8,16 @@ export const game = _game;
 // FIX: Removed createMemo. Computations outside a root component crash SolidJS.
 // Standard arrow functions provide the exact same reactivity without the fatal error.
 export const symbols = () => _game().symbols || {};
-export const emojis = () => _game().emojis || {};
-export const symbolColors = () => _game().colors || {};
+/** Derives emoji map from unified symbols for legacy consumers */
+export const emojis = () => {
+  const s = _game().symbols || {};
+  return Object.fromEntries(Object.entries(s).map(([id, v]) => [id, typeof v === 'object' ? v.emoji : v]));
+};
+/** Derives color map from unified symbols for legacy consumers */
+export const symbolColors = () => {
+  const s = _game().symbols || {};
+  return Object.fromEntries(Object.entries(s).map(([id, v]) => [id, typeof v === 'object' ? v.color : '#666']));
+};
 
 export function switchGame(id) {
   persistGame(id);

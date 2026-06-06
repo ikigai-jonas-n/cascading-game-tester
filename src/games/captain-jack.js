@@ -114,5 +114,20 @@ export default {
     winCap: 500000,
     betBase: 100,
     wildSymbolId: 0,
-    scatterSymbolId: 12
+    scatterSymbolId: 12,
+    symbols: {
+          0: { name: 'WILD', emoji: '', color: '#666' },
+          1: { name: 'HIGH', emoji: '', color: '#666' },
+          2: { name: 'HIGH', emoji: '', color: '#666' },
+          3: { name: 'HIGH', emoji: '', color: '#666' },
+          4: { name: 'HIGH', emoji: '', color: '#666' },
+          5: { name: 'HIGH', emoji: '', color: '#666' },
+          6: { name: 'HIGH', emoji: '', color: '#666' },
+          7: { name: 'LOW', emoji: '', color: '#666' },
+          8: { name: 'LOW', emoji: '', color: '#666' },
+          9: { name: 'LOW', emoji: '', color: '#666' },
+          10: { name: 'LOW', emoji: '', color: '#666' },
+          11: { name: 'LOW', emoji: '', color: '#666' },
+          12: { name: 'SCATTER', emoji: '', color: '#666' }
+        }
 };

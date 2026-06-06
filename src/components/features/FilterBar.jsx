@@ -111,11 +111,16 @@ export default function FilterBar() {
                 if (opt) displayValue = opt.label;
               } else if (def.type === 'select' && def.optionsFromGame) {
                 const k = af.value;
-                displayValue = `${game().emojis?.[k] || ''} ${game().symbols?.[k] || k}`;
+                const entry = game().symbols?.[k];
+                const emoji = typeof entry === 'object' ? entry.emoji : '';
+                const name  = typeof entry === 'object' ? entry.name  : (entry || k);
+                displayValue = `${emoji} ${name}`;
               } else if (def.type === 'condition') {
                 displayValue = `${af.value?.op} ${af.value?.num}`;
               } else if (def.type === 'symbolCount') {
-                displayValue = `${game().emojis?.[af.value?.symId] || af.value?.symId} ×${af.value?.count}`;
+                const symEntry = game().symbols?.[af.value?.symId];
+                const emoji = typeof symEntry === 'object' ? symEntry.emoji : (symEntry || af.value?.symId);
+                displayValue = `${emoji} ×${af.value?.count}`;
               } else if (def.type === 'multiselect') {
                 displayValue = Array.isArray(af.value) ? af.value.join(', ') : af.value;
               } else if (def.type !== 'toggle') {
@@ -279,11 +284,15 @@ export default function FilterBar() {
               onChange={(e) => setPendingSymId(e.target.value)}
             >
               <For each={Object.entries(game().symbols || {})}>
-                {([id, name]) => (
-                  <option value={id}>
-                    {game().emojis?.[id] || ''} {name}
-                  </option>
-                )}
+                {([id, entry]) => {
+                  const emoji = typeof entry === 'object' ? entry.emoji : '';
+                  const name  = typeof entry === 'object' ? entry.name  : entry;
+                  return (
+                    <option value={id}>
+                      {emoji} {name}
+                    </option>
+                  );
+                }}
               </For>
             </select>
             <span style="font-size:10px; color:var(--text-muted);">×</span>

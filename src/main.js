@@ -13,8 +13,9 @@ import { FILTER_DEFS, WIN_OPERATORS, applyFilters } from './filters.js';
 // ── Active Game Config (plugin-driven) ───────────────────────────────────────
 let game = getActiveGame();
 let SYMBOLS = game.symbols || {};
-let EMOJIS = game.emojis || {};
-let SYMBOL_COLORS = game.colors || {};
+function getEmoji(id) { const e = SYMBOLS[id]; return typeof e === 'object' ? e.emoji || '' : ''; }
+function getColor(id) { const e = SYMBOLS[id]; return typeof e === 'object' ? e.color || '#666' : '#666'; }
+function getSymName(id) { const e = SYMBOLS[id]; if (e === undefined || e === null) return id; return typeof e === 'object' ? e.name : e; }
 
 function renderWinCategoryCheckboxes() {
   const container = document.getElementById('targetConditionsCheckboxes');
@@ -36,8 +37,6 @@ function switchGame(id) {
   setActiveGame(id);
   game = getActiveGame();
   SYMBOLS = game.symbols || {};
-  EMOJIS = game.emojis || {};
-  SYMBOL_COLORS = game.colors || {};
   document.getElementById('gameLabel').innerText = game.name;
   renderSymbolMap();
 
@@ -795,9 +794,10 @@ function renderSymbolMap() {
   }
   symbolMapOverlay.style.display = 'block';
   symbolMapOverlay.innerHTML = Object.entries(game.symbols || {})
-    .map(([id, name]) => {
-      const emoji = (game.emojis || {})[id] || '';
-      const color = (game.colors || {})[id] || '#666';
+    .map(([id, entry]) => {
+      const name  = typeof entry === 'object' ? entry.name  : (entry || id);
+      const emoji = typeof entry === 'object' ? entry.emoji : '';
+      const color = typeof entry === 'object' ? entry.color : '#666';
       return `<div style="display:flex;align-items:center;gap:6px;padding:2px 0;">
         <span style="color:#555;font-family:monospace;min-width:18px;">${id}</span>
         <span style="color:#444;">→</span>
@@ -968,7 +968,10 @@ function buildFilterBar() {
         if (opt) displayValue = opt.label;
       } else if (def.type === 'select' && def.optionsFromGame) {
         const k = af.value;
-        displayValue = `${game.emojis[k] || ''} ${game.symbols[k] || k}`;
+        const entry = game.symbols?.[k];
+        const emoji = typeof entry === 'object' ? entry.emoji : '';
+        const name  = typeof entry === 'object' ? entry.name  : (entry || k);
+        displayValue = `${emoji} ${name}`;
       } else if (def.type === 'toggle') {
         displayValue = '';
       } else {
@@ -1142,7 +1145,11 @@ function buildFilterBar() {
       if (def.optionsFromGame) {
         options = Object.entries(game.symbols)
           .filter(([k]) => parseInt(k) !== game.emptySymbolId)
-          .map(([k, v]) => ({ label: `${v} ${game.emojis[k] || ''}`, value: k }));
+          .map(([k, entry]) => {
+            const name  = typeof entry === 'object' ? entry.name  : (entry || k);
+            const emoji = typeof entry === 'object' ? entry.emoji : '';
+            return { label: `${name} ${emoji}`, value: k };
+          });
       }
       if (def.optionsFromGames) {
         options = listGames().map((g) => ({ label: g.name, value: g.id }));
@@ -3521,9 +3528,7 @@ function restoreSettingsFromImport(settings, filters) {
       gameSelect.value = importGameId;
       setActiveGame(importGameId);
       game = getActiveGame();
-      SYMBOLS = game.symbols;
-      EMOJIS = game.emojis;
-      SYMBOL_COLORS = game.colors;
+      SYMBOLS = game.symbols || {};
       const gameLabel = document.getElementById('gameLabel');
       if (gameLabel) gameLabel.innerText = game.name;
     }

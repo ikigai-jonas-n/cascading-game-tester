@@ -21,7 +21,6 @@ export default {
     { id: 2, desc: 'Cash Out' },
   ],
   isEnabled: true,
-  wildSymbolId: 0,
     grid: { rows: 3, cols: 4 },
     paytable: [
           [
@@ -89,5 +88,6 @@ export default {
           ]
         ],
     winCap: 895400,
-    betBase: 100
+    betBase: 100,
+    wildSymbolId: 0
 };

@@ -1,5 +1,5 @@
 import { createMemo, For, Show, createSignal, onMount, onCleanup, createEffect } from 'solid-js';
-import { game, symbols, emojis } from '../../store/gameStore.js';
+import { game, symbols } from '../../store/gameStore.js';
 import { gameState } from '../../store/sessionStore.js';
 import { selectTumble, computeFieldWin, isPayingField } from '../../services/spinService.js';
 import { updateSpin } from '../../store/historyStore.js';
@@ -126,8 +126,14 @@ export default function TumbleAudit(props) {
 
 function TumbleRow(props) {
   const sym = symbols;
-  const emo = emojis;
   const g = game;
+
+  function getSymEntry(sid) {
+    const entry = sym()[sid];
+    if (entry === undefined || entry === null) return { name: sid, emoji: '', color: '#fff' };
+    if (typeof entry === 'object') return entry;
+    return { name: entry, emoji: '', color: '#fff' };
+  }
 
   const isWinStep = createMemo(() => isPayingField(props.f, g()));
   const hasWinStats = createMemo(() => isWinStep() || (Array.isArray(props.f.symbols?.payouts) && props.f.symbols.payouts.length > 0));
@@ -214,9 +220,9 @@ function TumbleRow(props) {
               <div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0;">
                 <div style="display:flex; align-items:center; gap:6px;">
                   <span style="color:#fbbf24; font-weight:800; font-size:10px; font-family:monospace;">
-                    {sym()[sid] || sid}
+                    {getSymEntry(sid).name}
                   </span>
-                  <span style="font-size:10px;">{emo()[sid] || ''} (GOLDEN 🟡)</span>
+                  <span style="font-size:10px;">{getSymEntry(sid).emoji} (GOLDEN 🟡)</span>
                 </div>
                 <div style="font-size:10px; color:var(--text-muted); font-weight:800;">
                   x{count}
@@ -231,7 +237,7 @@ function TumbleRow(props) {
                 <span style="color:var(--bg-accent); font-weight:800; font-size:10px; font-family:monospace;">
                   WILD
                 </span>
-                <span style="font-size:10px;">{emo()[wildId()] || ''}</span>
+                <span style="font-size:10px;">{getSymEntry(wildId()).emoji}</span>
               </div>
               <div style="font-size:10px; color:var(--text-muted); font-weight:800;">
                 x{winningWildCount()}
@@ -243,9 +249,7 @@ function TumbleRow(props) {
             {(p) => {
               const sid =
                 p.symbolId !== undefined ? p.symbolId : p.symbol !== undefined ? p.symbol : p.id;
-              const name = sym()[sid] || sid;
-              const emoji = emo()[sid] || '';
-              const color = g().colors?.[sid] || '#fff';
+              const { name, emoji, color } = getSymEntry(sid);
               const coins = computeFieldWin(
                 { ...props.f, coins: p.coins },
                 g(),

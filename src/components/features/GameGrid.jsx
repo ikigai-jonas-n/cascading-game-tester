@@ -6,7 +6,7 @@
  * only that <GridCell> re-renders — no full-grid teardown.
  */
 import { createMemo, For, Show } from 'solid-js';
-import { game, symbols, emojis, symbolColors } from '../../store/gameStore.js';
+import { game, symbols } from '../../store/gameStore.js';
 import { gameState, showDoubleGrid } from '../../store/sessionStore.js';
 
 function computeCells(symbolList, payouts, goldenSet, g) {
@@ -161,8 +161,6 @@ export default function GameGrid() {
 
 function GridCell(props) {
   const sym = symbols;
-  const emo = emojis;
-  const colors = symbolColors;
   const g = game;
 
   const bg = () => {
@@ -179,12 +177,15 @@ function GridCell(props) {
 
   const shadow = () => (props.isGolden ? '0 0 15px rgba(251, 191, 36, 0.3)' : 'none');
 
-  const nameStr = () => {
-    const s = sym();
-    return s[props.id] !== undefined ? s[props.id] : props.id;
+  const symEntry = () => {
+    const entry = sym()[props.id];
+    if (entry === undefined || entry === null) return { name: props.id, emoji: '', color: '#666' };
+    if (typeof entry === 'object') return entry;
+    return { name: entry, emoji: '', color: '#666' };
   };
-  const emojiStr = () => emo()[props.id] || '';
-  const colorStr = () => colors()[props.id] || '#666';
+  const nameStr = () => symEntry().name;
+  const emojiStr = () => symEntry().emoji || '';
+  const colorStr = () => symEntry().color || '#666';
 
   function onMouseOver() {
     const insp = document.getElementById('inspector');

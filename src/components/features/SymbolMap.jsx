@@ -1,5 +1,5 @@
 import { Show } from 'solid-js';
-import { game, symbols, emojis, symbolColors } from '../../store/gameStore.js';
+import { game } from '../../store/gameStore.js';
 import { showSymbolMap, setShowSymbolMap } from '../../store/uiStore.js';
 
 export default function SymbolMap() {
@@ -22,9 +22,10 @@ export default function SymbolMap() {
 
       <Show when={showSymbolMap()}>
         <div id="symbolMapOverlay" style="font-size:10px; font-family:monospace; overflow-y:auto; flex:1;">
-          {Object.entries(game().symbols || {}).map(([id, name]) => {
-            const emoji = (game().emojis || {})[id] || '';
-            const color = (game().colors || {})[id] || '#666';
+          {Object.entries(game().symbols || {}).map(([id, entry]) => {
+            const name  = typeof entry === 'object' ? entry.name  : entry;
+            const emoji = typeof entry === 'object' ? entry.emoji : '';
+            const color = typeof entry === 'object' ? entry.color : '#666';
             return (
               <div style="display:flex; align-items:center; gap:6px; padding:2px 0;">
                 <span style="color:#555; min-width:18px;">{id}</span>

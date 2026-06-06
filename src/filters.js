@@ -124,8 +124,9 @@ export const FILTER_DEFS = [
     formatValue: (value, game) => {
       const symId = typeof value === 'object' ? value.symId : value;
       const count = typeof value === 'object' ? value.count : 1;
-      const emoji = game.emojis[symId] || '';
-      const name = game.symbols[symId] || symId;
+      const entry = game.symbols[symId];
+      const emoji = typeof entry === 'object' ? entry.emoji : '';
+      const name  = typeof entry === 'object' ? entry.name  : (entry || symId);
       return `>= ${count}x ${emoji} ${name}`;
     },
   },

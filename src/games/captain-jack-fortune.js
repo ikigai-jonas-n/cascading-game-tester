@@ -74,5 +74,8 @@ export default {
           ]
         ],
     winCap: 500000,
-    betBase: 1
+    betBase: 1,
+    symbols: {
+          undefined: { name: 'SCATTER', emoji: '', color: '#666' }
+        }
 };
