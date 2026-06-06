@@ -11,6 +11,7 @@ import { showLoading, hideLoading, apiUrl, playerId } from '../store/uiStore.js'
 import { currentSpinIndex } from '../store/sessionStore.js';
 import { getSpinStats, isSettleField, loadSpin } from './spinService.js';
 import { restoreSettingsFromImport, triggerFilterUpdate } from './gameService.js';
+import { convertMongoRoundToSpins } from './mongoRoundConverter.js';
 
 function getOptimizedEntry(entry) {
   return {
@@ -174,8 +175,32 @@ export function triggerImport(mode) {
           .slice(i, i + chunkSize)
           .map((item) => {
             const r = item.response || item.rawData || item.r || item;
-            if (!r || !r.step) return null;
+            if (!r) return null;
 
+            // Handle Mongo imported rounds (rawData has roundEvents instead of step)
+            if (r.roundEvents) {
+              const targetGameId = item.gameId || item.g || null;
+              const { entries } = convertMongoRoundToSpins(
+                r,
+                item.num || item.n || 0,
+                targetGameId,
+              );
+              if (entries && entries.length > 0) {
+                const e = entries[0];
+                return {
+                  finger: `${e.timestamp}_${e.summary.coins}_${e.fields.length}`,
+                  data: {
+                    ...e,
+                    bookmarked: item.b || item.bookmarked || false,
+                    description: item.desc || item.description || null,
+                    hasGolden: item.hg || item.hasGolden || false,
+                  },
+                };
+              }
+              return null;
+            }
+
+            if (!r.step) return null;
             let spinType = 'basic';
             const fields = [],
               fieldMetadata = [],

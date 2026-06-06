@@ -6,13 +6,19 @@
 import { EJSON } from 'bson';
 import { getWinCategory, getSpinStats, computeFieldWin } from './spinService.js';
 import { game } from '../store/gameStore.js';
+import { getGame } from '../game-registry.js';
 
 /**
  * Normalizes MongoDB Extended JSON (Compass clipboard) to plain JS primitives.
- * Delegates to the official bson EJSON deserializer which handles all BSON types.
- * Returns plain objects with JS Date → ISO string, ObjectId → string, Decimal128 → number, etc.
+ * If the doc is already a plain object (e.g. loaded from default_data.json),
+ * skip EJSON deserialization — it's already normalized.
  */
 function normalizeBson(rawDoc) {
+  // If it's already a plain object (no BSON Extended JSON wrappers), skip EJSON
+  const str = JSON.stringify(rawDoc);
+  if (!str.includes('"$oid"') && !str.includes('"$date"') && !str.includes('"$numberDecimal"')) {
+    return JSON.parse(str); // deep clone, already plain JS
+  }
   const deserialized = EJSON.deserialize(rawDoc, { relaxed: true });
   return JSON.parse(
     JSON.stringify(deserialized, (_key, val) => {
@@ -84,9 +90,10 @@ function extractFieldsFromPlayResult(playResult, g) {
  *
  * @param {object} rawDoc    Raw MongoDB round document
  * @param {number} startNum  Spin number for the card
+ * @param {string} [targetGameId] Optional game ID to force the parser to use a specific game config
  * @returns {{ entries: object[], errors: string[] }}
  */
-export function convertMongoRoundToSpins(rawDoc, startNum) {
+export function convertMongoRoundToSpins(rawDoc, startNum, targetGameId) {
   const roundDoc = normalizeBson(rawDoc);
   const errors = [];
 
@@ -94,7 +101,10 @@ export function convertMongoRoundToSpins(rawDoc, startNum) {
     return { entries: [], errors: ['Invalid round document: missing roundEvents array'] };
   }
 
-  const g = game();
+  const g = targetGameId ? getGame(targetGameId) : game();
+  if (!g) {
+    return { entries: [], errors: [`Game config not found for ID: ${targetGameId}`] };
+  }
 
   // Aggregate all phases across all roundEvents into one combined result
   const allFields = [];
