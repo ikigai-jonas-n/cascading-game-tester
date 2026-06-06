@@ -24,7 +24,7 @@ function normalizeBson(rawDoc) {
   );
 }
 
-function extractFieldsFromPlayResult(playResult) {
+function extractFieldsFromPlayResult(playResult, g) {
   const fields = [];
   const fieldMetadata = [];
   const playgroundStats = [];
@@ -116,7 +116,7 @@ export function convertMongoRoundToSpins(rawDoc, startNum) {
       playgroundStats,
       hasFreeSpin: phaseHasFS,
       hasBaseSpin: phaseHasBS,
-    } = extractFieldsFromPlayResult(pr);
+    } = extractFieldsFromPlayResult(pr, g);
 
     allFields.push(...fields);
     allFieldMetadata.push(...fieldMetadata);

@@ -13,9 +13,19 @@ import { FILTER_DEFS, WIN_OPERATORS, applyFilters } from './filters.js';
 // ── Active Game Config (plugin-driven) ───────────────────────────────────────
 let game = getActiveGame();
 let SYMBOLS = game.symbols || {};
-function getEmoji(id) { const e = SYMBOLS[id]; return typeof e === 'object' ? e.emoji || '' : ''; }
-function getColor(id) { const e = SYMBOLS[id]; return typeof e === 'object' ? e.color || '#666' : '#666'; }
-function getSymName(id) { const e = SYMBOLS[id]; if (e === undefined || e === null) return id; return typeof e === 'object' ? e.name : e; }
+function getEmoji(id) {
+  const e = SYMBOLS[id];
+  return typeof e === 'object' ? e.emoji || '' : '';
+}
+function getColor(id) {
+  const e = SYMBOLS[id];
+  return typeof e === 'object' ? e.color || '#666' : '#666';
+}
+function getSymName(id) {
+  const e = SYMBOLS[id];
+  if (e === undefined || e === null) return id;
+  return typeof e === 'object' ? e.name : e;
+}
 
 function renderWinCategoryCheckboxes() {
   const container = document.getElementById('targetConditionsCheckboxes');
@@ -795,7 +805,7 @@ function renderSymbolMap() {
   symbolMapOverlay.style.display = 'block';
   symbolMapOverlay.innerHTML = Object.entries(game.symbols || {})
     .map(([id, entry]) => {
-      const name  = typeof entry === 'object' ? entry.name  : (entry || id);
+      const name = typeof entry === 'object' ? entry.name : entry || id;
       const emoji = typeof entry === 'object' ? entry.emoji : '';
       const color = typeof entry === 'object' ? entry.color : '#666';
       return `<div style="display:flex;align-items:center;gap:6px;padding:2px 0;">
@@ -970,7 +980,7 @@ function buildFilterBar() {
         const k = af.value;
         const entry = game.symbols?.[k];
         const emoji = typeof entry === 'object' ? entry.emoji : '';
-        const name  = typeof entry === 'object' ? entry.name  : (entry || k);
+        const name = typeof entry === 'object' ? entry.name : entry || k;
         displayValue = `${emoji} ${name}`;
       } else if (def.type === 'toggle') {
         displayValue = '';
@@ -1146,7 +1156,7 @@ function buildFilterBar() {
         options = Object.entries(game.symbols)
           .filter(([k]) => parseInt(k) !== game.emptySymbolId)
           .map(([k, entry]) => {
-            const name  = typeof entry === 'object' ? entry.name  : (entry || k);
+            const name = typeof entry === 'object' ? entry.name : entry || k;
             const emoji = typeof entry === 'object' ? entry.emoji : '';
             return { label: `${name} ${emoji}`, value: k };
           });
@@ -4505,8 +4515,6 @@ document.querySelectorAll('#settingsModal input, #settingsModal textarea').forEa
 if (playbackAutoplayBtn) {
   playbackAutoplayBtn.onclick = toggleAutoplayOnSelect;
 }
-
-
 
 // ── Paytable Modal Logic ──────────────────────────────────────────────────
 const openPaytableBtn = document.getElementById('openPaytableBtn');

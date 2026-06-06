@@ -4,6 +4,6 @@ export default {
   gameCode: 'mr-booms-rocketman',
   isEnabled: false,
   hooks: {},
-    winCap: 5000,
-    betBase: 1
+  winCap: 5000,
+  betBase: 1,
 };

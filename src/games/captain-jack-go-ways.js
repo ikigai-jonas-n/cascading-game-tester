@@ -4,5 +4,5 @@ export default {
   gameCode: 'captain-jack-go-ways',
   isEnabled: false,
   hooks: {},
-    winCap: 10000
+  winCap: 10000,
 };

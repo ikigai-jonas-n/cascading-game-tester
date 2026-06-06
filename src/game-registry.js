@@ -46,12 +46,10 @@ Object.values(gameModules).forEach((module) => {
   if (module.default) register(module.default);
 });
 
-
-
 /** @returns {GameConfig[]} */
 export function listGames() {
   return [...registry.values()]
-    .filter(g => g.isEnabled !== false)
+    .filter((g) => g.isEnabled !== false)
     .sort((a, b) => {
       const codeA = a.gameCode || '';
       const codeB = b.gameCode || '';

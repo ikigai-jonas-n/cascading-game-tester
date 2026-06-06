@@ -370,8 +370,11 @@ export async function loadSpin(historyIndex) {
 
   if (spin._isCompressed && spin.rawData instanceof ArrayBuffer) {
     const { decompressData } = await import('../db.js');
-    spin.rawData = await decompressData(spin.rawData);
-    spin._isCompressed = false;
+    const decompressed = await decompressData(spin.rawData);
+    setGlobalHistory(historyIndex, {
+      rawData: decompressed,
+      _isCompressed: false,
+    });
   }
 
   const lastHistoryIndex = parseInt(localStorage.getItem('last_spin_index') || '-1', 10);
@@ -406,8 +409,11 @@ export async function loadSpin(historyIndex) {
     goldenEnabled ? new Set(f.features?.golden || []) : new Set(),
   );
   setGameState('goldenCandidates', persistentGolden);
-  spin.hasGolden = goldenEnabled && persistentGolden.some((set) => set.size > 0);
-
+  setGlobalHistory(
+    historyIndex,
+    'hasGolden',
+    goldenEnabled && persistentGolden.some((set) => set.size > 0),
+  );
   if (isAutoplayOnSelect()) {
     startSpinPlayback();
   } else {

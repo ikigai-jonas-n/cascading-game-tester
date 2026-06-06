@@ -4,132 +4,41 @@ export default {
   gameCode: 'jungle',
   isEnabled: false,
   hooks: {},
-    grid: { rows: 3, cols: 5 },
-    paytable: [
-          [
-            0,
-            0,
-            0,
-            80,
-            200,
-            500
-          ],
-          [
-            0,
-            0,
-            0,
-            60,
-            160,
-            400
-          ],
-          [
-            0,
-            0,
-            0,
-            48,
-            120,
-            300
-          ],
-          [
-            0,
-            0,
-            0,
-            40,
-            100,
-            200
-          ],
-          [
-            0,
-            0,
-            0,
-            40,
-            100,
-            200
-          ],
-          [
-            0,
-            0,
-            0,
-            32,
-            80,
-            100
-          ],
-          [
-            0,
-            0,
-            0,
-            32,
-            80,
-            100
-          ],
-          [
-            0,
-            0,
-            0,
-            20,
-            40,
-            60
-          ],
-          [
-            0,
-            0,
-            0,
-            20,
-            40,
-            60
-          ],
-          [
-            0,
-            0,
-            0,
-            8,
-            20,
-            40
-          ],
-          [
-            0,
-            0,
-            0,
-            8,
-            20,
-            40
-          ],
-          [
-            0,
-            0,
-            0,
-            8,
-            20,
-            40
-          ],
-          [
-            0,
-            0,
-            0,
-            500,
-            0,
-            0
-          ]
-        ],
-    winCap: 500000,
-    betBase: 100,
-    wildSymbolId: 0,
-    scatterSymbolId: 12,
-    symbols: {
-          0: { name: 'WILD', emoji: '', color: '#666' },
-          1: { name: 'HIGH', emoji: '', color: '#666' },
-          2: { name: 'HIGH', emoji: '', color: '#666' },
-          3: { name: 'HIGH', emoji: '', color: '#666' },
-          4: { name: 'HIGH', emoji: '', color: '#666' },
-          5: { name: 'HIGH', emoji: '', color: '#666' },
-          6: { name: 'HIGH', emoji: '', color: '#666' },
-          7: { name: 'LOW', emoji: '', color: '#666' },
-          8: { name: 'LOW', emoji: '', color: '#666' },
-          9: { name: 'LOW', emoji: '', color: '#666' },
-          10: { name: 'LOW', emoji: '', color: '#666' },
-          11: { name: 'LOW', emoji: '', color: '#666' },
-          12: { name: 'SCATTER', emoji: '', color: '#666' },
-          13: { name: 'EXTRA', emoji: '', color: '#666' },
-          14: { name: 'BOOST', emoji: '', color: '#666' }
-        }
+  grid: { rows: 3, cols: 5 },
+  paytable: [
+    [0, 0, 0, 80, 200, 500],
+    [0, 0, 0, 60, 160, 400],
+    [0, 0, 0, 48, 120, 300],
+    [0, 0, 0, 40, 100, 200],
+    [0, 0, 0, 40, 100, 200],
+    [0, 0, 0, 32, 80, 100],
+    [0, 0, 0, 32, 80, 100],
+    [0, 0, 0, 20, 40, 60],
+    [0, 0, 0, 20, 40, 60],
+    [0, 0, 0, 8, 20, 40],
+    [0, 0, 0, 8, 20, 40],
+    [0, 0, 0, 8, 20, 40],
+    [0, 0, 0, 500, 0, 0],
+  ],
+  winCap: 500000,
+  betBase: 100,
+  wildSymbolId: 0,
+  scatterSymbolId: 12,
+  symbols: {
+    0: { name: 'WILD', emoji: '', color: '#666' },
+    1: { name: 'HIGH', emoji: '', color: '#666' },
+    2: { name: 'HIGH', emoji: '', color: '#666' },
+    3: { name: 'HIGH', emoji: '', color: '#666' },
+    4: { name: 'HIGH', emoji: '', color: '#666' },
+    5: { name: 'HIGH', emoji: '', color: '#666' },
+    6: { name: 'HIGH', emoji: '', color: '#666' },
+    7: { name: 'LOW', emoji: '', color: '#666' },
+    8: { name: 'LOW', emoji: '', color: '#666' },
+    9: { name: 'LOW', emoji: '', color: '#666' },
+    10: { name: 'LOW', emoji: '', color: '#666' },
+    11: { name: 'LOW', emoji: '', color: '#666' },
+    12: { name: 'SCATTER', emoji: '', color: '#666' },
+    13: { name: 'EXTRA', emoji: '', color: '#666' },
+    14: { name: 'BOOST', emoji: '', color: '#666' },
+  },
 };

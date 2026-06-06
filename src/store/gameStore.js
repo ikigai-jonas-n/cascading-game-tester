@@ -11,12 +11,16 @@ export const symbols = () => _game().symbols || {};
 /** Derives emoji map from unified symbols for legacy consumers */
 export const emojis = () => {
   const s = _game().symbols || {};
-  return Object.fromEntries(Object.entries(s).map(([id, v]) => [id, typeof v === 'object' ? v.emoji : v]));
+  return Object.fromEntries(
+    Object.entries(s).map(([id, v]) => [id, typeof v === 'object' ? v.emoji : v]),
+  );
 };
 /** Derives color map from unified symbols for legacy consumers */
 export const symbolColors = () => {
   const s = _game().symbols || {};
-  return Object.fromEntries(Object.entries(s).map(([id, v]) => [id, typeof v === 'object' ? v.color : '#666']));
+  return Object.fromEntries(
+    Object.entries(s).map(([id, v]) => [id, typeof v === 'object' ? v.color : '#666']),
+  );
 };
 
 export function switchGame(id) {

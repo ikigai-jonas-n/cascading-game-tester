@@ -126,7 +126,7 @@ export const FILTER_DEFS = [
       const count = typeof value === 'object' ? value.count : 1;
       const entry = game.symbols[symId];
       const emoji = typeof entry === 'object' ? entry.emoji : '';
-      const name  = typeof entry === 'object' ? entry.name  : (entry || symId);
+      const name = typeof entry === 'object' ? entry.name : entry || symId;
       return `>= ${count}x ${emoji} ${name}`;
     },
   },

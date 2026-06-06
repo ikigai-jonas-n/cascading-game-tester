@@ -124,32 +124,35 @@ function extractBackendData() {
     const gameConfigClass = sourceFile.getClass('GameConfig') || sourceFile.getClasses()[0];
 
     // Support both naming conventions: 'paytable' (MagicG) and 'payTable' (SexyFruits)
-    const paytableRaw = extractValueFromClass(gameConfigClass, 'paytable')
-                     ?? extractValueFromClass(gameConfigClass, 'payTable');
+    const paytableRaw =
+      extractValueFromClass(gameConfigClass, 'paytable') ??
+      extractValueFromClass(gameConfigClass, 'payTable');
     const screenXSize = extractValueFromClass(gameConfigClass, 'screenXSize');
     const screenYSize = extractValueFromClass(gameConfigClass, 'screenYSize');
     // Support both 'winCap' and 'winCapCoins'
-    const winCap = extractValueFromClass(gameConfigClass, 'winCap')
-                ?? extractValueFromClass(gameConfigClass, 'winCapCoins');
+    const winCap =
+      extractValueFromClass(gameConfigClass, 'winCap') ??
+      extractValueFromClass(gameConfigClass, 'winCapCoins');
     const betBase = extractValueFromClass(gameConfigClass, 'betBase');
     const minClusterSize = extractValueFromClass(gameConfigClass, 'minClusterSize');
     const scatterPayoutCoins = extractValueFromClass(gameConfigClass, 'scatterPayoutCoins');
     const anteBetMultiplier = extractValueFromClass(gameConfigClass, 'anteBetMultiplier');
-    const buyFeatureMultiplier = extractValueFromClass(gameConfigClass, 'buyFeatureMultiplier')
-                              ?? extractValueFromClass(gameConfigClass, 'buyBonusMultiplier');
+    const buyFeatureMultiplier =
+      extractValueFromClass(gameConfigClass, 'buyFeatureMultiplier') ??
+      extractValueFromClass(gameConfigClass, 'buyBonusMultiplier');
     // wildIndex/scatterIndex/emptyIndex — fallbacks for games that don't use a symbol enum file
-    const wildIndex     = extractValueFromClass(gameConfigClass, 'wildIndex');
-    const scatterIndex  = extractValueFromClass(gameConfigClass, 'scatterIndex');
-    const emptyIndex    = extractValueFromClass(gameConfigClass, 'emptyIndex');
+    const wildIndex = extractValueFromClass(gameConfigClass, 'wildIndex');
+    const scatterIndex = extractValueFromClass(gameConfigClass, 'scatterIndex');
+    const emptyIndex = extractValueFromClass(gameConfigClass, 'emptyIndex');
 
     let wildSymbolId, scatterSymbolId, emptySymbolId;
     /** id -> category string, e.g. { 0: 'WILD', 1: 'H1_Watermelon', ... } */
     const backendSymbolNames = {};
 
     // Seed from inline config properties (e.g. SexyFruits uses wildIndex/scatterIndex/emptyIndex)
-    if (wildIndex    !== null && wildIndex    !== undefined) wildSymbolId    = wildIndex;
+    if (wildIndex !== null && wildIndex !== undefined) wildSymbolId = wildIndex;
     if (scatterIndex !== null && scatterIndex !== undefined) scatterSymbolId = scatterIndex;
-    if (emptyIndex   !== null && emptyIndex   !== undefined) emptySymbolId   = emptyIndex;
+    if (emptyIndex !== null && emptyIndex !== undefined) emptySymbolId = emptyIndex;
 
     const symbolFiles = fs
       .readdirSync(configDir)
@@ -225,7 +228,10 @@ export default {
               const expandedRows = paytableRaw.map((row) => [...padding, ...row]);
               // Row 0 in the raw array = symbol ordinal 1 (first H symbol)
               // Insert an all-zero row for symbol 0 (WILD)
-              paytable = [Array(minClusterSize + (paytableRaw[0]?.length ?? 0)).fill(0), ...expandedRows];
+              paytable = [
+                Array(minClusterSize + (paytableRaw[0]?.length ?? 0)).fill(0),
+                ...expandedRows,
+              ];
             } else {
               paytable = paytableRaw;
             }
@@ -268,12 +274,17 @@ export default {
                     if (valInit && valInit.getKind() === SyntaxKind.ObjectLiteralExpression) {
                       // Already unified format: { name, emoji, color }
                       const existing = evaluateLiteral(valInit);
-                      preserved[id] = { emoji: existing?.emoji || '', color: existing?.color || '' };
+                      preserved[id] = {
+                        emoji: existing?.emoji || '',
+                        color: existing?.color || '',
+                      };
                     }
                     // If string format (old) — no emoji/color to preserve
                   }
                 }
-              } catch (_) { /* ignore parse errors */ }
+              } catch (_) {
+                /* ignore parse errors */
+              }
             }
 
             // Build the unified symbols object literal string
@@ -291,7 +302,9 @@ export default {
             // Remove legacy top-level emojis and colors keys if they exist
             for (const legacyKey of ['emojis', 'colors']) {
               const legacyProp = objExpr.getProperty(
-                (p) => (p.getName && p.getName() === legacyKey) || p.getText().startsWith(legacyKey + ':'),
+                (p) =>
+                  (p.getName && p.getName() === legacyKey) ||
+                  p.getText().startsWith(legacyKey + ':'),
               );
               if (legacyProp) legacyProp.remove();
             }

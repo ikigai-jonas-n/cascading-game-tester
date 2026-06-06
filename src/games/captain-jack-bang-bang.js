@@ -4,6 +4,6 @@ export default {
   gameCode: 'captain-jack-bang-bang',
   isEnabled: false,
   hooks: {},
-    winCap: 20000,
-    betBase: 1
+  winCap: 20000,
+  betBase: 1,
 };

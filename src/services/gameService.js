@@ -381,9 +381,8 @@ export async function loadMoreSpins() {
 export async function clearCurrentGame() {
   showLoading(`Clearing ${game().name}...`, 50);
   try {
-    const { deleteSpinsBatch } = await import('../db.js');
-    const nums = globalHistory.filter((s) => s.gameId === game().id).map((s) => s.num);
-    await deleteSpinsBatch(nums);
+    const { clearSpinsForGame } = await import('../db.js');
+    await clearSpinsForGame(game().id);
     setGlobalHistory((prev) => prev.filter((s) => s.gameId !== game().id));
     setCurrentSpinIndex(-1);
     rebuildSortedList();

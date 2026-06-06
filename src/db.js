@@ -184,6 +184,25 @@ export async function clearAllSpins() {
   });
 }
 
+export async function clearSpinsForGame(gameId) {
+  await open();
+  return new Promise((resolve, reject) => {
+    const store = getStore('readwrite');
+    const index = store.index('gameId');
+    const req = index.openCursor(IDBKeyRange.only(gameId));
+    req.onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (cursor) {
+        cursor.delete();
+        cursor.continue();
+      } else {
+        resolve();
+      }
+    };
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
 /** Delete a batch of spins by their numbers (Fast Transaction) */
 export async function deleteSpinsBatch(nums) {
   await open();
