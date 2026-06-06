@@ -65,4 +65,20 @@ export default {
     EPIC_WIN: 150,
     MAX_WIN: 5000,
   },
+  hooks: {
+    /**
+     * SexyFruits win model:
+     * - Only fields where features.isSettle === true count as wins.
+     * - The payout is coins * cumulativeMultiplier.
+     */
+    computeFieldWin(field) {
+      const isSettle = field.features?.isSettle === true;
+      if (!isSettle) return 0;
+      const raw = parseFloat(field.coins || 0);
+      if (!raw) return 0;
+      return parseFloat((raw * (field.features?.cumulativeMultiplier || 1)).toFixed(2));
+    },
+    /** SexyFruits uses golden[] positions to highlight transformed symbols. */
+    goldenEnabled: true,
+  },
 };

@@ -61,7 +61,7 @@ export default function SpinHistory() {
         if (windowEnd() < sorted.length) {
           setWindowEnd((prev) => Math.min(sorted.length, prev + CHUNK));
         } else if (lastLoadedKey() != null) {
-          import('../../services/spinService.js').then(({ loadMoreSpins }) => loadMoreSpins());
+          import('../../services/gameService.js').then(({ loadMoreSpins }) => loadMoreSpins());
         }
       }
     }, { rootMargin: '400px' });

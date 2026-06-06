@@ -89,12 +89,54 @@ export function getWinCategory(win, bet) {
   return 'NONE';
 }
 
+/**
+ * Raw feature-flag check — only true when the game backend explicitly marks
+ * this field as the settle step. Kept for backward compat; prefer computeFieldWin.
+ */
 export function isSettleField(field) {
   if (field.features && 'isSettle' in field.features) return field.features.isSettle === true;
   return true;
 }
 
+/**
+ * Returns the effective win for a single field to add to accumulatedWin.
+ * Delegates to game's hooks.computeFieldWin if defined, otherwise default:
+ *   - every tumble with coins > 0 contributes raw coins (no multiplier gate).
+ *
+ * @param {object} field
+ * @param {import('../game-registry.js').GameConfig} [gameConfig]
+ * @returns {number}
+ */
+export function computeFieldWin(field, gameConfig) {
+  if (!field) return 0;
+  if (gameConfig?.hooks?.computeFieldWin) {
+    return gameConfig.hooks.computeFieldWin(field);
+  }
+  // Default: raw coins, no multiplier, no isSettle gate
+  return parseFloat(parseFloat(field.coins || 0).toFixed(2));
+}
+
+/**
+ * Returns true if this field contributes any win (used for cascade counting + HUD).
+ * @param {object} field
+ * @param {import('../game-registry.js').GameConfig} [gameConfig]
+ */
+export function isPayingField(field, gameConfig) {
+  if (!field) return false;
+  return computeFieldWin(field, gameConfig) > 0;
+}
+
+/**
+ * Returns true if the game config has golden[] highlighting enabled.
+ * @param {import('../game-registry.js').GameConfig} [gameConfig]
+ */
+export function isGoldenEnabled(gameConfig) {
+  return gameConfig?.hooks?.goldenEnabled === true;
+}
+
+/** @deprecated Use computeFieldWin(field, game()) instead */
 export function getFieldEffectiveWin(field) {
+  // Preserved for any callers not yet migrated
   const raw = parseFloat(field.coins || 0);
   if (!raw) return 0;
   const val = isSettleField(field) ? raw * (field.features?.cumulativeMultiplier || 1) : raw;
@@ -151,7 +193,7 @@ function extractFields(data) {
           roundIndex: roundCounter,
         });
         pgTumbles++;
-        if (parseFloat(f.coins || 0) > 0 && isSettleField(f)) pgCascades++;
+        if (computeFieldWin(f, game()) > 0) pgCascades++;
       });
       playgroundStats.push({
         tumbleCount: pgTumbles,
@@ -290,7 +332,7 @@ function buildSpinEntry(data, num, description = null) {
     isWin: parseInt(summary.coins || 0) > 0,
     totalWin: summary.coins || 0,
     tumbleCount: fields.length,
-    cascadeCount: fields.filter((f) => parseInt(f.coins || 0) > 0 && isSettleField(f)).length,
+    cascadeCount: fields.filter((f) => computeFieldWin(f, game()) > 0).length,
     betAmount: metaPublic.betAmount || 0,
     spinMode: metaPublic.spinMode || 'unknown',
     spinType: hasFreeSpin ? 'freeSpin' : 'baseSpin',
@@ -353,14 +395,17 @@ export async function loadSpin(historyIndex) {
   setGameState(
     'accumulatedWins',
     spin.fields.map((f) => {
-      acc += isSettleField(f) ? getFieldEffectiveWin(f) : 0;
+      acc += computeFieldWin(f, game());
       return acc;
     }),
   );
 
-  const persistentGolden = spin.fields.map((f) => new Set(f.features?.golden || []));
+  const goldenEnabled = isGoldenEnabled(game());
+  const persistentGolden = spin.fields.map((f) =>
+    goldenEnabled ? new Set(f.features?.golden || []) : new Set(),
+  );
   setGameState('goldenCandidates', persistentGolden);
-  spin.hasGolden = persistentGolden.some((set) => set.size > 0);
+  spin.hasGolden = goldenEnabled && persistentGolden.some((set) => set.size > 0);
 
   if (isAutoplayOnSelect()) {
     startSpinPlayback();
@@ -707,7 +752,14 @@ export async function playSpin({
       workers.forEach((worker) => {
         worker.onmessage = async (e) => {
           activeWorkers--;
-          const { results } = e.data;
+          const { results, error } = e.data;
+
+          if (error) {
+            pushToast({ type: 'error', title: 'Worker Fetch Failed', message: error });
+            setAutoPlayRunning(false);
+            if (activeWorkers === 0) resolve();
+            return;
+          }
 
           // Stop was pressed — drain without processing, resolve when all in-flight done
           if (!autoPlayRunning()) {

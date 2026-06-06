@@ -1,12 +1,9 @@
 /**
- * Game Registry — plugin system for game configurations.
- * Automatically registers any game dropped into the ./games/ folder using Vite.
- *
  * @typedef {{
  * id: string,
  * name: string,
  * gameCode: string,
- * grid: { rows: number, cols: number },
+ * grid: { rows?: number, cols?: number },
  * emptySymbolId: number,
  * scatterSymbolId: number,
  * wildSymbolId: number,
@@ -16,7 +13,22 @@
  * defaultRequestBody: object,
  * playerId: string,
  * winCategories: object,
- * actions?: Array<{id: number, desc: string}>
+ * actions?: Array<{id: number, desc: string}>,
+ * hooks?: {
+ *   /**
+ *    * Returns the effective win coins for a single field to add to accumulatedWin.
+ *    * Receives the raw field object. Return 0 to skip.
+ *    * Default: every tumble with coins > 0 contributes its raw coins.
+ *    * @param {object} field
+ *    * @returns {number}
+ *    *
+ *   computeFieldWin?: (field: object) => number,
+ *   /**
+ *    * If true, features.golden[] positions are highlighted on the grid.
+ *    * Default: false.
+ *    *
+ *   goldenEnabled?: boolean,
+ * }
  * }} GameConfig
  */
 

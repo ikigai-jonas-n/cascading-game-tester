@@ -1,13 +1,12 @@
 import { createMemo, For, Show, createSignal, onMount, onCleanup, createEffect } from 'solid-js';
 import { game, symbols, emojis } from '../../store/gameStore.js';
 import { gameState } from '../../store/sessionStore.js';
-import { selectTumble, isSettleField, getFieldEffectiveWin } from '../../services/spinService.js';
+import { selectTumble, computeFieldWin, isPayingField } from '../../services/spinService.js';
 import { updateSpin } from '../../store/historyStore.js';
 
 const RENDER_LIMIT = 50;
 
 export default function TumbleAudit(props) {
-  const [expandedRound, setExpandedRound] = createSignal(null);
   const spin = () => props.spin;
   const currentIdx = () => gameState.currentIndex;
 
@@ -52,17 +51,14 @@ export default function TumbleAudit(props) {
   });
 
   function isExpanded(pgIdx) {
-    if (expandedRound() === null) {
-      const meta = spin().fieldMetadata?.[currentIdx()];
-      return (meta?.playgroundIndex ?? 0) === pgIdx;
-    }
-    return expandedRound() === pgIdx;
+    const meta = spin().fieldMetadata?.[currentIdx()];
+    return (meta?.playgroundIndex ?? 0) === pgIdx;
   }
 
   function toggleRound(pgIdx, firstTumbleIdx) {
-    const expanding = !isExpanded(pgIdx);
-    setExpandedRound(expanding ? pgIdx : null);
-    if (expanding && firstTumbleIdx !== -1) selectTumble(firstTumbleIdx);
+    if (!isExpanded(pgIdx) && firstTumbleIdx !== -1) {
+      selectTumble(firstTumbleIdx, 'initial');
+    }
   }
 
   return (
@@ -76,12 +72,13 @@ export default function TumbleAudit(props) {
           const firstTumbleIdx = (spin().fieldMetadata || []).findIndex(
             (m) => m.playgroundIndex === round.pgIdx,
           );
+          const hasCurrent = createMemo(() => round.tumbles.some((t) => t.tIdx === currentIdx()));
           return (
             <div>
               <div
                 class="round-header"
                 data-round={round.pgIdx}
-                style="cursor:pointer; font-size:10px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin:12px 0 4px; border-bottom:1px dashed rgba(255,255,255,0.1); padding-bottom:4px; letter-spacing:0.5px; display:flex; align-items:center; user-select:none;"
+                style={`cursor:pointer; font-size:10px; color:${hasCurrent() ? '#fff' : 'var(--text-muted)'}; font-weight:800; text-transform:uppercase; margin:12px 0 4px; border-bottom:1px ${hasCurrent() ? 'solid rgba(34,197,94,0.4)' : 'dashed rgba(255,255,255,0.1)'}; padding-bottom:4px; letter-spacing:0.5px; display:flex; align-items:center; user-select:none;`}
                 onClick={() => toggleRound(round.pgIdx, firstTumbleIdx)}
               >
                 <span>{round.headerText}</span>
@@ -132,9 +129,9 @@ function TumbleRow(props) {
   const emo = emojis;
   const g = game;
 
-  const isWinStep = createMemo(() => parseFloat(props.f.coins || 0) > 0 && isSettleField(props.f));
+  const isWinStep = createMemo(() => isPayingField(props.f, g()));
   const hasWinStats = createMemo(() => isWinStep() || (Array.isArray(props.f.symbols?.payouts) && props.f.symbols.payouts.length > 0));
-  const effectiveWin = createMemo(() => getFieldEffectiveWin(props.f));
+  const effectiveWin = createMemo(() => computeFieldWin(props.f, g()));
 
   const goldenPositions = createMemo(() => props.f.features?.golden || []);
   const payoutPositions = createMemo(() => {
@@ -170,7 +167,7 @@ function TumbleRow(props) {
       // const delay = isInitial ? 1 : 1;
 
       setTimeout(() => {
-        if (rowRef) rowRef.scrollIntoView({ behavior: isInitial ? 'auto' : 'smooth', block: 'center' });
+        if (rowRef) rowRef.scrollIntoView({ behavior: isInitial ? 'auto' : 'smooth', block: 'nearest' });
         window.hasDoneInitialScroll = true;
       }, 1);
     }
@@ -249,9 +246,10 @@ function TumbleRow(props) {
               const name = sym()[sid] || sid;
               const emoji = emo()[sid] || '';
               const color = g().colors?.[sid] || '#fff';
-              const coins = isSettleField(props.f)
-                ? parseFloat(p.coins || 0) * (props.f.features?.cumulativeMultiplier || 1)
-                : parseFloat(p.coins || 0);
+              const coins = computeFieldWin(
+                { ...props.f, coins: p.coins },
+                g(),
+              );
               return (
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0;">
                   <div style="display:flex; align-items:center; gap:6px;">

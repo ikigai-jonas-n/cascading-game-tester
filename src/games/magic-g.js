@@ -67,4 +67,19 @@ export default {
     HUGE_WIN: 150,
     MAX_WIN: 5000,
   },
+  hooks: {
+    /**
+     * MagicG win model:
+     * - Every tumble that has coins contributes to accumulatedWin.
+     * - The payout is coins * cumulativeMultiplier (multiplier applies unconditionally).
+     * - No isSettle gate.
+     */
+    computeFieldWin(field) {
+      const raw = parseFloat(field.coins || 0);
+      if (!raw) return 0;
+      return parseFloat((raw * (field.features?.cumulativeMultiplier || 1)).toFixed(2));
+    },
+    /** MagicG does not use golden[] for visual highlighting. */
+    goldenEnabled: false,
+  },
 };

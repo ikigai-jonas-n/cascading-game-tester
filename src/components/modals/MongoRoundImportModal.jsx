@@ -1,7 +1,7 @@
 import { createSignal, Show } from 'solid-js';
 import { mongoRoundImportOpen, setMongoRoundImportOpen, pushToast } from '../../store/uiStore.js';
 import { convertMongoRoundToSpins } from '../../services/mongoRoundConverter.js';
-import { saveSpin, getNextSpinNum } from '../../db.js';
+import { saveAllSpins, getNextSpinNum } from '../../db.js';
 import { prependSpins, rebuildSortedList } from '../../store/historyStore.js';
 
 const S = {
@@ -163,9 +163,8 @@ export default function MongoRoundImportModal() {
         setImporting(false);
         return;
       }
-      for (const entry of entries) {
-        await saveSpin(entry);
-      }
+      // Persist all imported spins to IndexedDB in one bulk transaction
+      await saveAllSpins(entries);
       prependSpins(entries);
       rebuildSortedList();
       pushToast({

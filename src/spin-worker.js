@@ -158,6 +158,8 @@ self.onmessage = async (e) => {
       });
     } catch (err) {
       console.error('Worker fetch failed:', err);
+      self.postMessage({ error: err.message });
+      return; // Abort this worker's batch on network error
     }
   }
 

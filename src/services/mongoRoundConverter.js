@@ -4,7 +4,7 @@
  */
 
 import { EJSON } from 'bson';
-import { getWinCategory, getSpinStats, isSettleField } from './spinService.js';
+import { getWinCategory, getSpinStats, computeFieldWin } from './spinService.js';
 import { game } from '../store/gameStore.js';
 
 /**
@@ -39,7 +39,15 @@ function extractFieldsFromPlayResult(playResult) {
     (phase.playgrounds || []).forEach((pg) => {
       let pgTumbles = 0;
       let pgCascades = 0;
-      (pg.fields || []).forEach((f) => {
+      (pg.fields || []).forEach((rawF) => {
+        const f = {
+          ...rawF,
+          symbols: {
+            initial: rawF.symbols?.initial || rawF.initialSyms,
+            final: rawF.symbols?.final || rawF.tumblingSyms || rawF.symbols?.initial || rawF.initialSyms,
+            payouts: rawF.symbols?.payouts || [],
+          },
+        };
         fields.push(f);
         fieldMetadata.push({
           playgroundIndex: playgroundCounter,
@@ -47,7 +55,7 @@ function extractFieldsFromPlayResult(playResult) {
           roundIndex: roundCounter,
         });
         pgTumbles++;
-        if (parseFloat(f.coins || 0) > 0 && isSettleField(f)) pgCascades++;
+        if (computeFieldWin(f, g) > 0) pgCascades++;
       });
       playgroundStats.push({
         tumbleCount: pgTumbles,
@@ -136,7 +144,7 @@ export function convertMongoRoundToSpins(rawDoc, startNum) {
     timestamp: roundDoc.createdAt
       ? new Date(roundDoc.createdAt).toISOString()
       : new Date().toISOString(),
-    gameId: roundDoc.gameCode || g.id,
+    gameId: g.id,
     rawData: roundDoc,
     isCheatTriggered: false,
     fields: allFields,
@@ -144,7 +152,7 @@ export function convertMongoRoundToSpins(rawDoc, startNum) {
     isWin: parseFloat(totalWin) > 0,
     totalWin,
     tumbleCount: allFields.length,
-    cascadeCount: allFields.filter((f) => parseInt(f.coins || 0) > 0 && isSettleField(f)).length,
+    cascadeCount: allFields.filter((f) => computeFieldWin(f, g) > 0).length,
     betAmount,
     spinMode,
     spinType: hasFreeSpin ? 'freeSpin' : 'baseSpin',

@@ -2,7 +2,8 @@ import { createMemo } from 'solid-js';
 import { gameState } from '../../store/sessionStore.js';
 import { globalHistory } from '../../store/historyStore.js';
 import { currentSpinIndex } from '../../store/sessionStore.js';
-import { isSettleField, getFieldEffectiveWin } from '../../services/spinService.js';
+import { computeFieldWin, isPayingField } from '../../services/spinService.js';
+import { game } from '../../store/gameStore.js';
 
 function scaledFontSize(val, baseEm = 1.6) {
   const len = String(val).length;
@@ -24,7 +25,7 @@ export default function HudDisplay() {
     const f = field();
     if (!f) return 0;
     const isInitial = phase() === 'initial';
-    return isInitial || !isSettleField(f) ? 0 : getFieldEffectiveWin(f);
+    return isInitial || !isPayingField(f, game()) ? 0 : computeFieldWin(f, game());
   });
 
   const displayAccWin = createMemo(() => {
@@ -33,13 +34,13 @@ export default function HudDisplay() {
     if (!f) return 0;
     const isInitial = phase() === 'initial';
     const prev = idx > 0 ? gameState.accumulatedWins[idx - 1] : 0;
-    return isInitial || !isSettleField(f) ? prev : gameState.accumulatedWins[idx];
+    return isInitial || !isPayingField(f, game()) ? prev : gameState.accumulatedWins[idx];
   });
 
   const totalWin = createMemo(() => summary()?.coins ?? 0);
   const tumbleCount = createMemo(() => gameState.fields.length);
   const cascadeCount = createMemo(
-    () => gameState.fields.filter((f) => parseFloat(f.coins || 0) > 0 && isSettleField(f)).length,
+    () => gameState.fields.filter((f) => isPayingField(f, game())).length,
   );
 
   const tumbleLabel = createMemo(() => {
@@ -64,7 +65,7 @@ export default function HudDisplay() {
     if (!f) return '';
     const payingBefore = gameState.fields
       .slice(0, idx)
-      .filter((x) => parseFloat(x.coins || 0) > 0 && isSettleField(x)).length;
+      .filter((x) => isPayingField(x, game())).length;
     return `· CASCADE ${payingBefore + 1}`;
   });
 
@@ -75,7 +76,7 @@ export default function HudDisplay() {
     const total = tumbleCount();
     const isInitial = phase() === 'initial';
     const isLastTumble = idx === total - 1;
-    const isPayingTumble = parseFloat(f.coins || 0) > 0 && isSettleField(f);
+    const isPayingTumble = isPayingField(f, game());
     if (isInitial) return { text: 'GROW', color: 'var(--bg-accent)' };
     if (isLastTumble) return { text: 'END', color: 'var(--text-muted)' };
     return isPayingTumble
@@ -95,7 +96,7 @@ export default function HudDisplay() {
         </span>
         <span
           id="cascadeNavLabel"
-          style={`font-size:10px; color:var(--bg-accent); font-weight:800; opacity:${parseFloat(field()?.coins || 0) > 0 && isSettleField(field()) ? '1' : '0.45'};`}
+          style={`font-size:10px; color:var(--bg-accent); font-weight:800; opacity:${isPayingField(field(), game()) ? '1' : '0.45'};`}
         >
           {cascadeLabel()}
         </span>
