@@ -97,5 +97,62 @@
       "description": "Target: 100,000+ coins. Strategy: H1_Aladdin (12+ cluster) for 1,000 coins + M500 multiplier. 1000 * 500 = 500,000, forcing the Max Win cap check.",
       "json": "{\n  \"config\": {\n    \"baseSpin\": {\n      \"tumbleCount\": 1,\n      \"initialScreen\": {\n        \"symbols\": [\n          { \"symbol\": \"H1_Aladdin\", \"count\": 12 },\n          { \"symbol\": \"M500\", \"count\": 1 }\n        ]\n      }\n    }\n  }\n}"
     }
+  ],
+  "olympus": [
+    {
+      "title": "1. Base — small line win (3 units)",
+      "description": "Single fixed line: three Diamonds (family high, 3 units). Pays the 3-unit payout, no modifier, no bonus. finished:true.",
+      "json": "{\n  \"config\": {\n    \"baseSpin\": { \"line\": [\"Diamond\", \"Diamond\", \"Diamond\"], \"modifier\": \"empty\" }\n  }\n}"
+    },
+    {
+      "title": "2. Base — big line win (6 units, doubles)",
+      "description": "Three DoubleDiamonds = 6 units = top line payout for that family. Modifier empty.",
+      "json": "{\n  \"config\": {\n    \"baseSpin\": { \"line\": [\"DoubleDiamond\", \"DoubleDiamond\", \"DoubleDiamond\"], \"modifier\": \"empty\" }\n  }\n}"
+    },
+    {
+      "title": "3. Base — line win x10 multiplier",
+      "description": "Three Sevens with the modifier reel = Multiplier x10. Line win is multiplied by 10. features.multiplier=10.",
+      "json": "{\n  \"config\": {\n    \"baseSpin\": { \"line\": [\"Seven\", \"Seven\", \"Seven\"], \"modifier\": \"multiplier\", \"modifierMultiplier\": 10 }\n  }\n}"
+    },
+    {
+      "title": "4. Base — no win",
+      "description": "Three different families on the line = no match = 0 win. Sanity check of a dead base spin.",
+      "json": "{\n  \"config\": {\n    \"baseSpin\": { \"line\": [\"Diamond\", \"Seven\", \"Bell\"], \"modifier\": \"empty\" }\n  }\n}"
+    },
+    {
+      "title": "5. Trigger FG — 3 scatters, 0 golden coins",
+      "description": "3 Scatters on the line trigger the Free Game (triggerFreeSpin + choices:[1]); 0 super = 0 seeded golden coins. Tester auto-fires choice:1. FG: 2 steps land bronze/silver coins, then ends.",
+      "json": "{\n  \"config\": {\n    \"baseSpin\": { \"line\": [\"Scatter\", \"Scatter\", \"Scatter\"], \"modifier\": \"empty\" },\n    \"bonus\": { \"steps\": [\n      { \"grid\": [[5, 0, 0, 0], [10, 0, 0, 0]], \"modifier\": \"empty\" },\n      { \"grid\": [[0, 0, 0, 0], [0, 0, 0, 0], [20, 0, 0, 0]], \"modifier\": \"empty\" }\n    ] }\n  }\n}"
+    },
+    {
+      "title": "6. Trigger FG — 1 golden coin (2 scatter + super)",
+      "description": "2 Scatters + super-scatter modifier trigger FG and seed 1 golden coin (value 50) at the first empty cell. FG lands a bronze then a gold on top of the seed.",
+      "json": "{\n  \"config\": {\n    \"baseSpin\": { \"line\": [\"Scatter\", \"Scatter\", \"Diamond\"], \"modifier\": \"superScatter\" },\n    \"bonus\": { \"steps\": [\n      { \"grid\": [[], [5, 0, 0, 0]], \"modifier\": \"empty\" },\n      { \"grid\": [[], [], [50, 0, 0, 0]], \"modifier\": \"empty\" }\n    ] }\n  }\n}"
+    },
+    {
+      "title": "7. Trigger FG — 2 golden coins (super line + super modifier)",
+      "description": "A SuperScatter on the line plus the super-scatter modifier = 2 seeded golden coins. FG lands a high coin on a fresh cell.",
+      "json": "{\n  \"config\": {\n    \"baseSpin\": { \"line\": [\"Scatter\", \"SuperScatter\", \"Scatter\"], \"modifier\": \"superScatter\" },\n    \"bonus\": { \"steps\": [\n      { \"grid\": [[], [], [100, 0, 0, 0]], \"modifier\": \"empty\" }\n    ] }\n  }\n}"
+    },
+    {
+      "title": "8. FG — Multiplier modifier on a coin",
+      "description": "Trigger FG (3 scatters), land coins, then the second step fires a Multiplier x10 modifier on a backend-chosen existing coin. Check features.modifier = { kind:'multiplier', target, before/after }.",
+      "json": "{\n  \"config\": {\n    \"baseSpin\": { \"line\": [\"Scatter\", \"Scatter\", \"Scatter\"], \"modifier\": \"empty\" },\n    \"bonus\": { \"steps\": [\n      { \"grid\": [[20, 0, 0, 0], [30, 0, 0, 0]], \"modifier\": \"empty\" },\n      { \"grid\": [[0, 0, 0, 0], [0, 0, 0, 0], [40, 0, 0, 0]], \"modifier\": \"multiplier\", \"modifierMultiplier\": 10 }\n    ] }\n  }\n}"
+    },
+    {
+      "title": "9. FG — Collector absorbs all coins",
+      "description": "Trigger FG, fill the grid with coins, then the Collector modifier absorbs every coin into one target cell (total unchanged, other cells freed). Check features.modifier.kind='collector' + absorbed[].",
+      "json": "{\n  \"config\": {\n    \"baseSpin\": { \"line\": [\"Scatter\", \"Scatter\", \"Scatter\"], \"modifier\": \"empty\" },\n    \"bonus\": { \"steps\": [\n      { \"grid\": [[10, 20, 30, 40], [50, 60, 0, 0]], \"modifier\": \"empty\" },\n      { \"grid\": [[0, 0, 0, 0], [0, 0, 0, 0], [5, 0, 0, 0]], \"modifier\": \"collector\" }\n    ] }\n  }\n}"
+    },
+    {
+      "title": "10. FG — Lives run out",
+      "description": "Trigger FG, land one coin (resets lives to 3), then 3 empty steps land nothing so lives tick 3->0 and the bonus ends. Verifies features.livesAfter countdown + termination.",
+      "json": "{\n  \"config\": {\n    \"baseSpin\": { \"line\": [\"Scatter\", \"Scatter\", \"Scatter\"], \"modifier\": \"empty\" },\n    \"bonus\": { \"steps\": [\n      { \"grid\": [[5, 0, 0, 0]], \"modifier\": \"empty\" },\n      { \"grid\": [], \"modifier\": \"empty\" },\n      { \"grid\": [], \"modifier\": \"empty\" },\n      { \"grid\": [], \"modifier\": \"empty\" }\n    ] }\n  }\n}"
+    },
+    {
+      "title": "11. FG — Max win cap",
+      "description": "Trigger FG and flood the whole 5x4 grid with 500-value coins (=10,000 coins). At bet 20 the cap is 5,000 coins (x5000 total bet), so summary.hasMaxWin=true and the win is capped.",
+      "json": "{\n  \"config\": {\n    \"baseSpin\": { \"line\": [\"Scatter\", \"Scatter\", \"Scatter\"], \"modifier\": \"empty\" },\n    \"bonus\": { \"steps\": [\n      { \"grid\": [[500, 500, 500, 500], [500, 500, 500, 500], [500, 500, 500, 500], [500, 500, 500, 500], [500, 500, 500, 500]], \"modifier\": \"empty\" }\n    ] }\n  }\n}"
+    }
   ]
 }

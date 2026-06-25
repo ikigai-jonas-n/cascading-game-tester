@@ -15,19 +15,30 @@
  * winCategories: object,
  * actions?: Array<{id: number, desc: string}>,
  * hooks?: {
- *   /**
- *    * Returns the effective win coins for a single field to add to accumulatedWin.
- *    * Receives the raw field object. Return 0 to skip.
- *    * Default: every tumble with coins > 0 contributes its raw coins.
- *    * @param {object} field
- *    * @returns {number}
- *    *
- *   computeFieldWin?: (field: object) => number,
- *   /**
- *    * If true, features.golden[] positions are highlighted on the grid.
- *    * Default: false.
- *    *
- *   goldenEnabled?: boolean,
+ * /**
+ * * Returns the effective win coins for a single field to add to accumulatedWin.
+ * * Receives the raw field object. Return 0 to skip.
+ * * Default: every tumble with coins > 0 contributes its raw coins.
+ * * @param {object} field
+ * * @returns {number}
+ * *
+ * computeFieldWin?: (field: object) => number,
+ * /**
+ * * If true, features.golden[] positions are highlighted on the grid.
+ * * Default: false.
+ * *
+ * goldenEnabled?: boolean,
+ * /** * * Intercept and map raw API responses for non-standard engines (Crash/Choice/Go-Ways).
+ * * @param {object} data
+ * * @returns {object}
+ * *
+ * extractFields?: (data: object) => object,
+ * },
+ * components?: {
+ * /** Optional: Custom GameBoard UI override (e.g., Crash Graph, Dynamic Megaways Grid) *
+ * GameBoard?: import('solid-js').Component<{ frameData: any, phase: string }>,
+ * /** Optional: Custom Audit Trail UI override *
+ * AuditTrail?: import('solid-js').Component<{ spin: any }>
  * }
  * }} GameConfig
  */
@@ -40,8 +51,8 @@ export function register(config) {
   }
 }
 
-// --- Auto-import all game configs ---
-const gameModules = import.meta.glob('./games/*.js', { eager: true });
+// --- Auto-import all game configs (Matches both pure data .js and UI component .jsx files) ---
+const gameModules = import.meta.glob('./games/*.{js,jsx}', { eager: true });
 Object.values(gameModules).forEach((module) => {
   if (module.default) register(module.default);
 });

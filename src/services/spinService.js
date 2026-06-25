@@ -296,11 +296,19 @@ export async function fireSpinRequest(config, isInteractive = false) {
       }
 
       let nextBody = { ...reqBody, choice: nextChoice };
-      if (isFirstChain && baseGameWin !== null) {
-        nextBody = {
-          ...nextBody,
-          meta: { ...nextBody.meta, private: { ...nextBody.meta?.private, baseGameWin } },
-        };
+      if (isFirstChain) {
+        // Carry round-state the backend handed back on the trigger response into
+        // the follow-up request. Only schema-allowed meta.private fields survive.
+        const carry = {};
+        if (baseGameWin !== null) carry.baseGameWin = baseGameWin;
+        const seedGoldenCoins = data.meta?.private?.seedGoldenCoins;
+        if (seedGoldenCoins !== undefined) carry.seedGoldenCoins = seedGoldenCoins;
+        if (Object.keys(carry).length > 0) {
+          nextBody = {
+            ...nextBody,
+            meta: { ...nextBody.meta, private: { ...nextBody.meta?.private, ...carry } },
+          };
+        }
       }
       isFirstChain = false;
 
@@ -315,9 +323,14 @@ export async function fireSpinRequest(config, isInteractive = false) {
 }
 
 function buildSpinEntry(data, num, description = null) {
-  const { fields, fieldMetadata, playgroundStats, hasBaseSpin, hasFreeSpin, playgroundCount } =
-    extractFields(data);
-  const summary = data.step.summary;
+  const g = game();
+  // Allow plugin to intercept and map custom backend payloads (like Crash or Go Ways)
+  const { fields, fieldMetadata, playgroundStats, hasBaseSpin, hasFreeSpin, playgroundCount } = g
+    .hooks?.extractFields
+    ? g.hooks.extractFields(data)
+    : extractFields(data);
+
+  const summary = data.step?.summary || data.summary || { coins: 0 };
   const metaPublic = data.meta?.public || data.step?.meta?.public || {};
   const config = JSON.parse(localStorage.getItem('request_body') || '{}');
   const stats = getSpinStats(fields, game().wildSymbolId);
@@ -379,17 +392,21 @@ export async function loadSpin(historyIndex) {
 
   const lastHistoryIndex = parseInt(localStorage.getItem('last_spin_index') || '-1', 10);
   let tumbleIdx = 0;
-  if (historyIndex === lastHistoryIndex) {
+
+  // Safely default fields to an empty array for games that don't generate standard steps
+  const spinFields = spin.fields || [];
+
+  if (historyIndex === lastHistoryIndex && spinFields.length > 0) {
     const savedTumbleStr = localStorage.getItem('last_tumble_index');
     tumbleIdx = savedTumbleStr ? parseInt(savedTumbleStr, 10) : 0;
-    tumbleIdx = Math.min(Math.max(0, tumbleIdx), spin.fields.length - 1);
+    tumbleIdx = Math.min(Math.max(0, tumbleIdx), spinFields.length - 1);
   }
 
   setCurrentSpinIndex(historyIndex);
   localStorage.setItem('last_spin_index', historyIndex);
 
   setGameState({
-    fields: spin.fields,
+    fields: spinFields,
     summary: spin.summary,
     currentIndex: tumbleIdx,
     isAnimating: false,
@@ -398,14 +415,14 @@ export async function loadSpin(historyIndex) {
   let acc = 0;
   setGameState(
     'accumulatedWins',
-    spin.fields.map((f) => {
+    spinFields.map((f) => {
       acc += computeFieldWin(f, game());
       return acc;
     }),
   );
 
   const goldenEnabled = isGoldenEnabled(game());
-  const persistentGolden = spin.fields.map((f) =>
+  const persistentGolden = spinFields.map((f) =>
     goldenEnabled ? new Set(f.features?.golden || []) : new Set(),
   );
   setGameState('goldenCandidates', persistentGolden);
@@ -414,12 +431,16 @@ export async function loadSpin(historyIndex) {
     'hasGolden',
     goldenEnabled && persistentGolden.some((set) => set.size > 0),
   );
+
   if (isAutoplayOnSelect()) {
     startSpinPlayback();
   } else {
-    // If not autoplaying, select the restored tumbleIdx (or 0 if none restored)
-    selectTumble(tumbleIdx, 'initial');
-    updatePlaybackLabels();
+    // If not autoplaying, select the restored tumbleIdx (or 0 if none restored), provided fields exist
+    if (spinFields.length > 0) {
+      selectTumble(tumbleIdx, 'initial');
+    } else {
+      updatePlaybackLabels();
+    }
     syncPlaybackUI();
   }
 
@@ -434,16 +455,25 @@ export function selectTumble(tIdx, phase) {
   showTumble(tIdx, phase);
   const spin = globalHistory[currentSpinIndex()];
   if (!spin) return;
-  const field = spin.fields[tIdx];
 
+  const field = spin.fields[tIdx];
+  // Guard against malformed or non-standard frame data missing symbols entirely
+  if (!field || !field.symbols) return;
+
+  // Guard against missing initial/final arrays safely
   const initialArr = field.symbols.initial || field.symbols.final || [];
   const finalArr = field.symbols.final || [];
+  const g = game();
 
   const diff = initialArr.map((val, i) => {
     const finalVal = finalArr[i];
-    const r = i % game().grid.rows;
-    const c = Math.floor(i / game().grid.rows);
-    const coord = `(c${c}, r${r})`;
+
+    // Guard against games that lack traditional grid properties (like Crash Engines)
+    const rows = g.grid?.rows || 1;
+    const r = i % rows;
+    const c = Math.floor(i / rows);
+    const coord = g.grid ? `(c${c}, r${r})` : `(idx${i})`;
+
     if (val !== finalVal) return `${val} -> ${finalVal}, ${coord}`;
     return `${val}`;
   });

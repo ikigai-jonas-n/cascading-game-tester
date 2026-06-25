@@ -6,6 +6,7 @@
  * only that <GridCell> re-renders — no full-grid teardown.
  */
 import { createMemo, For, Show } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 import { game, symbols } from '../../store/gameStore.js';
 import { gameState, showDoubleGrid } from '../../store/sessionStore.js';
 
@@ -72,7 +73,7 @@ function GridSubPanel({ symbolList, payouts, goldenSet, label, labelId }) {
   );
 }
 
-export default function GameGrid() {
+export default function GameGrid(props) {
   const g = game;
   const idx = () => gameState.currentIndex;
   const phase = () => gameState.currentFramePhase;
@@ -89,7 +90,7 @@ export default function GameGrid() {
     return f?.symbols?.initial || f?.symbols?.final || [];
   });
   const finalSymbols = createMemo(() => field()?.symbols?.final || []);
-  const payouts = createMemo(() => field()?.symbols?.payouts || []);
+const payouts = createMemo(() => props.field?.symbols?.payouts || []);
   const emptyGrid = createMemo(() => {
     let { rows, cols } = g().grid || {};
     const len = initialSymbols().length || finalSymbols().length;
@@ -107,18 +108,22 @@ export default function GameGrid() {
   return (
     <div class="grid-area">
       <Show
-        when={field()}
-        fallback={
-          <GridSubPanel
-            symbolList={emptyGrid}
-            payouts={() => []}
-            goldenSet={() => new Set()}
-            label={null}
-            labelId="grid-container-final"
-          />
-        }
+        when={!g().components?.GameBoard}
+        fallback={<Dynamic component={g().components.GameBoard} frameData={field()} phase={phase()} />}
       >
         <Show
+          when={field()}
+          fallback={
+            <GridSubPanel
+              symbolList={emptyGrid}
+              payouts={() => []}
+              goldenSet={() => new Set()}
+              label={null}
+              labelId="grid-container-final"
+            />
+          }
+        >
+          <Show
           when={
             showDouble() &&
             initialSymbols().length &&
@@ -154,7 +159,7 @@ export default function GameGrid() {
           </>
         </Show>
       </Show>
-
+      </Show>
     </div>
   );
 }

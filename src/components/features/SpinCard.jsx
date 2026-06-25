@@ -1,4 +1,5 @@
 import { Show, createMemo } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 import { game } from '../../store/gameStore.js';
 import { updateSpin } from '../../store/historyStore.js';
 import { saveSpin, deleteSpin, toggleBookmark } from '../../db.js';
@@ -273,7 +274,12 @@ export default function SpinCard(props) {
 
       {/* Tumble Audit (only for active card) */}
       <Show when={props.isActive}>
-        <TumbleAudit spin={props.spin} />
+        <Show 
+          when={!g().components?.AuditTrail} 
+          fallback={<Dynamic component={g().components.AuditTrail} spin={props.spin} />}
+        >
+          <TumbleAudit spin={props.spin} />
+        </Show>
       </Show>
     </div>
   );

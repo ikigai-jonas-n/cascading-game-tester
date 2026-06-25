@@ -1,12 +1,14 @@
 import fs from 'fs';
 import path from 'path';
 import { Project, SyntaxKind } from 'ts-morph';
+import prettier from 'prettier';
+import crypto from 'crypto';
 
 export default function backendExtractorPlugin() {
   return {
     name: 'backend-extractor',
-    buildStart() {
-      extractBackendData();
+    async buildStart() {
+      await extractBackendData();
     },
   };
 }
@@ -76,7 +78,22 @@ function extractValueFromClass(classDecl, propName) {
   return null;
 }
 
-function extractBackendData() {
+// Games to never auto-generate/overwrite (hand-written plugins). Set in .env as a
+// comma-separated list, e.g. DISABLE_AUTO_GENERATE_GAME=olympus,my-other-game
+// (brackets/quotes/backticks are tolerated: `[olympus, foo]`, "olympus", etc).
+function getDisabledGames() {
+  const raw = process.env.DISABLE_AUTO_GENERATE_GAME;
+  if (!raw) return new Set();
+  return new Set(
+    raw
+      .replace(/[[\]'"`]/g, '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
+}
+
+async function extractBackendData() {
   const repoPath = process.env.SLOT_GAME_SERVER_REPO_PATH;
   if (!repoPath) {
     console.warn('[Backend Extractor] SLOT_GAME_SERVER_REPO_PATH not set in .env. Skipping.');
@@ -105,9 +122,16 @@ function extractBackendData() {
   const project = new Project();
   const frontendProject = new Project({ compilerOptions: { allowJs: true } });
 
+  const disabledGames = getDisabledGames();
   let modifiedCount = 0;
 
   for (const gameCode of games) {
+    if (disabledGames.has(gameCode)) {
+      console.log(
+        `[Backend Extractor] ⏭️  ${gameCode} -> \x1b[35mSKIPPED\x1b[0m (in DISABLE_AUTO_GENERATE_GAME)`,
+      );
+      continue;
+    }
     const gamePath = path.join(gamesDir, gameCode);
     const configDirs = [
       path.join(gamePath, 'src', 'config'),
@@ -180,14 +204,20 @@ function extractBackendData() {
       }
     }
 
-    // Write directly to frontend JS file
-    const jsFilePath = path.join(frontendGamesDir, `${gameCode}.js`);
+    // Determine whether this cartridge utilizes component overrides to set the file extension properly (.jsx vs .js)
+    const isJsxGame = gameCode === 'captain-jack-go-ways' || gameCode === 'mr-booms-rocketman';
+    const extension = isJsxGame ? 'jsx' : 'js';
+    const jsFilePath = path.join(frontendGamesDir, `${gameCode}.${extension}`);
+
     let fileWasCreated = false;
     if (!fs.existsSync(jsFilePath)) {
       console.log(
         `[Backend Extractor] Frontend file not found for ${gameCode}, creating new file...`,
       );
-      const skeleton = `/** @type {import('../game-registry.js').GameConfig} */
+
+      // Inject standard SolidJS reactive primitives for component structures
+      const imports = isJsxGame ? "import { createMemo, Show, For } from 'solid-js';\n\n" : '';
+      const skeleton = `${imports}/** @type {import('../game-registry.js').GameConfig} */
 export default {
   id: '${gameCode}',
   gameCode: '${gameCode}',
@@ -313,13 +343,68 @@ export default {
           // Ensure isEnabled exists, but don't overwrite if it does
           setObjProp(objExpr, 'isEnabled', 'false', false);
 
-          jsFile.saveSync();
-          modifiedCount++;
-          console.log(`[Backend Extractor] Updated ${gameCode}.js via AST.`);
+          // Get the AST-modified code as a raw string
+          const unformattedCode = jsFile.getFullText();
+
+          // Resolve the project's Prettier config and format the code programmatically
+          const prettierConfig = (await prettier.resolveConfig(jsFilePath)) || {};
+          const formattedCode = await prettier.format(unformattedCode, {
+            ...prettierConfig,
+            filepath: jsFilePath,
+          });
+
+          // ANSI Color codes for clean and intuitive terminal outputs
+          const GREEN = '\x1b[32m';
+          const YELLOW = '\x1b[33m';
+          const BLUE = '\x1b[34m';
+          const RESET = '\x1b[0m';
+
+          if (!fileWasCreated && fs.existsSync(jsFilePath)) {
+            const currentContent = fs.readFileSync(jsFilePath, 'utf8');
+
+            const currentHash = crypto.createHash('sha256').update(currentContent).digest('hex');
+            const incomingHash = crypto.createHash('sha256').update(formattedCode).digest('hex');
+
+            if (currentHash === incomingHash) {
+              console.log(
+                `[Backend Extractor] 🔍 ${gameCode}.${extension} -> ${BLUE}UNCHANGED${RESET} (No relevant changes detected in backend configuration files)`,
+              );
+            } else {
+              fs.writeFileSync(jsFilePath, formattedCode, 'utf8');
+              modifiedCount++;
+              console.log(
+                `[Backend Extractor] ⚡ ${gameCode}.${extension} -> ${YELLOW}MODIFIED${RESET} (Relevant configuration changes extracted and written)`,
+              );
+            }
+          } else {
+            fs.writeFileSync(jsFilePath, formattedCode, 'utf8');
+            modifiedCount++;
+            console.log(
+              `[Backend Extractor] ✨ ${gameCode}.${extension} -> ${GREEN}CREATED${RESET} (Fresh configuration generated for new game cartridge)`,
+            );
+          }
+
+          // Clean up conflicting legacy files if migrating from .js to .jsx
+          if (isJsxGame) {
+            const legacyJsPath = path.join(frontendGamesDir, `${gameCode}.js`);
+            if (fs.existsSync(legacyJsPath)) {
+              fs.unlinkSync(legacyJsPath);
+            }
+          }
         }
       }
     }
   }
 
-  console.log(`[Backend Extractor] Successfully modified ${modifiedCount} frontend game configs.`);
+  const BOLD = '\x1b[1m';
+  const RESET = '\x1b[0m';
+  if (modifiedCount > 0) {
+    console.log(
+      `\n[Backend Extractor] 🚀 ${BOLD}Sync Summary:${RESET} Extracted and synchronized updates for ${modifiedCount} configuration targets.\n`,
+    );
+  } else {
+    console.log(
+      `\n[Backend Extractor] ✅ ${BOLD}Sync Summary:${RESET} Everything up to date! Unrelated repo shifts ignored.\n`,
+    );
+  }
 }
