@@ -250,6 +250,35 @@ export async function getSpinCount(gameId = null) {
 }
 
 /**
+ * Build the set of dedup fingerprints across EVERY game in the store.
+ * Fingerprint matches the one used on import/export:
+ *   `${timestamp}_${summary.coins}_${fields.length}`.
+ * Cursors the whole store so merge-import dedup covers all games, not just
+ * the active one's loaded history.
+ */
+export async function getAllFingerprints() {
+  await open();
+  return new Promise((resolve, reject) => {
+    const store = getStore();
+    const req = store.openCursor();
+    const fingers = new Set();
+    req.onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (!cursor) {
+        resolve(fingers);
+        return;
+      }
+      const s = cursor.value;
+      const coins = s.summary?.coins;
+      const len = Array.isArray(s.fields) ? s.fields.length : 0;
+      fingers.add(`${s.timestamp}_${coins}_${len}`);
+      cursor.continue();
+    };
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+/**
  * Migrate existing localStorage history into IndexedDB (one-time).
  * Deletes the localStorage key after successful migration.
  */

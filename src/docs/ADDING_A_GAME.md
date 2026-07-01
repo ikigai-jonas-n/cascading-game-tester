@@ -177,18 +177,34 @@ keys to strings.
   `grid.{rows,cols}`, highlighting `payouts[].positions` and (if
   `hooks.goldenEnabled`) `features.golden[]`.
 
-### Cell index order (critical)
+### Cell index order (critical) — COLUMN-FIRST
 
-The default renderer maps a flat array to a grid **column-major**:
+Every grid travels as a **1D (flat) array**; the frontend reshapes 1D→2D. The
+platform standard is **column-first**:
 
 ```
-idx = col * rows + row
+idx = col * rows + row          (col 0 = indices 0..rows-1)
+
+reshape back:  col = Math.floor(idx / rows)    row = idx % rows
 ```
 
-So `final[0..rows-1]` is column 0 top→bottom, then column 1, etc. **Your backend's
-flatten order must match this**, or cells land in the wrong place. (Olympus
-flattens `screen.flat()` over a `cols × rows` matrix — column-major — so it lines
-up.) If you write a custom `GameBoard`, you own the mapping.
+5-row example (rows = 5) — indices 0-4 are the first column:
+
+```
+col:  0    1    2     3     4
+     [0]  [5]  [10]  [15]  [20]   row 0
+     [1]  [6]  [11]  [16]  [21]   row 1
+     [2]  [7]  [12]  [17]  [22]   row 2
+     [3]  [8]  [13]  [18]  [23]   row 3
+     [4]  [9]  [14]  [19]  [24]   row 4
+```
+
+**This convention applies to *every* flat index in a response** — `symbols.final`,
+any `features.*` index (`coins[].index`, `modifier.target`, `modifier.absorbed[]`),
+and `payouts[].positions` — not just `final`. **Your backend's flatten order must
+match it**, or cells land in the wrong place. (Olympus flattens `screen.flat()` over
+a `cols × rows` matrix — column-first — so it lines up; its bonus grid is 5 cols × 4
+rows, so col 0 = indices 0-3.) If you write a custom `GameBoard`, you own the mapping.
 
 ---
 
@@ -313,26 +329,33 @@ totally different boards, two different response shapes, in one round.
 
 ### 9.2 What the backend publishes (all in `features`, public)
 
-Base field `features`: `{ multiplier, triggerFreeSpin }`.
+Base field `features`: `{ multiplier, triggerFreeSpin }`. The base line payout uses the
+**winline** convention: `oak = total matched units`, `positions = winline id` (a NUMBER
+— `0` = reels 0-2, `1` = reels 0-1). `PayoutType.positions` is `number | number[]`.
 
-Bonus field `features`:
+Bonus field `features` (values-only, column-first):
 ```jsonc
 {
   "livesAfter": 3,
-  "newCoins": [4],                       // flat indices that landed this spin
-  "coins": [                             // every coin on the sticky grid
-    { "index": 0, "col": 0, "row": 0, "value": 50, "tier": "gold",   "ordinal": 102, "isNew": false },
-    { "index": 4, "col": 1, "row": 0, "value": 5,  "tier": "bronze", "ordinal": 100, "isNew": true  }
-  ],
-  "modifier": { "kind": "collector", "target": 0, "absorbed": [4], "beforeValue": 50, "afterValue": 55 }
+  // Full 20-cell array: -1 = empty, else the coin value. Tier derived by threshold.
+  "coins": [50, -1, -1, -1, 5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+  // present ONLY when a modifier fired (omitted for empty):
+  "modifier": { "kind": "collector", "multiplier": -1, "target": 0, "valueAfter": 55 }
 }
 ```
-Bonus `payouts` are **coin-related**: one entry per coin
-`{ symbol: tierOrdinal, coins: value, oak: 1, positions: [index] }`.
+`features.coins` is the raw value grid — the client maps index → cell
+(`col = floor(index/rows)`, `row = index % rows`) and derives the tier from the value.
+`modifier` variants: `{kind:'multiplier', multiplier, target, valueAfter}` or
+`{kind:'collector', multiplier:-1, target, valueAfter}`; **omitted entirely** when nothing
+fired. Collector grows `target` to `valueAfter`; the other coins stay put.
 
-The frontend reads `features.coins` for per-cell value+tier, glows `newCoins`,
-and white-highlights `modifier.target` — **the backend decided the random target**,
-the frontend only animates it.
+Bonus `payouts` appear **only on the final tumble** (the FG settles once, at lives 0 /
+max win): a single aggregate `{ symbol: 100, oak: -1, coins: <phase win>, positions:
+[every coin index] }`. Non-final tumbles carry `payouts: []`.
+
+The frontend reads `features.coins` for per-cell value (→ tier) and white-highlights
+`modifier.target` — **the backend decided the random target**, the frontend only
+animates it.
 
 ### 9.3 The two-request flow (and the real lesson)
 

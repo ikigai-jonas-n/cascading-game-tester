@@ -4,8 +4,15 @@
  * Handles all data transport: streaming DB exports to disk,
  * JSON file imports, and the cheat-config send/clear API.
  */
-import { clearAllSpins, getNextSpinNum, saveAllSpins, iterateDb } from '../db.js';
+import {
+  clearAllSpins,
+  getNextSpinNum,
+  saveAllSpins,
+  iterateDb,
+  getAllFingerprints,
+} from '../db.js';
 import { game } from '../store/gameStore.js';
+import { getGame } from '../game-registry.js';
 import { globalHistory, activeFilters } from '../store/historyStore.js';
 import { showLoading, hideLoading, apiUrl, playerId } from '../store/uiStore.js';
 import { currentSpinIndex } from '../store/sessionStore.js';
@@ -242,14 +249,19 @@ export function triggerImport(mode) {
             const summary = r.step.summary;
             const ts = item.timestamp || item.t || new Date().toISOString();
             const metaPublic = r.meta?.public || r.step?.meta?.public || {};
-            const stats = getSpinStats(fields, game().wildSymbolId);
+            // Resolve the record's OWN game so cross-game imports compute stats
+            // (goldenTransformed, maxMultiplier) with the correct wild id — not
+            // the currently active game's.
+            const recGameId = item.gameId || item.g || game().id;
+            const recGame = getGame(recGameId) || game();
+            const stats = getSpinStats(fields, recGame.wildSymbolId);
 
             return {
               finger: `${ts}_${summary.coins}_${fields.length}`,
               data: {
                 num: item.num || item.n || undefined,
                 timestamp: ts,
-                gameId: item.gameId || item.g || game().id,
+                gameId: recGameId,
                 rawData: r,
                 isCheatTriggered: r.meta?.private?.isCheatTriggered === true,
                 fields,
@@ -289,9 +301,9 @@ export function triggerImport(mode) {
         await clearAllSpins();
         finalEntries = restored.map((r, i) => ({ ...r.data, num: i + 1 }));
       } else {
-        const existingFingers = new Set(
-          globalHistory.map((s) => `${s.timestamp}_${s.summary.coins}_${s.fields.length}`),
-        );
+        // Dedup across EVERY game in the DB, not just the active game's loaded
+        // history — a multi-game file re-merged must not duplicate other games.
+        const existingFingers = await getAllFingerprints();
         const filtered = restored.filter((r) => !existingFingers.has(r.finger));
         const baseNum = await getNextSpinNum();
         finalEntries = filtered.map((r, i) => ({ ...r.data, num: baseNum + i }));

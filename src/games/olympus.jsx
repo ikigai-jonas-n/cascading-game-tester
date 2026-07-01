@@ -9,10 +9,19 @@ import { createMemo, Show, For, Index } from 'solid-js';
  *             field.symbols.payouts holds the line win; features = { multiplier,
  *             triggerFreeSpin }.
  *   - BONUS : 20 cells = the 5x4 sticky Divine Coin Collect grid. field.coins =
- *             running grid total (cumulative); payouts list each coin (tier ordinal
- *             + value + position); features = { livesAfter, newCoins[], coins[]
- *             (per-cell {index,value,tier,isNew}), modifier } where modifier is the
- *             backend's decision { kind, target, beforeValue, afterValue, ... }.
+ *             running grid total (cumulative). features = { livesAfter, coins,
+ *             modifier? } where `coins` is a 20-cell COLUMN-FIRST value array (-1 =
+ *             empty, else the coin value; tier is derived by threshold). `modifier`
+ *             is present only when one fired: { kind:'multiplier', multiplier, target,
+ *             valueAfter } | { kind:'collector', multiplier:-1, target, valueAfter }.
+ *             Payouts appear only on the FINAL tumble: one aggregate { oak:-1,
+ *             positions:[all coin indices], coins: phase win }.
+ *
+ * INDEXING (both boards): flat arrays are COLUMN-FIRST. index = col * rows + row,
+ * so col 0 occupies indices 0..rows-1. To map an index back to a cell:
+ *   col = Math.floor(index / rows);  row = index % rows.
+ * Every flat index (symbols.final, features.coins, modifier.target, payouts.positions)
+ * uses this same convention.
  *
  * TWO-REQUEST flow: when the base spin triggers the bonus, the base response comes
  * back with features.triggerFreeSpin=true, finished:false, choices:[1], and the
@@ -26,45 +35,26 @@ const BONUS_COLS = 5;
 const BONUS_ROWS = 4;
 const BASE_CELLS = 4; // 3 main reels + modifier reel
 
+// Unified symbol map: one entry per id carrying { name, emoji, color }. The store
+// (gameStore.js) derives the legacy emoji/color maps from this, so games no longer
+// declare separate SYMBOLS / EMOJI / colors objects.
 const SYMBOLS = {
-  0: 'Wild', // unused by Olympus, kept for registry shape
-  1: 'Diamond',
-  2: 'Seven',
-  3: 'Bell',
-  4: 'Grape',
-  5: 'Lemon',
-  6: 'Diamond x2',
-  7: 'Seven x2',
-  8: 'Bell x2',
-  9: 'Grape x2',
-  10: 'Lemon x2',
-  11: 'Scatter',
-  12: 'Super Scatter',
-  50: 'Multiplier',
-  100: 'Bronze Coin',
-  101: 'Silver Coin',
-  102: 'Gold Coin',
-  '-1': 'Empty',
-};
-
-const EMOJI = {
-  1: '💎',
-  2: '7️⃣',
-  3: '🔔',
-  4: '🍇',
-  5: '🍋',
-  6: '💎²',
-  7: '7️⃣²',
-  8: '🔔²',
-  9: '🍇²',
-  10: '🍋²',
-  11: '⭐',
-  12: '🌟',
-  50: '✖️',
-  100: '🥉',
-  101: '🥈',
-  102: '🥇',
-  '-1': '',
+  0: { name: 'Wild', emoji: '🃏', color: '#9e9e9e' }, // unused by Olympus, kept for registry shape
+  1: { name: 'Diamond', emoji: '💎', color: '#26c6da' }, // Cyan
+  2: { name: 'Seven', emoji: '7️⃣', color: '#ef5350' }, // Red
+  3: { name: 'Bell', emoji: '🔔', color: '#fbc02d' }, // Gold
+  4: { name: 'Grape', emoji: '🍇', color: '#ab47bc' }, // Purple
+  5: { name: 'Lemon', emoji: '🍋', color: '#ffeb3b' }, // Yellow
+  6: { name: 'Diamond x2', emoji: '💎²', color: '#0097a7' }, // Deep Cyan
+  7: { name: 'Seven x2', emoji: '7️⃣²', color: '#c62828' }, // Deep Red
+  8: { name: 'Bell x2', emoji: '🔔²', color: '#f9a825' }, // Amber
+  9: { name: 'Grape x2', emoji: '🍇²', color: '#6a1b9a' }, // Deep Purple
+  10: { name: 'Lemon x2', emoji: '🍋²', color: '#c0ca33' }, // Lime
+  11: { name: 'Scatter', emoji: '⭐', color: '#fbbf24' }, // Yellow Gold
+  12: { name: 'Super Scatter', emoji: '🌟', color: '#f59e0b' }, // Orange
+  50: { name: 'Multiplier', emoji: '✖️', color: '#ef5350' }, // Red
+  100: { name: 'Coin', emoji: '🪙', color: '#ffd700' }, // single coin id; tier derived from value
+  '-1': { name: 'Empty', emoji: '', color: '#444444' }, // Dark Grey
 };
 
 const TIER_COLOR = {
@@ -73,19 +63,31 @@ const TIER_COLOR = {
   gold: '#ffd700',
 };
 
-// Human summary of the backend's modifier decision (target coin + before/after).
+const TIER_EMOJI = {
+  bronze: '🥉',
+  silver: '🥈',
+  gold: '🥇',
+};
+
+// features.coins carries only the value; the client derives the tier by threshold
+// (silver >= 10, gold >= 50, else bronze).
+const EMPTY_CELL = -1;
+const tierOf = (value) => (value >= 50 ? 'gold' : value >= 10 ? 'silver' : 'bronze');
+
+// Human summary of the backend's modifier decision. Empty modifiers are omitted from
+// features entirely, so `mod` is undefined when nothing fired.
 function modifierSummary(mod) {
-  if (!mod || mod.kind === 'empty') return '— no modifier';
+  if (!mod) return '— no modifier';
   if (mod.kind === 'multiplier') {
-    return `✖️ ×${mod.value} on cell ${mod.target}: ${mod.beforeValue} → ${mod.afterValue}`;
+    return `✖️ ×${mod.multiplier} on cell ${mod.target} → ${mod.valueAfter}`;
   }
   if (mod.kind === 'collector') {
-    return `🧲 Collector → cell ${mod.target}: absorbed ${mod.absorbed.length} (= ${mod.afterValue})`;
+    return `🧲 Collector → cell ${mod.target} = ${mod.valueAfter}`;
   }
   return mod.kind;
 }
 
-const cellEmoji = (id) => EMOJI[id] ?? String(id ?? '');
+const cellEmoji = (id) => SYMBOLS[id]?.emoji ?? String(id ?? '');
 
 function Cell(props) {
   return (
@@ -95,7 +97,7 @@ function Cell(props) {
         background:${props.win ? 'rgba(34,197,94,0.28)' : 'rgba(255,255,255,0.05)'};
         border:1px solid ${props.win ? '#4ade80' : 'rgba(255,255,255,0.1)'};
         box-shadow:${props.win ? '0 0 14px rgba(34,197,94,0.4)' : 'none'};`}
-      title={SYMBOLS[props.id] ?? String(props.id)}
+      title={SYMBOLS[props.id]?.name ?? String(props.id)}
     >
       {cellEmoji(props.id)}
     </div>
@@ -135,29 +137,23 @@ function BaseBoard(props) {
 }
 
 function BonusCoinCell(props) {
-  // props.coin: { value, tier, isNew } | undefined ; props.isTarget: boolean
-  const coin = () => props.coin;
-  const tierColor = () => (coin() ? TIER_COLOR[coin().tier] : 'rgba(255,255,255,0.1)');
-  const border = () =>
-    props.isTarget
-      ? '#ffffff'
-      : coin()?.isNew
-        ? '#4ade80'
-        : coin()
-          ? tierColor()
-          : 'rgba(255,255,255,0.1)';
+  // props.value: coin value or -1 (empty) ; props.isTarget: boolean
+  const has = () => props.value > EMPTY_CELL;
+  const tier = () => tierOf(props.value);
+  const tierColor = () => (has() ? TIER_COLOR[tier()] : 'rgba(255,255,255,0.1)');
+  const border = () => (props.isTarget ? '#ffffff' : has() ? tierColor() : 'rgba(255,255,255,0.1)');
   return (
     <div
       style={`width:64px;height:64px;display:flex;flex-direction:column;align-items:center;
         justify-content:center;border-radius:12px;transition:all .15s;
-        background:${coin() ? `${tierColor()}22` : 'rgba(255,255,255,0.04)'};
+        background:${has() ? `${tierColor()}22` : 'rgba(255,255,255,0.04)'};
         border:2px solid ${border()};
-        box-shadow:${props.isTarget ? '0 0 16px rgba(255,255,255,0.6)' : coin()?.isNew ? '0 0 12px rgba(34,197,94,0.5)' : 'none'};`}
-      title={coin() ? `${coin().tier} coin: ${coin().value}` : 'empty'}
+        box-shadow:${props.isTarget ? '0 0 16px rgba(255,255,255,0.6)' : 'none'};`}
+      title={has() ? `${tier()} coin: ${props.value}` : 'empty'}
     >
-      <Show when={coin()}>
-        <span style={`font-size:18px;`}>{cellEmoji(coin().ordinal)}</span>
-        <span style={`font-size:13px;font-weight:900;color:${tierColor()};`}>{coin().value}</span>
+      <Show when={has()}>
+        <span style={`font-size:18px;`}>{TIER_EMOJI[tier()]}</span>
+        <span style={`font-size:13px;font-weight:900;color:${tierColor()};`}>{props.value}</span>
       </Show>
     </div>
   );
@@ -165,13 +161,10 @@ function BonusCoinCell(props) {
 
 function BonusBoard(props) {
   const lives = createMemo(() => props.features.livesAfter ?? 0);
-  const mod = createMemo(() => props.features.modifier || { kind: 'empty' });
-  const coinByIndex = createMemo(() => {
-    const m = new Map();
-    (props.features.coins || []).forEach((c) => m.set(c.index, c));
-    return m;
-  });
-  const targetIndex = createMemo(() => ('target' in mod() ? mod().target : -1));
+  const mod = createMemo(() => props.features.modifier); // undefined when empty
+  // features.coins is a full 20-cell value array (column-first, -1 = empty).
+  const coinValues = createMemo(() => props.features.coins || []);
+  const targetIndex = createMemo(() => (mod() && 'target' in mod() ? mod().target : -1));
 
   return (
     <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
@@ -180,9 +173,7 @@ function BonusBoard(props) {
           {'❤️'.repeat(lives())}
           {'🖤'.repeat(Math.max(0, 3 - lives()))}
         </div>
-        <Badge color={mod().kind === 'empty' ? '#64748b' : '#f59e0b'}>
-          {modifierSummary(mod())}
-        </Badge>
+        <Badge color={mod() ? '#f59e0b' : '#64748b'}>{modifierSummary(mod())}</Badge>
       </div>
 
       <div
@@ -197,7 +188,10 @@ function BonusBoard(props) {
             const col = i() % BONUS_COLS;
             const index = col * BONUS_ROWS + row;
             return (
-              <BonusCoinCell coin={coinByIndex().get(index)} isTarget={index === targetIndex()} />
+              <BonusCoinCell
+                value={coinValues()[index] ?? EMPTY_CELL}
+                isTarget={index === targetIndex()}
+              />
             );
           }}
         </For>
@@ -250,16 +244,7 @@ export default {
   scatterSymbolId: 11,
   wildSymbolId: 0, // Olympus has no wild; kept for registry shape only
 
-  symbols: SYMBOLS,
-  emojis: EMOJI,
-  colors: {
-    11: '#fbbf24',
-    12: '#f59e0b',
-    50: '#f59e0b',
-    100: '#cd7f32',
-    101: '#c0c0c0',
-    102: '#ffd700',
-  },
+  symbols: SYMBOLS, // unified { name, emoji, color }; store derives legacy emoji/color maps
 
   defaultRequestBody: {
     betAmount: 20,
@@ -273,12 +258,13 @@ export default {
   winCap: 5000,
 
   hooks: {
-    // Base line win comes from payouts. Bonus fields carry a CUMULATIVE grid total,
-    // so they contribute 0 here (the headline round win uses summary.coins, which
-    // already includes the bonus) — this avoids double-counting the running total.
+    // Base line win comes from the payout (bet-scaled). The bonus aggregate payout
+    // (oak === -1) carries the RAW grid total, not the bet-scaled win, so it is skipped
+    // here — the headline round win comes from summary.coins.
     computeFieldWin(field) {
       const payouts = field?.symbols?.payouts || [];
       if (payouts.length === 0) return 0;
+      if (payouts.some((p) => p.oak === -1)) return 0; // bonus settles via summary.coins
       return payouts.reduce((acc, p) => acc + parseFloat(p.coins ?? p.payoutCoins ?? 0), 0);
     },
   },
