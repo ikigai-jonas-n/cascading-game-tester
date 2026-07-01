@@ -9,8 +9,8 @@ import { createMemo, Show, For, Index } from 'solid-js';
  *             field.symbols.payouts holds the line win; features = { multiplier,
  *             triggerFreeSpin }.
  *   - BONUS : 20 cells = the 5x4 sticky Divine Coin Collect grid. field.coins =
- *             running grid total (cumulative). features = { livesAfter, coins,
- *             modifier? } where `coins` is a 20-cell COLUMN-FIRST value array (-1 =
+ *             running grid total (cumulative). features = { lives, coinValues,
+ *             modifier? } where `coinValues` is a 20-cell COLUMN-FIRST value array (-1 =
  *             empty, else the coin value; tier is derived by threshold). `modifier`
  *             is present only when one fired: { kind:'multiplier', multiplier, target,
  *             valueAfter } | { kind:'collector', multiplier:-1, target, valueAfter }.
@@ -20,7 +20,7 @@ import { createMemo, Show, For, Index } from 'solid-js';
  * INDEXING (both boards): flat arrays are COLUMN-FIRST. index = col * rows + row,
  * so col 0 occupies indices 0..rows-1. To map an index back to a cell:
  *   col = Math.floor(index / rows);  row = index % rows.
- * Every flat index (symbols.final, features.coins, modifier.target, payouts.positions)
+ * Every flat index (symbols.final, features.coinValues, modifier.target, payouts.positions)
  * uses this same convention.
  *
  * TWO-REQUEST flow: when the base spin triggers the bonus, the base response comes
@@ -68,7 +68,7 @@ const TIER_EMOJI = {
   gold: '🥇',
 };
 
-// features.coins carries only the value; the client derives the tier by threshold
+// features.coinValues carries only the value; the client derives the tier by threshold
 // (silver >= 10, gold >= 50, else bronze).
 const EMPTY_CELL = -1;
 const tierOf = (value) => (value >= 50 ? 'gold' : value >= 10 ? 'silver' : 'bronze');
@@ -159,10 +159,12 @@ function BonusCoinCell(props) {
 }
 
 function BonusBoard(props) {
-  const lives = createMemo(() => props.features.livesAfter ?? 0);
+  // Canonical FG feature shape: { lives, coinValues }. Legacy { livesAfter, coins }
+  // kept as fallback so older exports still render.
+  const lives = createMemo(() => props.features.lives ?? props.features.livesAfter ?? 0);
   const mod = createMemo(() => props.features.modifier); // undefined when empty
-  // features.coins is a full 20-cell value array (column-first, -1 = empty).
-  const coinValues = createMemo(() => props.features.coins || []);
+  // Full 20-cell value array (column-first, -1 = empty).
+  const coinValues = createMemo(() => props.features.coinValues || props.features.coins || []);
   const targetIndex = createMemo(() => (mod() && 'target' in mod() ? mod().target : -1));
 
   return (
