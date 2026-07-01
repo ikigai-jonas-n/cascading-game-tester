@@ -39,7 +39,6 @@ const BASE_CELLS = 4; // 3 main reels + modifier reel
 // (gameStore.js) derives the legacy emoji/color maps from this, so games no longer
 // declare separate SYMBOLS / EMOJI / colors objects.
 const SYMBOLS = {
-  0: { name: 'Wild', emoji: '🃏', color: '#9e9e9e' }, // unused by Olympus, kept for registry shape
   1: { name: 'Diamond', emoji: '💎', color: '#26c6da' }, // Cyan
   2: { name: 'Seven', emoji: '7️⃣', color: '#ef5350' }, // Red
   3: { name: 'Bell', emoji: '🔔', color: '#fbc02d' }, // Gold
@@ -242,7 +241,7 @@ export default {
   grid: { rows: BONUS_ROWS, cols: BONUS_COLS }, // bonus shape; base is handled by the custom board
   emptySymbolId: -1,
   scatterSymbolId: 11,
-  wildSymbolId: 0, // Olympus has no wild; kept for registry shape only
+  wildSymbolId: null, // Olympus has no wild (null is falsy → getSpinStats skips wild math)
 
   symbols: SYMBOLS, // unified { name, emoji, color }; store derives legacy emoji/color maps
 
