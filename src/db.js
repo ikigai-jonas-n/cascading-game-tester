@@ -400,44 +400,59 @@ export async function searchEntireDb(filters, gameConfig, limit = 2000, signal =
 export async function iterateDb(exportMode, filters, gameConfig, callback) {
   await open();
   const { FILTER_DEFS } = await import('./filters.js');
+  let nextKey = null;
 
-  return new Promise((resolve, reject) => {
-    const store = getStore('readonly');
-    const req = store.openCursor(null, 'prev');
-    const chunk = [];
+  // NOTE: never await inside an IDB request's onsuccess — a transaction auto-commits
+  // the instant control returns to the event loop with no pending request, so calling
+  // cursor.continue() after an await throws TransactionInactiveError. Each batch below
+  // runs inside its own short-lived transaction; the callback (and any yielding) happens
+  // strictly between transactions, resuming the next one via a key-range cursor.
+  while (true) {
+    const { matched, next, done } = await new Promise((resolve, reject) => {
+      const store = getStore('readonly');
+      const range = nextKey !== null ? IDBKeyRange.upperBound(nextKey, true) : null;
+      const req = store.openCursor(range, 'prev');
+      const matched = [];
+      let lastKey = null;
 
-    req.onsuccess = async (e) => {
-      const cursor = e.target.result;
-      if (!cursor) {
-        if (chunk.length > 0) await callback(chunk);
-        return resolve();
-      }
-
-      const spin = cursor.value;
-      let isMatch = true;
-
-      if (exportMode === 'filtered') {
-        // Enforce Game Isolation for filtered exports
-        if (spin.gameId !== gameConfig.id) {
-          isMatch = false;
-        } else if (filters && filters.length > 0) {
-          isMatch = filters.every((af) => {
-            if (af.disabled) return true;
-            const def = FILTER_DEFS.find((d) => d.id === af.id);
-            return def ? def.apply(spin, af.value, gameConfig) : true;
-          });
+      req.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (!cursor) {
+          resolve({ matched, next: null, done: true });
+          return;
         }
-      } // If exportMode === 'all', isMatch remains true for EVERY game!
 
-      if (isMatch) chunk.push(spin);
+        const spin = cursor.value;
+        lastKey = cursor.key;
+        let isMatch = true;
 
-      if (chunk.length >= 500) {
-        await callback([...chunk]);
-        chunk.length = 0;
-      }
+        if (exportMode === 'filtered') {
+          // Enforce Game Isolation for filtered exports
+          if (spin.gameId !== gameConfig.id) {
+            isMatch = false;
+          } else if (filters && filters.length > 0) {
+            isMatch = filters.every((af) => {
+              if (af.disabled) return true;
+              const def = FILTER_DEFS.find((d) => d.id === af.id);
+              return def ? def.apply(spin, af.value, gameConfig) : true;
+            });
+          }
+        } // If exportMode === 'all', isMatch remains true for EVERY game!
 
-      cursor.continue();
-    };
-    req.onerror = (e) => reject(e.target.error);
-  });
+        if (isMatch) matched.push(spin);
+
+        if (matched.length >= 500) {
+          resolve({ matched, next: lastKey, done: false });
+        } else {
+          cursor.continue();
+        }
+      };
+      req.onerror = (e) => reject(e.target.error);
+    });
+
+    if (matched.length > 0) await callback(matched);
+    if (done) return;
+    nextKey = next;
+    await new Promise((r) => setTimeout(r, 0)); // yield to the UI thread between transactions
+  }
 }

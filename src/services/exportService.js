@@ -38,6 +38,7 @@ function getOptimizedEntry(entry) {
 
 export async function exportDataDirectFromDb(defaultFileName, exportMode, isMapped = false) {
   showLoading('Preparing Export...', 0);
+  let writable = null;
   try {
     const { decompressData } = await import('../db.js');
     let processedCount = 0;
@@ -69,7 +70,6 @@ export async function exportDataDirectFromDb(defaultFileName, exportMode, isMapp
       footer = ']}';
     }
 
-    let writable = null;
     let blobParts = [];
     let useFileSystem = !!window.showSaveFilePicker;
 
@@ -85,6 +85,14 @@ export async function exportDataDirectFromDb(defaultFileName, exportMode, isMapp
       if (e.name === 'AbortError') {
         hideLoading();
         return;
+      }
+      // The file handle may already be open (write(header) failed after createWritable
+      // succeeded) — abort it so we don't leave a truncated/empty file on disk.
+      if (writable) {
+        try {
+          await writable.abort();
+        } catch {}
+        writable = null;
       }
       useFileSystem = false;
       blobParts.push(header);
@@ -144,6 +152,13 @@ export async function exportDataDirectFromDb(defaultFileName, exportMode, isMapp
     setTimeout(hideLoading, 1500);
   } catch (e) {
     console.error('Export failed', e);
+    // File System Access writes are buffered until close() — if the export threw after
+    // opening the handle, the on-disk file would otherwise be left empty/truncated.
+    if (writable) {
+      try {
+        await writable.abort();
+      } catch {}
+    }
     alert('Export failed: ' + e.message);
     hideLoading();
   }

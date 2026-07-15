@@ -166,6 +166,7 @@ export async function autoDetectBackend() {
   if (window.location.hostname === 'localhost' && !localStorage.getItem('api_url')) {
     try {
       const resp = await fetch('/api/ip');
+      if (!resp.ok || !resp.headers.get('content-type')?.includes('application/json')) return;
       const { ip } = await resp.json();
       if (ip && ip !== '127.0.0.1') {
         const url = `http://${ip}:9000`;
@@ -251,7 +252,21 @@ export async function loadDefaultData(manual = false) {
       return;
     }
 
-    const firstData = await resp.json();
+    const rawText = await resp.text();
+    if (!rawText.trim()) {
+      hideLoading();
+      return;
+    }
+
+    let firstData;
+    try {
+      firstData = JSON.parse(rawText);
+    } catch (parseErr) {
+      console.error('default_data.json is not valid JSON:', parseErr);
+      hideLoading();
+      return;
+    }
+
     const allHistory = firstData.h || [];
 
     if (firstData.f && (activeFilters.length === 0 || manual)) {
