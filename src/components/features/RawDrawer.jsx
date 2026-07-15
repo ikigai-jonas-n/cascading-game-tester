@@ -2,8 +2,10 @@ import { createMemo, For, Show } from 'solid-js';
 import { rawDrawerTabs, rawDrawerActiveTab, rightPanelFontSize } from '../../store/uiStore.js';
 import { selectDrawerTab } from '../../services/drawerService.js';
 import { game } from '../../store/gameStore.js';
-import { gameState } from '../../store/sessionStore.js';
+import { gameState, currentSpinIndex } from '../../store/sessionStore.js';
 import { selectTumble } from '../../services/spinService.js';
+import { activeFilters, globalHistory } from '../../store/historyStore.js';
+import { evalFeatureMatchPairs } from '../../filters.js';
 
 export default function RawDrawer() {
   const activeTab = createMemo(() => rawDrawerTabs()[rawDrawerActiveTab()]);
@@ -214,9 +216,98 @@ function TabContent(props) {
     );
   }
 
+  if (tab.label === 'FEATURES' || tab.label === 'FULL_JSON' || tab.label.startsWith('TUMBLE_')) {
+    return <HighlightedJsonView data={tab.data} />;
+  }
+
   return (
     <pre style="margin:0;white-space:pre;overflow-x:auto;line-height:1.7;" tabIndex={0}>
       {JSON.stringify(tab.data, null, 2)}
     </pre>
+  );
+}
+
+/** Every active featureMatch condition currently satisfied, for the tumble on screen */
+function getActiveFeatureMatchHits() {
+  const currentSpin = globalHistory[currentSpinIndex()];
+  const field = currentSpin?.fields?.[gameState.currentIndex];
+  if (!field?.features) return [];
+  const isFreeSpin = !!currentSpin?.fieldMetadata?.[gameState.currentIndex]?.isFreeSpin;
+
+  const hits = [];
+  for (const af of activeFilters) {
+    if (af.disabled || af.id !== 'featureMatch') continue;
+    const pairs = af.value?.pairs || [];
+    if (!pairs.length) continue;
+    const scope = af.value?.scope || 'any';
+    if (scope === 'base' && isFreeSpin) continue;
+    if (scope === 'free' && !isFreeSpin) continue;
+
+    const { details } = evalFeatureMatchPairs(field.features, pairs);
+    hits.push(...details.filter((d) => d.ok));
+  }
+  return hits;
+}
+
+const JSON_LEAF_LINE = /^(\s*)"([^"]+)":\s*(.*?)(,?)\s*$/;
+
+/**
+ * Pretty-print any JSON value as lines, highlighting leaves whose key + value
+ * match an active Feature Match hit — works for FEATURES, TUMBLE_X_FIELD, and
+ * FULL_JSON alike since it only inspects each printed leaf line, not a path.
+ */
+function HighlightedJsonView(props) {
+  const hits = createMemo(() => getActiveFeatureMatchHits());
+
+  const lines = createMemo(() => {
+    const json = JSON.stringify(props.data, null, 2);
+    const activeHits = hits();
+    if (!activeHits.length) return json.split('\n').map((text) => ({ text, hit: null }));
+
+    return json.split('\n').map((text) => {
+      const m = text.match(JSON_LEAF_LINE);
+      if (!m) return { text, hit: null };
+      const [, , key, rawValue] = m;
+      const hit = activeHits.find((h) => h.key === key || h.key.endsWith(`.${key}`));
+      if (hit && rawValue === JSON.stringify(hit.actual)) return { text, hit };
+      return { text, hit: null };
+    });
+  });
+
+  return (
+    <div>
+      <pre
+        style="margin:0;white-space:pre;overflow-x:auto;line-height:1.7;color:#ce9178;"
+        tabIndex={0}
+      >
+        <For each={lines()}>
+          {(line) => (
+            <div
+              style={
+                line.hit
+                  ? 'background:rgba(217,70,239,0.2);color:#e879f9;font-weight:800;border-radius:3px;'
+                  : undefined
+              }
+              title={line.hit ? `🎯 Matches Feature Match filter (${line.hit.key})` : undefined}
+            >
+              {line.text}
+            </div>
+          )}
+        </For>
+      </pre>
+      <Show when={hits().length > 0}>
+        <div style="margin-top:10px;padding-top:8px;border-top:1px dashed rgba(255,255,255,0.1);font-size:9.5px;color:#e879f9;font-weight:700;">
+          🎯 Matches active Feature Match filter:{' '}
+          <For each={hits()}>
+            {(h, i) => (
+              <span>
+                {i() > 0 ? ' · ' : ''}
+                {h.key} = {JSON.stringify(h.actual)}
+              </span>
+            )}
+          </For>
+        </div>
+      </Show>
+    </div>
   );
 }

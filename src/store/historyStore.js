@@ -12,8 +12,15 @@ import { game } from './gameStore.js';
 /** Full in-RAM history for the active game (capped at MAX_RAM_HISTORY) */
 export const [globalHistory, setGlobalHistory] = createStore([]);
 
-/** Active filter definitions */
-export const [activeFilters, setActiveFilters] = createStore([]);
+/** Active filter definitions (persisted across refreshes) */
+function loadStoredFilters() {
+  try {
+    return JSON.parse(localStorage.getItem('active_filters')) || [];
+  } catch {
+    return [];
+  }
+}
+export const [activeFilters, setActiveFilters] = createStore(loadStoredFilters());
 
 /** The sorted+filtered view — rebuilt on every filter/sort change */
 export const [currentSortedList, setCurrentSortedList] = createSignal([]);
@@ -33,6 +40,7 @@ export const [lastLoadedKey, setLastLoadedKey] = createSignal(null);
 
 /** Recompute currentSortedList from globalHistory + activeFilters + sortField */
 export function rebuildSortedList() {
+  localStorage.setItem('active_filters', JSON.stringify(activeFilters));
   const filtered = applyFilters(globalHistory, activeFilters, game());
   const sorted = [...filtered].sort((a, b) => {
     switch (sortField()) {

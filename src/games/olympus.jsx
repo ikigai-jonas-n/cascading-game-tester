@@ -6,8 +6,9 @@ import { createMemo, Show, For, Index } from 'solid-js';
  * Two very different boards in one round, so we use a custom GameBoard and branch
  * on the field shape (the response shape differs per phase too):
  *   - BASE  : 4 cells = reels 1-3 (single fixed line) + the modifier reel (reel 4).
- *             field.symbols.payouts holds the line win; features = { multiplier,
- *             triggerFreeSpin }.
+ *             field.symbols.payouts holds the line win; features (fixed shape) =
+ *             { multiplier (1 = none/1x), triggerFreeSpin, nearMissNudge }. The
+ *             modifier reel always carries a value (ordinal 50 @ x1 = "empty"), never -1.
  *   - BONUS : 20 cells = the 5x4 sticky Divine Coin Collect grid. field.coins =
  *             running grid total (cumulative). features = { lives, coinValues,
  *             modifier? } where `coinValues` is a 20-cell COLUMN-FIRST value array (-1 =
@@ -39,21 +40,24 @@ const BASE_CELLS = 4; // 3 main reels + modifier reel
 // (gameStore.js) derives the legacy emoji/color maps from this, so games no longer
 // declare separate SYMBOLS / EMOJI / colors objects.
 const SYMBOLS = {
-  1: { name: 'Diamond', emoji: '💎', color: '#26c6da' }, // Cyan
-  2: { name: 'Seven', emoji: '7️⃣', color: '#ef5350' }, // Red
-  3: { name: 'Bell', emoji: '🔔', color: '#fbc02d' }, // Gold
-  4: { name: 'Grape', emoji: '🍇', color: '#ab47bc' }, // Purple
-  5: { name: 'Lemon', emoji: '🍋', color: '#ffeb3b' }, // Yellow
-  6: { name: 'Diamond x2', emoji: '💎²', color: '#0097a7' }, // Deep Cyan
-  7: { name: 'Seven x2', emoji: '7️⃣²', color: '#c62828' }, // Deep Red
-  8: { name: 'Bell x2', emoji: '🔔²', color: '#f9a825' }, // Amber
-  9: { name: 'Grape x2', emoji: '🍇²', color: '#6a1b9a' }, // Deep Purple
-  10: { name: 'Lemon x2', emoji: '🍋²', color: '#c0ca33' }, // Lime
-  11: { name: 'Scatter', emoji: '⭐', color: '#fbbf24' }, // Yellow Gold
-  12: { name: 'Super Scatter', emoji: '🌟', color: '#f59e0b' }, // Orange
-  50: { name: 'Multiplier', emoji: '✖️', color: '#ef5350' }, // Red
-  100: { name: 'Coin', emoji: '🪙', color: '#ffd700' }, // single coin id; tier derived from value
-  '-1': { name: 'Empty', emoji: '', color: '#444444' }, // Dark Grey
+  1: { name: 'Diamond', emoji: '💎', color: '#26c6da' }, // H1
+  2: { name: 'Seven', emoji: '7️⃣', color: '#ef5350' }, // H2
+  3: { name: 'Bell', emoji: '🔔', color: '#fbc02d' }, // L3
+  4: { name: 'Grape', emoji: '🍇', color: '#ab47bc' }, // L4
+  5: { name: 'Lemon', emoji: '🍋', color: '#ffeb3b' }, // L5
+  6: { name: 'Scatter', emoji: '⭐', color: '#fbbf24' }, // SCATTER (shifted to 6)
+
+  11: { name: 'Diamond x2', emoji: '💎²', color: '#0097a7' }, // Double H1 (+10)
+  12: { name: 'Seven x2', emoji: '7️⃣²', color: '#c62828' }, // Double H2 (+10)
+  13: { name: 'Bell x2', emoji: '🔔²', color: '#f9a825' }, // Double L3 (+10)
+  14: { name: 'Grape x2', emoji: '🍇²', color: '#6a1b9a' }, // Double L4 (+10)
+  15: { name: 'Lemon x2', emoji: '🍋²', color: '#c0ca33' }, // Double L5 (+10)
+  16: { name: 'Super Scatter', emoji: '🌟', color: '#f59e0b' }, // Super Scatter (+10)
+
+  50: { name: 'Multiplier', emoji: '✖️', color: '#ef5350' },
+  51: { name: 'Collector', emoji: '🧲', color: '#ab47bc' }, // New Collector ID
+  100: { name: 'Coin', emoji: '🪙', color: '#ffd700' },
+  '-1': { name: 'Empty', emoji: '', color: '#444444' },
 };
 
 const TIER_COLOR = {
@@ -129,6 +133,10 @@ function BaseBoard(props) {
         </Show>
         <Show when={props.features.triggerFreeSpin}>
           <Badge color="#a855f7">🏛️ Bonus Triggered → Free Game</Badge>
+        </Show>
+        {/* Render the new Nudge / Near Miss feature dynamically! */}
+        <Show when={props.features.nearMissNudge}>
+          <Badge color="#3b82f6">👀 Near Miss / Nudge Active</Badge>
         </Show>
       </div>
     </div>
@@ -242,7 +250,7 @@ export default {
 
   grid: { rows: BONUS_ROWS, cols: BONUS_COLS }, // bonus shape; base is handled by the custom board
   emptySymbolId: -1,
-  scatterSymbolId: 11,
+  scatterSymbolId: 6,
   wildSymbolId: null, // Olympus has no wild (null is falsy → getSpinStats skips wild math)
 
   symbols: SYMBOLS, // unified { name, emoji, color }; store derives legacy emoji/color maps

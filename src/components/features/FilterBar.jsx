@@ -1,4 +1,5 @@
 import { createSignal, For, Show } from 'solid-js';
+import { createStore } from 'solid-js/store';
 import { FILTER_DEFS, WIN_OPERATORS } from '../../filters.js';
 import {
   activeFilters,
@@ -24,9 +25,13 @@ export default function FilterBar() {
   const [pendingSymId, setPendingSymId] = createSignal('');
   const [pendingSymCount, setPendingSymCount] = createSignal(1);
   const [pendingMulti, setPendingMulti] = createSignal([]);
+  const [pendingPairs, setPendingPairs] = createStore([{ key: '', val: '' }]);
+  const [pendingScope, setPendingScope] = createSignal('any');
+  const [editIdx, setEditIdx] = createSignal(null);
 
   function resetPending() {
     setPendingFilter(null);
+    setEditIdx(null);
     setPendingOp('>');
     setPendingNum('');
     setPendingText('');
@@ -35,20 +40,61 @@ export default function FilterBar() {
     setPendingSymId('');
     setPendingSymCount(1);
     setPendingMulti([]);
+    setPendingPairs([{ key: '', val: '' }]);
+    setPendingScope('any');
   }
 
-  function openFilterInput(def) {
+  function updatePendingPair(i, field, value) {
+    setPendingPairs(i, field, value);
+  }
+
+  function addPendingPairRow() {
+    setPendingPairs(pendingPairs.length, { key: '', val: '' });
+  }
+
+  function removePendingPairRow(i) {
+    if (pendingPairs.length <= 1) return;
+    setPendingPairs((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  function openFilterInput(def, existingIdx = null) {
     setDropdownOpen(false);
+    const existingValue = existingIdx !== null ? activeFilters[existingIdx]?.value : undefined;
+
     if (def.type === 'toggle') {
-      commitFilter(def, true);
+      if (existingIdx === null) commitFilter(def, true);
       return;
     }
+
     resetPending();
-    if (def.type === 'select' && def.options?.length) setPendingSelect(def.options[0].value);
-    if (def.type === 'symbolCount') {
+    setEditIdx(existingIdx);
+
+    if (def.type === 'select') {
+      setPendingSelect(existingValue ?? def.options?.[0]?.value ?? '');
+    } else if (def.type === 'symbolCount') {
       const syms = Object.keys(game().symbols || {});
-      if (syms.length) setPendingSymId(syms[0]);
+      setPendingSymId(existingValue?.symId ?? syms[0] ?? '');
+      setPendingSymCount(existingValue?.count ?? 1);
+    } else if (def.type === 'condition') {
+      setPendingOp(existingValue?.op ?? '>');
+      setPendingNum(existingValue?.num ?? '');
+    } else if (def.type === 'number') {
+      setPendingNum(existingValue ?? '');
+    } else if (def.type === 'text') {
+      setPendingText(existingValue ?? '');
+    } else if (def.type === 'date') {
+      setPendingDate(existingValue ?? '');
+    } else if (def.type === 'multiselect') {
+      setPendingMulti(existingValue ? [...existingValue] : []);
+    } else if (def.type === 'featureMatch') {
+      setPendingPairs(
+        existingValue?.pairs?.length
+          ? existingValue.pairs.map((p) => ({ ...p }))
+          : [{ key: '', val: '' }],
+      );
+      setPendingScope(existingValue?.scope || 'any');
     }
+
     setPendingFilter(def);
   }
 
@@ -69,9 +115,21 @@ export default function FilterBar() {
     else if (def.type === 'symbolCount')
       value = { symId: pendingSymId(), count: parseInt(pendingSymCount()) || 1 };
     else if (def.type === 'multiselect') value = [...pendingMulti()];
-    else return;
+    else if (def.type === 'featureMatch') {
+      const pairs = pendingPairs
+        .map((p) => ({ key: p.key.trim(), val: p.val.trim() }))
+        .filter((p) => p.key);
+      if (!pairs.length) return;
+      value = { pairs, scope: pendingScope() };
+    } else return;
 
-    await commitFilter(def, value);
+    const idx = editIdx();
+    if (idx !== null) {
+      setActiveFilters(idx, 'value', value);
+      await triggerFilterUpdate();
+    } else {
+      await commitFilter(def, value);
+    }
     resetPending();
   }
 
@@ -113,13 +171,14 @@ export default function FilterBar() {
                 const k = af.value;
                 const entry = game().symbols?.[k];
                 const emoji = typeof entry === 'object' ? entry.emoji : '';
-                const name  = typeof entry === 'object' ? entry.name  : (entry || k);
+                const name = typeof entry === 'object' ? entry.name : entry || k;
                 displayValue = `${emoji} ${name}`;
               } else if (def.type === 'condition') {
                 displayValue = `${af.value?.op} ${af.value?.num}`;
               } else if (def.type === 'symbolCount') {
                 const symEntry = game().symbols?.[af.value?.symId];
-                const emoji = typeof symEntry === 'object' ? symEntry.emoji : (symEntry || af.value?.symId);
+                const emoji =
+                  typeof symEntry === 'object' ? symEntry.emoji : symEntry || af.value?.symId;
                 displayValue = `${emoji} ×${af.value?.count}`;
               } else if (def.type === 'multiselect') {
                 displayValue = Array.isArray(af.value) ? af.value.join(', ') : af.value;
@@ -141,7 +200,15 @@ export default function FilterBar() {
                     {def.label}
                   </span>
                   <Show when={displayValue !== ''}>
-                    <span class="filter-chip-value">{displayValue}</span>
+                    <span
+                      class="filter-chip-value editable"
+                      role="button"
+                      tabindex="0"
+                      title="Click to edit"
+                      onClick={() => openFilterInput(def, idx())}
+                    >
+                      {displayValue}
+                    </span>
                   </Show>
                   <span
                     class="filter-chip-remove"
@@ -180,7 +247,10 @@ export default function FilterBar() {
               <For each={FILTER_DEFS}>
                 {(def) => {
                   const stackable =
-                    def.id === 'text' || def.id === 'winCondition' || def.id === 'hasSymbol';
+                    def.id === 'text' ||
+                    def.id === 'winCondition' ||
+                    def.id === 'hasSymbol' ||
+                    def.id === 'featureMatch';
                   if (!stackable && activeFilters.some((af) => af.id === def.id)) return null;
                   return (
                     <div class="dropdown-item" onClick={() => openFilterInput(def)}>
@@ -286,7 +356,7 @@ export default function FilterBar() {
               <For each={Object.entries(game().symbols || {})}>
                 {([id, entry]) => {
                   const emoji = typeof entry === 'object' ? entry.emoji : '';
-                  const name  = typeof entry === 'object' ? entry.name  : entry;
+                  const name = typeof entry === 'object' ? entry.name : entry;
                   return (
                     <option value={id}>
                       {emoji} {name}
@@ -324,6 +394,60 @@ export default function FilterBar() {
                   </label>
                 )}
               </For>
+            </div>
+          </Show>
+
+          {/* featureMatch: stackable key/value conditions, AND'd on the same field */}
+          <Show when={pendingFilter().type === 'featureMatch'}>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <For each={pendingPairs}>
+                {(pair, i) => (
+                  <div style="display:flex; gap:6px; align-items:center;">
+                    <input
+                      type="text"
+                      placeholder="Key (e.g. modifier.multiplier)"
+                      value={pair.key}
+                      style="width:160px; padding:4px; font-size:11px; background:var(--bg-main); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;"
+                      onInput={(e) => updatePendingPair(i(), 'key', e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Value (true, false, undefined, 123)"
+                      value={pair.val}
+                      style="width:160px; padding:4px; font-size:11px; background:var(--bg-main); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;"
+                      onInput={(e) => updatePendingPair(i(), 'val', e.target.value)}
+                    />
+                    <span
+                      role="button"
+                      aria-label="Remove condition"
+                      style="cursor:pointer; color:var(--text-muted); font-size:14px; padding:0 4px;"
+                      onClick={() => removePendingPairRow(i())}
+                    >
+                      ×
+                    </span>
+                  </div>
+                )}
+              </For>
+              <button
+                class="btn-ghost"
+                style="padding:4px 8px; font-size:10px; align-self:flex-start;"
+                onClick={addPendingPairRow}
+              >
+                + Add Condition
+              </button>
+
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-size:10px; color:var(--text-muted);">Spin phase:</span>
+                <select
+                  style="padding:4px; font-size:11px; background:var(--bg-main); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;"
+                  value={pendingScope()}
+                  onChange={(e) => setPendingScope(e.target.value)}
+                >
+                  <option value="any">Any</option>
+                  <option value="base">BaseSpin</option>
+                  <option value="free">FreeSpin</option>
+                </select>
+              </div>
             </div>
           </Show>
 

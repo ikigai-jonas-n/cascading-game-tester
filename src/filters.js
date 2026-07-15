@@ -45,7 +45,96 @@ function evalCondition(actual, op, target) {
   }
 }
 
+/** Parse a feature-match value string into its real JS type */
+function parseFeatureTarget(val) {
+  if (val.toLowerCase() === 'true') return true;
+  if (val.toLowerCase() === 'false') return false;
+  if (val.toLowerCase() === 'undefined' || val === '') return undefined;
+  if (!isNaN(val)) return Number(val);
+  return val;
+}
+
+/** Resolve a dot-path (e.g. "modifier.multiplier") against an object */
+export function getAtPath(obj, path) {
+  return path
+    .split('.')
+    .reduce((o, key) => (o === undefined || o === null ? undefined : o[key]), obj);
+}
+
+/**
+ * Evaluate a set of { key, val } pairs against one field's `features` object.
+ * Returns { matched, details } where details = [{ key, target, actual, ok }] for every pair.
+ */
+export function evalFeatureMatchPairs(features, pairs) {
+  const details = (pairs || []).map(({ key, val }) => {
+    const target = parseFeatureTarget(val);
+    const actual = getAtPath(features, key);
+    const ok = target === undefined ? actual === undefined : actual === target;
+    return { key, target, actual, ok };
+  });
+  return { matched: details.length > 0 && details.every((d) => d.ok), details };
+}
+
+/**
+ * Find every field (tumble) in a spin that satisfies a featureMatch filter's pairs,
+ * respecting its scope ('any' | 'base' | 'free'). Returns [{ tIdx, details }].
+ */
+export function findFeatureMatchTumbles(spin, value) {
+  const pairs = value?.pairs || [];
+  const scope = value?.scope || 'any';
+  const hits = [];
+  if (!pairs.length || !spin?.fields) return hits;
+
+  for (let i = 0; i < spin.fields.length; i++) {
+    const field = spin.fields[i];
+    if (!field.features) continue;
+
+    if (scope !== 'any') {
+      const isFreeSpin = !!spin.fieldMetadata?.[i]?.isFreeSpin;
+      if (scope === 'base' && isFreeSpin) continue;
+      if (scope === 'free' && !isFreeSpin) continue;
+    }
+
+    const { matched, details } = evalFeatureMatchPairs(field.features, pairs);
+    if (matched) hits.push({ tIdx: i, details });
+  }
+  return hits;
+}
+
+/**
+ * Aggregate every enabled featureMatch filter's hits for a spin into a Map<tIdx, details[]>,
+ * for UI highlighting (which tumble matched, and to what value).
+ */
+export function getFeatureMatchMap(spin, activeFilters) {
+  const map = new Map();
+  for (const af of activeFilters || []) {
+    if (af.disabled || af.id !== 'featureMatch') continue;
+    const hits = findFeatureMatchTumbles(spin, af.value);
+    hits.forEach(({ tIdx, details }) => {
+      const okDetails = details.filter((d) => d.ok);
+      if (!map.has(tIdx)) map.set(tIdx, []);
+      map.get(tIdx).push(...okDetails);
+    });
+  }
+  return map;
+}
+
 export const FILTER_DEFS = [
+  {
+    id: 'featureMatch',
+    label: 'Feature Match',
+    type: 'featureMatch', // Custom UI type we will build in main.js
+    // value = { pairs: [{ key, val }, ...], scope: 'any' | 'base' | 'free' }
+    // All pairs must match on the SAME field (AND). scope restricts which fields are searched.
+    // key supports dot-paths into nested objects, e.g. "modifier.multiplier".
+    formatValue: (v) => {
+      const pairs = v?.pairs || [];
+      if (!pairs.length) return 'Add';
+      const scopeLabel = v?.scope === 'base' ? ' [Base]' : v?.scope === 'free' ? ' [Free]' : '';
+      return pairs.map((p) => `${p.key}: ${p.val}`).join(' & ') + scopeLabel;
+    },
+    apply: (spin, value) => findFeatureMatchTumbles(spin, value).length > 0,
+  },
   {
     id: 'result',
     label: 'Result',

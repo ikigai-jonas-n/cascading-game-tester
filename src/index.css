@@ -510,6 +510,71 @@ select:focus, input:focus {
 .filter-chip-value.editable { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px; }
 .filter-chip-value.editable:hover { color: #fbbf24; }
 .filter-inline-option.active { background: rgba(245, 158, 11, 0.2); border-color: var(--bg-accent); color: var(--bg-accent); }
+
+.filter-inline-picker {
+  display: flex;
+  background: rgba(20, 20, 20, 0.98);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 10px;
+  gap: 6px;
+  position: relative;
+  z-index: 20;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.filter-inline-input,
+.filter-condition-input input,
+.filter-inline-picker input[type='text'],
+.filter-inline-picker input[type='number'] {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 11px;
+  padding: 6px 8px;
+  min-width: 0;
+}
+.filter-inline-input:focus {
+  outline: none;
+  border-color: var(--bg-accent);
+}
+
+.filter-inline-option,
+.filter-confirm-btn,
+.filter-cancel-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: #ddd;
+  font-size: 10px;
+  padding: 6px 10px;
+}
+.filter-inline-option:hover,
+.filter-confirm-btn:hover {
+  border-color: var(--bg-accent);
+  color: var(--bg-accent);
+}
+
+.filter-confirm-btn {
+  background: var(--bg-accent);
+  color: #000;
+  font-weight: 700;
+  border-color: var(--bg-accent);
+}
+.filter-confirm-btn:hover { background: var(--bg-accent-hover); color: #000; }
+
+.filter-cancel-btn:hover { border-color: var(--error); color: var(--error); }
+
+.filter-condition-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(20, 20, 20, 0.98);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 8px;
+}
 .filter-chip-remove {
   cursor: pointer;
   width: 16px;

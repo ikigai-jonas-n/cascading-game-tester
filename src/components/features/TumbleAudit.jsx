@@ -2,13 +2,15 @@ import { createMemo, For, Show, createSignal, onMount, onCleanup, createEffect }
 import { game, symbols } from '../../store/gameStore.js';
 import { gameState } from '../../store/sessionStore.js';
 import { selectTumble, computeFieldWin, isPayingField } from '../../services/spinService.js';
-import { updateSpin } from '../../store/historyStore.js';
+import { updateSpin, activeFilters } from '../../store/historyStore.js';
+import { getFeatureMatchMap } from '../../filters.js';
 
 const RENDER_LIMIT = 50;
 
 export default function TumbleAudit(props) {
   const spin = () => props.spin;
   const currentIdx = () => gameState.currentIndex;
+  const featureMatches = createMemo(() => getFeatureMatchMap(spin(), activeFilters));
 
   const fieldsToRender = createMemo(() => {
     const all = spin().fields || [];
@@ -73,6 +75,9 @@ export default function TumbleAudit(props) {
             (m) => m.playgroundIndex === round.pgIdx,
           );
           const hasCurrent = createMemo(() => round.tumbles.some((t) => t.tIdx === currentIdx()));
+          const roundMatchCount = createMemo(
+            () => round.tumbles.filter((t) => featureMatches().has(t.tIdx)).length,
+          );
           return (
             <div>
               <div
@@ -82,6 +87,14 @@ export default function TumbleAudit(props) {
                 onClick={() => toggleRound(round.pgIdx, firstTumbleIdx)}
               >
                 <span>{round.headerText}</span>
+                <Show when={roundMatchCount() > 0}>
+                  <span
+                    title={`${roundMatchCount()} tumble(s) match the active Feature Match filter(s)`}
+                    style="margin-left:8px; font-size:9px; font-weight:800; color:#fff; background:#d946ef; border-radius:8px; padding:1px 6px;"
+                  >
+                    🎯 {roundMatchCount()}
+                  </span>
+                </Show>
                 <Show when={round.statsText}>
                   <span style="font-size:9px; opacity:0.7; font-weight:normal; margin-left:auto; margin-right:12px;">
                     {round.statsText}
@@ -104,6 +117,7 @@ export default function TumbleAudit(props) {
                         tIdx={tIdx}
                         localIdx={localIdx}
                         isCurrent={tIdx === currentIdx()}
+                        matchInfo={featureMatches().get(tIdx)}
                       />
                     )}
                   </For>
@@ -136,7 +150,11 @@ export function TumbleRow(props) {
   }
 
   const isWinStep = createMemo(() => isPayingField(props.f, g()));
-  const hasWinStats = createMemo(() => isWinStep() || (Array.isArray(props.f.symbols?.payouts) && props.f.symbols.payouts.length > 0));
+  const hasWinStats = createMemo(
+    () =>
+      isWinStep() ||
+      (Array.isArray(props.f.symbols?.payouts) && props.f.symbols.payouts.length > 0),
+  );
   const effectiveWin = createMemo(() => computeFieldWin(props.f, g()));
 
   const goldenPositions = createMemo(() => props.f.features?.golden || []);
@@ -173,18 +191,21 @@ export function TumbleRow(props) {
       // const delay = isInitial ? 1 : 1;
 
       setTimeout(() => {
-        if (rowRef) rowRef.scrollIntoView({ behavior: isInitial ? 'auto' : 'smooth', block: 'nearest' });
+        if (rowRef)
+          rowRef.scrollIntoView({ behavior: isInitial ? 'auto' : 'smooth', block: 'nearest' });
         window.hasDoneInitialScroll = true;
       }, 1);
     }
   });
+
+  const hasMatch = createMemo(() => !!props.matchInfo?.length);
 
   return (
     <div
       ref={rowRef}
       data-tumble={props.tIdx}
       class={`glass ${props.isCurrent ? 'active-tumble-item' : ''}`}
-      style={`padding:8px; border-radius:8px; background:${props.isCurrent ? 'rgba(34,197,94,0.12)' : 'transparent'}; border:1px solid ${props.isCurrent ? 'rgba(34,197,94,0.4)' : 'transparent'}; cursor:pointer; margin-top:4px;`}
+      style={`padding:8px; border-radius:8px; background:${hasMatch() ? 'rgba(217,70,239,0.14)' : props.isCurrent ? 'rgba(34,197,94,0.12)' : 'transparent'}; border:1px solid ${hasMatch() ? 'rgba(217,70,239,0.6)' : props.isCurrent ? 'rgba(34,197,94,0.4)' : 'transparent'}; box-shadow:${hasMatch() ? '0 0 10px rgba(217,70,239,0.25)' : 'none'}; cursor:pointer; margin-top:4px;`}
       aria-pressed={props.isCurrent}
       onClick={(e) => {
         e.stopPropagation();
@@ -211,6 +232,19 @@ export function TumbleRow(props) {
           </span>
         </div>
       </div>
+
+      {/* Feature Match hit: show exactly what value matched */}
+      <Show when={hasMatch()}>
+        <div style="margin-top:4px; font-size:9.5px; color:#e879f9; font-weight:700; display:flex; flex-wrap:wrap; gap:6px;">
+          <For each={props.matchInfo}>
+            {(m) => (
+              <span title={`${m.key} matched ${JSON.stringify(m.target)}`}>
+                🎯 {m.key} = {JSON.stringify(m.actual)}
+              </span>
+            )}
+          </For>
+        </div>
+      </Show>
 
       {/* Win breakdown */}
       <Show when={hasWinStats()}>
@@ -250,10 +284,7 @@ export function TumbleRow(props) {
               const sid =
                 p.symbolId !== undefined ? p.symbolId : p.symbol !== undefined ? p.symbol : p.id;
               const { name, emoji, color } = getSymEntry(sid);
-              const coins = computeFieldWin(
-                { ...props.f, coins: p.coins },
-                g(),
-              );
+              const coins = computeFieldWin({ ...props.f, coins: p.coins }, g());
               return (
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0;">
                   <div style="display:flex; align-items:center; gap:6px;">
@@ -286,11 +317,14 @@ function AutoLoadMoreButton(props) {
   let btnRef;
 
   onMount(() => {
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) {
-        props.onLoad();
-      }
-    }, { rootMargin: '150px' });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          props.onLoad();
+        }
+      },
+      { rootMargin: '150px' },
+    );
     if (btnRef) observer.observe(btnRef);
     onCleanup(() => observer.disconnect());
   });
