@@ -58,16 +58,21 @@ export function rebuildSortedList() {
   return sorted;
 }
 
+// Spins are identified by `num`, not `id` — without this, reconcile()'s default
+// key ('id') is undefined on every item, so it can't tell old and new spins apart
+// and may patch the wrong object's properties into place.
+const RECONCILE_OPTS = { key: 'num' };
+
 /** Replace history entirely */
 export function replaceHistory(spins) {
-  setGlobalHistory(reconcile(spins));
+  setGlobalHistory(reconcile(spins, RECONCILE_OPTS));
 }
 
 /** Prepend new spins to the front */
 export function prependSpins(newSpins) {
   const next = [...newSpins, ...globalHistory];
   if (next.length > MAX_RAM_HISTORY) next.length = MAX_RAM_HISTORY;
-  setGlobalHistory(reconcile(next));
+  setGlobalHistory(reconcile(next, RECONCILE_OPTS));
 }
 
 /** Mutate a single spin in-place (e.g. bookmark, description) */

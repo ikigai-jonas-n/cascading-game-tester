@@ -45,12 +45,23 @@ function evalCondition(actual, op, target) {
   }
 }
 
-/** Parse a feature-match value string into its real JS type */
+/** Parse a feature-match value string into its real JS type — including arrays/objects (e.g. "[1]") */
 function parseFeatureTarget(val) {
   if (val.toLowerCase() === 'true') return true;
   if (val.toLowerCase() === 'false') return false;
   if (val.toLowerCase() === 'undefined' || val === '') return undefined;
   if (!isNaN(val)) return Number(val);
+  const trimmed = val.trim();
+  if (
+    (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+    (trimmed.startsWith('{') && trimmed.endsWith('}'))
+  ) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      // not valid JSON — fall through and treat as a plain string
+    }
+  }
   return val;
 }
 
@@ -61,6 +72,20 @@ export function getAtPath(obj, path) {
     .reduce((o, key) => (o === undefined || o === null ? undefined : o[key]), obj);
 }
 
+/** Structural equality — arrays/objects compare by content, everything else by value */
+function valuesMatch(actual, target) {
+  if (actual === target) return true;
+  if (
+    typeof actual !== 'object' ||
+    typeof target !== 'object' ||
+    actual === null ||
+    target === null
+  ) {
+    return false;
+  }
+  return JSON.stringify(actual) === JSON.stringify(target);
+}
+
 /**
  * Evaluate a set of { key, val } pairs against one field's `features` object.
  * Returns { matched, details } where details = [{ key, target, actual, ok }] for every pair.
@@ -69,7 +94,7 @@ export function evalFeatureMatchPairs(features, pairs) {
   const details = (pairs || []).map(({ key, val }) => {
     const target = parseFeatureTarget(val);
     const actual = getAtPath(features, key);
-    const ok = target === undefined ? actual === undefined : actual === target;
+    const ok = target === undefined ? actual === undefined : valuesMatch(actual, target);
     return { key, target, actual, ok };
   });
   return { matched: details.length > 0 && details.every((d) => d.ok), details };
