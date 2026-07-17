@@ -41,7 +41,7 @@ import {
   setChoicePromptOpen,
   setChoicePromptChoices,
 } from '../store/uiStore.js';
-import { FILTER_DEFS } from '../filters.js';
+import { FILTER_DEFS_MAP } from '../filters.js';
 import { openRawDrawer, updatePlaybackLabels, syncPlaybackUI } from './drawerService.js';
 
 // ── Auto-play abort handles ───────────────────────────────────────────────────
@@ -87,6 +87,40 @@ export function getWinCategory(win, bet) {
     if (tb >= threshold) return catName;
   }
   return 'NONE';
+}
+
+/**
+ * UntilFilter match check for one spin entry — AND across every non-disabled
+ * active filter. Unknown filter ids pass through (never block a match on a
+ * filter this build doesn't recognize); a filter whose `apply` throws is
+ * treated as no-match rather than crashing the autoplay loop.
+ */
+export function matchesUntilFilter(entry, activeFilters, gameConfig) {
+  return activeFilters.every((af) => {
+    if (af.disabled) return true;
+    const def = FILTER_DEFS_MAP.get(af.id);
+    if (!def) return true;
+    try {
+      return def.apply(entry, af.value, gameConfig);
+    } catch (err) {
+      console.error(`UntilFilter: "${af.id}" threw, treating as no-match`, err);
+      return false;
+    }
+  });
+}
+
+/**
+ * First entry in `results` (batch order) satisfying every active filter, or
+ * null. Returns null immediately when there are no non-disabled active
+ * filters — UntilFilter must never stop autoplay with nothing configured to
+ * match against.
+ */
+export function findUntilFilterMatch(results, activeFilters, gameConfig) {
+  if (!activeFilters.some((f) => !f.disabled)) return null;
+  for (const entry of results) {
+    if (matchesUntilFilter(entry, activeFilters, gameConfig)) return entry;
+  }
+  return null;
 }
 
 /**
@@ -754,12 +788,45 @@ export async function playSpin({
     let activeWorkers = 0;
     let lastRenderTime = performance.now();
     let limitReached = false;
+    // Buffered results awaiting the next RAM/UI flush — prependSpins does a
+    // full array copy, so calling it once per worker batch (~20 spins) makes
+    // autoplay throughput degrade quadratically as history grows. Buffering
+    // to the same cadence the UI actually repaints at (below) cuts the copy
+    // count by roughly the batch-to-flush-interval ratio.
+    let pendingFlush = [];
+    const flushPending = () => {
+      if (pendingFlush.length === 0) return;
+      prependSpins(pendingFlush);
+      pendingFlush = [];
+    };
+    // Buffered results awaiting the next DB commit — saveAllSpins is a full
+    // BEGIN/14-index-insert/COMMIT round-trip to the db worker; awaiting it
+    // once per tiny worker batch (~2-5 spins) means paying that fixed
+    // transaction+flush cost dozens of times/sec instead of amortizing it
+    // over a bigger batch. Flushed on the same cadence as the RAM/UI flush.
+    let pendingDbFlush = [];
+    const flushDb = async () => {
+      if (pendingDbFlush.length === 0) return;
+      const toSave = pendingDbFlush;
+      pendingDbFlush = [];
+      await saveAllSpins(toSave);
+    };
+    // Tell every worker to stop after its current spin (checked between
+    // iterations in spin-worker.js) — without this, only the worker that
+    // found the match learns about it; the rest keep firing real HTTP spins
+    // until their whole in-flight batch finishes.
+    const haltWorkers = () => workers.forEach((w) => w.postMessage({ stop: true }));
 
     await new Promise((resolve) => {
       _resolveAutoPlay = resolve;
       const dispatchWork = () => {
         if (!autoPlayRunning() || count >= maxSpins || limitReached) {
-          if (activeWorkers === 0) resolve();
+          if (activeWorkers === 0) {
+            flushDb().then(() => {
+              flushPending();
+              resolve();
+            });
+          }
           return;
         }
         while (
@@ -794,21 +861,29 @@ export async function playSpin({
           if (error) {
             pushToast({ type: 'error', title: 'Worker Fetch Failed', message: error });
             setAutoPlayRunning(false);
-            if (activeWorkers === 0) resolve();
+            if (activeWorkers === 0) {
+              await flushDb();
+              flushPending();
+              resolve();
+            }
             return;
           }
 
           // Stop was pressed — drain without processing, resolve when all in-flight done
           if (!autoPlayRunning()) {
-            if (activeWorkers === 0) resolve();
+            if (activeWorkers === 0) {
+              await flushDb();
+              flushPending();
+              resolve();
+            }
             return;
           }
 
           if (results?.length > 0) {
-            await saveAllSpins(results);
-
-            // If stopped while saving to DB, abort before overwriting status
-            if (!autoPlayRunning()) return;
+            // DB commit deferred to the throttled flush below — see flushDb
+            // comment. Match detection below doesn't need the write to have
+            // landed first, it only reads the in-memory `results`.
+            pendingDbFlush.push(...results);
 
             if (mode === 'untilConditionN' && targetConditions?.length > 0) {
               for (const entry of results) {
@@ -819,6 +894,12 @@ export async function playSpin({
                     if (targetHitCount >= targetCountLimit) {
                       limitReached = true;
                       setAutoPlayRunning(false);
+                      haltWorkers();
+                      pushToast({
+                        type: 'success',
+                        title: 'Target Reached',
+                        message: 'Autoplay stopped.',
+                      });
                       break;
                     }
                   } else {
@@ -826,6 +907,12 @@ export async function playSpin({
                     if (targetConditions.every((c) => targetHitMap[c] >= targetCountLimit)) {
                       limitReached = true;
                       setAutoPlayRunning(false);
+                      haltWorkers();
+                      pushToast({
+                        type: 'success',
+                        title: 'Target Reached',
+                        message: 'Autoplay stopped.',
+                      });
                       break;
                     }
                   }
@@ -833,41 +920,57 @@ export async function playSpin({
               }
             }
 
-            if (mode === 'untilFilter' && activeFilters.some((f) => !f.disabled)) {
-              for (const entry of results) {
-                const isMatch = activeFilters.every((af) => {
-                  if (af.disabled) return true;
-                  const def = FILTER_DEFS.find((d) => d.id === af.id);
-                  return def ? def.apply(entry, af.value, game()) : true;
+            if (mode === 'untilFilter') {
+              const matchedEntry = findUntilFilterMatch(results, activeFilters, game());
+              if (matchedEntry) {
+                limitReached = true;
+                setAutoPlayRunning(false);
+                haltWorkers();
+                pushToast({
+                  type: 'success',
+                  title: 'Match Found',
+                  message: `Spin #${matchedEntry.num} matched — autoplay stopped.`,
                 });
-                if (isMatch) {
-                  limitReached = true;
-                  setAutoPlayRunning(false);
-                  break;
-                }
               }
             }
 
             if (mode === 'untilWin' && results.some((e) => e.isWin)) {
               limitReached = true;
               setAutoPlayRunning(false);
+              haltWorkers();
+              pushToast({ type: 'success', title: 'Win Found', message: 'Autoplay stopped.' });
             }
             if (mode === 'untilLoss' && results.some((e) => !e.isWin)) {
               limitReached = true;
               setAutoPlayRunning(false);
+              haltWorkers();
+              pushToast({ type: 'success', title: 'Loss Found', message: 'Autoplay stopped.' });
             }
 
-            // Update RAM history with OOM protection
-            prependSpins(results.reverse());
+            // Buffer for RAM history — flushed at the UI-repaint cadence below,
+            // not per worker batch (see flushPending comment above).
+            pendingFlush = [...results.reverse(), ...pendingFlush];
           }
 
-          if (!autoPlayRunning()) return;
+          if (!autoPlayRunning()) {
+            await flushDb();
+            flushPending();
+            if (activeWorkers === 0) resolve();
+            return;
+          }
 
           const now = performance.now();
           const rps = (count / ((now - startTime) / 1000)).toFixed(1);
-          setAutoStatus(`Processing: ${count} / ${maxSpins} (${rps} spins/sec)`);
+          const isUntilMode = mode.startsWith('until');
+          setAutoStatus(
+            isUntilMode
+              ? `Searching: ${count} spins scanned, no match yet (${rps} spins/sec)`
+              : `Processing: ${count} / ${maxSpins} (${rps} spins/sec)`,
+          );
 
           if (now - lastRenderTime > 1500) {
+            await flushDb();
+            flushPending();
             rebuildSortedList();
             lastRenderTime = now;
           }

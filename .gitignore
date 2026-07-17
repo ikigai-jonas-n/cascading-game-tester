@@ -29,3 +29,5 @@ yarn-error.log*
 # (Prevents accidentally committing your exported spin histories)
 slot-*.json
 mapped-*.json
+
+test-results/

@@ -156,7 +156,7 @@ export default function SpinCard(props) {
       tabindex="0"
       aria-selected={props.isActive}
       class={`spin-history-card ${props.isActive ? 'active' : ''}`}
-      data-index={globalHistory.indexOf(props.spin)}
+      data-index={props.originalIdx}
       onClick={handleCardClick}
       onKeyDown={handleKeyDown}
     >
@@ -274,8 +274,8 @@ export default function SpinCard(props) {
 
       {/* Tumble Audit (only for active card) */}
       <Show when={props.isActive}>
-        <Show 
-          when={!g().components?.AuditTrail} 
+        <Show
+          when={!g().components?.AuditTrail}
           fallback={<Dynamic component={g().components.AuditTrail} spin={props.spin} />}
         >
           <TumbleAudit spin={props.spin} />

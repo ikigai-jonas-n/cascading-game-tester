@@ -23,9 +23,16 @@ import {
   replaceHistory,
   MAX_RAM_HISTORY,
   setSortField,
+  sortField,
   lastLoadedKey,
   setLastLoadedKey,
   setTotalDbCount,
+  isLoadingMore,
+  setIsLoadingMore,
+  searchCursor,
+  setSearchCursor,
+  searchExhausted,
+  setSearchExhausted,
 } from '../store/historyStore.js';
 import { currentSpinIndex, setCurrentSpinIndex } from '../store/sessionStore.js';
 import {
@@ -49,6 +56,24 @@ import { convertMongoRoundToSpins } from './mongoRoundConverter.js';
 /** Abort controller for the in-flight search — cancelled if filters change */
 let _searchAbort = null;
 
+/**
+ * Bumped every time triggerFilterUpdate starts a new search. loadMore()
+ * captures this before its own await and checks it hasn't moved before
+ * touching shared state — without this, a loadMore() in flight when the
+ * user edits a filter can resolve after the new triggerFilterUpdate has
+ * already replaced globalHistory, then append its now-stale-filter page
+ * on top and clobber the fresh searchCursor.
+ */
+let _searchGeneration = 0;
+
+/**
+ * Page size for filtered infinite scroll. Deliberately smaller than
+ * MAX_RAM_HISTORY (5000) — the first page should paint fast; scrolling pulls
+ * the rest indefinitely via searchFilteredPage's resumable cursor, so there's
+ * no reason to front-load a big batch eagerly.
+ */
+const SEARCH_PAGE_SIZE = 1000;
+
 export async function triggerFilterUpdate() {
   // Cancel any running search immediately
   if (_searchAbort) {
@@ -56,22 +81,43 @@ export async function triggerFilterUpdate() {
   }
   _searchAbort = new AbortController();
   const { signal } = _searchAbort;
+  _searchGeneration++;
 
   showLoading('Searching database...', -1);
   try {
     localStorage.setItem('active_filters', JSON.stringify(activeFilters));
-    const { loadAllSpins: loadAll, searchEntireDb, getSpinCount } = await import('../db.js');
+    const { loadAllSpins: loadAll, searchFilteredPage, getSpinCount } = await import('../db.js');
 
     const count = await getSpinCount(game().id);
     setTotalDbCount(count);
 
     const hasActive = activeFilters.some((f) => !f.disabled);
-    const spins = hasActive
-      ? await searchEntireDb(activeFilters, game(), 5000, signal)
-      : await loadAll(game().id, MAX_RAM_HISTORY);
+    setSearchCursor(null);
+    setSearchExhausted(false);
 
-    if (signal.aborted) return; // a newer search took over — discard these results
+    let spins;
+    if (hasActive) {
+      const page = await searchFilteredPage(
+        activeFilters,
+        game(),
+        sortField(),
+        null,
+        SEARCH_PAGE_SIZE,
+        signal,
+      );
+      if (signal.aborted) return; // a newer search took over — discard these results
+      spins = page.entries;
+      setSearchCursor(page.nextCursor);
+      setSearchExhausted(page.exhausted);
+      setLastLoadedKey(null); // unfiltered cursor doesn't apply while filters are active
+    } else {
+      spins = await loadAll(game().id, MAX_RAM_HISTORY);
+      if (signal.aborted) return;
+      setSearchExhausted(spins.length < MAX_RAM_HISTORY);
+      setLastLoadedKey(spins.length > 0 ? spins[spins.length - 1].num : null);
+    }
 
+    if (signal.aborted) return; // a newer search took over while we were finishing up
     replaceHistory(spins);
     rebuildSortedList();
   } catch (err) {
@@ -414,16 +460,13 @@ export async function boot() {
     }
   }
 
-  const { getSpinCount } = await import('../db.js');
-  const count = await getSpinCount(game().id);
-  setTotalDbCount(count);
+  // Route through triggerFilterUpdate rather than a raw unfiltered load —
+  // restored settings (loadDefaultData) may have set activeFilters before
+  // boot runs, and only triggerFilterUpdate knows how to source data
+  // correctly for both the filtered and unfiltered case.
+  await triggerFilterUpdate();
 
-  const spins = await loadSpinsCursor(game().id, null, MAX_RAM_HISTORY);
-  replaceHistory(spins);
-  rebuildSortedList();
-  if (spins.length > 0) setLastLoadedKey(spins[spins.length - 1].num);
-
-  console.log(`Boot: Loaded ${spins.length} spins from IndexedDB for game "${game().id}".`);
+  console.log(`Boot: Loaded ${globalHistory.length} spins for game "${game().id}".`);
 
   if (globalHistory.length > 0) {
     const lastIdx = localStorage.getItem('last_spin_index');
@@ -436,21 +479,57 @@ export async function boot() {
   autoDetectBackend();
 }
 
-// ── Load More (cursor pagination) ────────────────────────────────────────────
+// ── Load More (infinite scroll — unified filtered/unfiltered) ───────────────
 
-export async function loadMoreSpins() {
-  const key = lastLoadedKey();
-  if (key == null) return;
-
+/**
+ * Load the next page for the current view, whether filtered or not.
+ * Guarded by `isLoadingMore` so overlapping fast-scroll triggers (the root
+ * cause of the "scroll too fast shows nothing" bug) can never race each
+ * other — a second call while one is in flight is a no-op.
+ */
+export async function loadMore() {
+  if (isLoadingMore() || searchExhausted()) return;
+  setIsLoadingMore(true);
   showLoading('Loading more spins...', 0);
+  const myGeneration = _searchGeneration;
   try {
-    const spins = await loadSpinsCursor(game().id, key, MAX_RAM_HISTORY);
-    if (spins.length === 0) return;
+    const hasActive = activeFilters.some((f) => !f.disabled);
 
-    setGlobalHistory((prev) => [...prev, ...spins]);
-    rebuildSortedList();
-    setLastLoadedKey(spins[spins.length - 1].num);
+    if (hasActive) {
+      const { searchFilteredPage } = await import('../db.js');
+      const page = await searchFilteredPage(
+        activeFilters,
+        game(),
+        sortField(),
+        searchCursor(),
+        SEARCH_PAGE_SIZE,
+      );
+      if (myGeneration !== _searchGeneration) return; // a filter change superseded us mid-flight
+      setSearchCursor(page.nextCursor);
+      setSearchExhausted(page.exhausted);
+      if (page.entries.length > 0) {
+        setGlobalHistory((prev) => [...prev, ...page.entries]);
+        rebuildSortedList();
+      }
+    } else {
+      const key = lastLoadedKey();
+      if (key == null) {
+        setSearchExhausted(true);
+        return;
+      }
+      const spins = await loadSpinsCursor(game().id, key, MAX_RAM_HISTORY);
+      if (myGeneration !== _searchGeneration) return;
+      if (spins.length === 0) {
+        setSearchExhausted(true);
+        return;
+      }
+      setGlobalHistory((prev) => [...prev, ...spins]);
+      rebuildSortedList();
+      setLastLoadedKey(spins[spins.length - 1].num);
+      if (spins.length < MAX_RAM_HISTORY) setSearchExhausted(true);
+    }
   } finally {
+    setIsLoadingMore(false);
     hideLoading();
   }
 }

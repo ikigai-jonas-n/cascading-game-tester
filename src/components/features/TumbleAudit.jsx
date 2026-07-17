@@ -238,7 +238,7 @@ export function TumbleRow(props) {
         <div style="margin-top:4px; font-size:9.5px; color:#e879f9; font-weight:700; display:flex; flex-wrap:wrap; gap:6px;">
           <For each={props.matchInfo}>
             {(m) => (
-              <span title={`${m.key} matched ${JSON.stringify(m.target)}`}>
+              <span title={`${m.key} matched "${m.val}"`}>
                 🎯 {m.key} = {JSON.stringify(m.actual)}
               </span>
             )}

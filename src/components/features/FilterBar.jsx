@@ -412,7 +412,7 @@ export default function FilterBar() {
                     />
                     <input
                       type="text"
-                      placeholder="Value (true, false, undefined, 123)"
+                      placeholder="Value (true, 123, [0-2, 3], *)"
                       value={pair.val}
                       style="width:160px; padding:4px; font-size:11px; background:var(--bg-main); border:1px solid var(--border-color); color:var(--text-primary); border-radius:4px;"
                       onInput={(e) => updatePendingPair(i(), 'val', e.target.value)}

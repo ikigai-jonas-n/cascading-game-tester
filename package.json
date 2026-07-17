@@ -25,6 +25,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260528.1",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.61.1",
     "eslint": "^10.4.0",
     "globals": "^17.6.0",
     "prettier": "^3.8.3",
@@ -35,6 +36,7 @@
   },
   "type": "module",
   "dependencies": {
+    "@sqlite.org/sqlite-wasm": "^3.46.1-build5",
     "bson": "^7.2.0",
     "solid-js": "^1.9.13",
     "vite-plugin-solid": "^2.11.12"

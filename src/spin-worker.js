@@ -28,23 +28,31 @@ function getSpinStats(fields, wildSymbolId) {
   return { goldenTransformed: totalGolden, maxMultiplier };
 }
 
+let _stopped = false;
+
 self.onmessage = async (e) => {
+  if (e.data?.stop) {
+    _stopped = true;
+    return;
+  }
+  _stopped = false;
   const { apiUrl, config, gameCode, playerId, gameId, wildSymbolId, startNum, batchSize } = e.data;
 
   const results = [];
 
-  for (let i = 0; i < batchSize; i++) {
-    try {
-      const makeRequest = async (body) => {
-        const response = await fetch(`${apiUrl}/v1/service/play`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-signature': 'rgs-local-signature' },
-          body: JSON.stringify(body),
-        });
-        const json = await response.json();
-        return json.data;
-      };
+  const makeRequest = async (body) => {
+    const response = await fetch(`${apiUrl}/v1/service/play`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-signature': 'rgs-local-signature' },
+      body: JSON.stringify(body),
+    });
+    const json = await response.json();
+    return json.data;
+  };
 
+  for (let i = 0; i < batchSize; i++) {
+    if (_stopped) break;
+    try {
       const reqBody = { ...config, gameCode, id: playerId };
       let data = await makeRequest(reqBody);
       if (!data) continue;

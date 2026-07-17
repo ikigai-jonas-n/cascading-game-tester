@@ -35,12 +35,50 @@ export const [sortField, setSortField] = createSignal(
 
 export const MAX_RAM_HISTORY = 5000;
 
-/** Key of the oldest spin currently in RAM — used for cursor-based "load more" */
+/** Key of the oldest spin currently in RAM — used for cursor-based "load more" (unfiltered path) */
 export const [lastLoadedKey, setLastLoadedKey] = createSignal(null);
 
-/** Recompute currentSortedList from globalHistory + activeFilters + sortField */
+/** True while a loadMore() call is in flight — guards against overlapping fast-scroll triggers */
+export const [isLoadingMore, setIsLoadingMore] = createSignal(false);
+
+/** Opaque resume cursor for the filtered search path (searchFilteredPage's nextCursor), or null */
+export const [searchCursor, setSearchCursor] = createSignal(null);
+
+/**
+ * True once the current game+filters+sort combination has no more data to load —
+ * shared by both the filtered and unfiltered paths so the scroll observer has one
+ * signal to check instead of re-deriving "more exists" per path.
+ */
+export const [searchExhausted, setSearchExhausted] = createSignal(false);
+
+/** Whether scrolling further could still load more spins for the current view */
+export function hasMoreData() {
+  return !searchExhausted();
+}
+
+/**
+ * Recompute currentSortedList from globalHistory + activeFilters + sortField.
+ *
+ * When filters are active, globalHistory already IS the correctly filtered
+ * AND correctly ordered set — every page came from searchFilteredPage(), which
+ * pushes both the WHERE and the ORDER BY into SQL (num/totalWin/cascadeCount
+ * are all real indexed columns), so re-filtering/re-sorting it here in JS would
+ * be redundant work that gets more expensive every time the list grows via
+ * infinite scroll — exactly the cost this filter/sort redesign exists to avoid.
+ * Only the unfiltered path still needs a JS sort: `loadSpinsCursor` always
+ * returns num-descending regardless of `sortField`, so any non-num sort order
+ * genuinely has to be reordered client-side there.
+ */
 export function rebuildSortedList() {
   localStorage.setItem('active_filters', JSON.stringify(activeFilters));
+  const hasActiveFilters = activeFilters.some((f) => !f.disabled);
+
+  if (hasActiveFilters) {
+    const sorted = [...globalHistory];
+    setCurrentSortedList(sorted);
+    return sorted;
+  }
+
   const filtered = applyFilters(globalHistory, activeFilters, game());
   const sorted = [...filtered].sort((a, b) => {
     switch (sortField()) {

@@ -1,58 +1,121 @@
 /**
- * IndexedDB storage layer for spin history.
- * Replaces localStorage to handle unlimited data without hitting the ~5MB cap.
+ * SQLite (OPFS) storage layer for spin history — replaces the earlier
+ * IndexedDB implementation. Every export below preserves its old name and
+ * signature so callers (gameService.js, exportService.js, spinService.js,
+ * FilterBar.jsx, SpinCard.jsx, MongoRoundImportModal.jsx) needed no changes.
+ *
+ * Storage lives in a dedicated Worker (src/sqlite-worker.js) via the OPFS Sync
+ * Access Handle Pool VFS — no COOP/COEP headers required. Filter correctness
+ * (including the FeatureMatch DSL) stays in JS via filters.js; SQL is only
+ * ever a narrowing pre-filter for the whitelisted scalar fields in
+ * sqlite-query-builder.js — never a reimplementation of the full filter set.
  */
-
-const DB_NAME = 'slot_studio';
-const DB_VERSION = 1;
-const STORE_NAME = 'spins';
-
 import { unwrap } from 'solid-js/store';
+import { buildWhitelistedWhere } from './sqlite-query-builder.js';
+import { paginateFilteredSearch } from './search-pagination.js';
 
-/** @type {IDBDatabase|null} */
-let _db = null;
+// One-time: drop the old IndexedDB store now that SQLite is the engine.
+// No migration — existing data is resyncable, per explicit user confirmation.
+try {
+  indexedDB.deleteDatabase('slot_studio');
+} catch {}
 
-function open() {
-  if (_db) return Promise.resolve(_db);
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: 'num' });
-        store.createIndex('timestamp', 'timestamp', { unique: false });
-        store.createIndex('isWin', 'isWin', { unique: false });
-        store.createIndex('totalWin', 'totalWin', { unique: false });
-        store.createIndex('gameId', 'gameId', { unique: false });
-        store.createIndex('bookmarked', 'bookmarked', { unique: false });
+let worker = null;
+let readyPromise = null;
+let msgId = 0;
+const pending = new Map();
+
+// The SAH-pool VFS allows exactly one open connection to the db file at a
+// time. This exact browser error means a second tab/window (or a
+// not-yet-released connection from one that just closed) is holding it —
+// surface something the user can actually act on instead of the raw
+// DOMException text.
+function toFriendlyDbError(rawMessage) {
+  if (/Access Handle/i.test(rawMessage || '')) {
+    return 'Another tab/window of this app is open — close it and reload here. Only one tab can use the database at a time.';
+  }
+  return rawMessage;
+}
+
+function initWorker() {
+  if (readyPromise) return readyPromise;
+  worker = new Worker(new URL('./sqlite-worker.js', import.meta.url), { type: 'module' });
+  readyPromise = new Promise((resolve, reject) => {
+    worker.onmessage = (e) => {
+      const { id, type, error, result } = e.data;
+      if (type === 'READY') {
+        resolve();
+        return;
+      }
+      if (type === 'BOOT_ERROR') {
+        reject(new Error(toFriendlyDbError(error)));
+        return;
+      }
+      if (id != null && pending.has(id)) {
+        const { resolve: res, reject: rej } = pending.get(id);
+        pending.delete(id);
+        if (error) rej(new Error(error));
+        else res(result);
       }
     };
-    req.onsuccess = (e) => {
-      _db = e.target.result;
-      resolve(_db);
-    };
-    req.onerror = (e) => reject(e.target.error);
+    worker.onerror = (e) => reject(e.error || new Error(e.message));
+  });
+  return readyPromise;
+}
+
+async function dispatch(action, payload) {
+  await initWorker();
+  return new Promise((resolve, reject) => {
+    const id = ++msgId;
+    pending.set(id, { resolve, reject });
+    worker.postMessage({ id, action, payload });
   });
 }
 
-/** Get the object store in a transaction */
-function getStore(mode = 'readonly') {
-  const tx = _db.transaction(STORE_NAME, mode);
-  return tx.objectStore(STORE_NAME);
+// The OPFS SAH-pool VFS holds an exclusive access handle per file — release it
+// proactively on unload so a reload (or the next tab of this origin) doesn't
+// have to race the browser's own worker-teardown timing to reopen it. This is
+// best-effort (no reply is awaited); sqlite-worker.js also retries with
+// backoff on boot as a backstop for whatever race window this can't close.
+window.addEventListener('pagehide', () => {
+  worker?.postMessage({ action: 'CLOSE' });
+});
+
+export async function open() {
+  await initWorker();
+}
+
+/**
+ * Explicitly release the SAH-pool access handle and wait for confirmation —
+ * unlike the pagehide listener above (fire-and-forget, for real navigation),
+ * this is for callers that need a deterministic release before doing
+ * anything else with the same origin's storage (e.g. E2E test teardown
+ * between back-to-back tests in one browser instance).
+ */
+export async function closeDb() {
+  if (!worker) return;
+  await dispatch('CLOSE');
+  worker = null;
+  readyPromise = null;
 }
 
 /** Save a single spin entry */
 export async function saveSpin(entry) {
-  await open();
-  return new Promise((resolve, reject) => {
-    const store = getStore('readwrite');
-    const req = store.put(unwrap(entry));
-    req.onsuccess = () => resolve();
-    req.onerror = (e) => reject(e.target.error);
-  });
+  await dispatch('BULK_INSERT', [unwrap(entry)]);
 }
 
-// Add these native GZIP utilities
+/** Bulk save (no compression — same rationale as the prior IndexedDB implementation) */
+export async function saveAllSpins(entries) {
+  // NOT entries.map(unwrap) — Array.map forwards (value, index, array), and
+  // unwrap's 2nd param is an internal Set — the index would clobber it.
+  await dispatch(
+    'BULK_INSERT',
+    entries.map((e) => unwrap(e)),
+  );
+}
+
+// ── Compression utilities — pure data transforms, unrelated to storage engine ──
+
 export async function compressData(dataObj) {
   const stream = new Blob([JSON.stringify(dataObj)])
     .stream()
@@ -66,8 +129,7 @@ export async function decompressData(buffer) {
   return JSON.parse(await new Response(stream).text());
 }
 
-/** * Returns exact disk usage and quota available to the app in MBs.
- */
+/** Returns exact disk usage and quota available to the app in MBs. */
 export async function getStorageEstimate() {
   if (navigator.storage && navigator.storage.estimate) {
     const { usage, quota } = await navigator.storage.estimate();
@@ -80,51 +142,15 @@ export async function getStorageEstimate() {
   return null;
 }
 
-/** Highly Optimized Bulk Save (Compression Bypassed for Speed) */
-export async function saveAllSpins(entries) {
-  await open();
-
-  // FIX: Removed the massive CompressionStream loop.
-  // Zipping 400 files in the main thread was killing the CPU and making auto-play "slow af".
-  return new Promise((resolve, reject) => {
-    const tx = _db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
-
-    for (let i = 0; i < entries.length; i++) {
-      store.put(unwrap(entries[i]));
-    }
-
-    tx.oncomplete = () => resolve();
-    tx.onerror = (e) => reject(e.target.error);
-  });
-}
-
 export async function loadAllSpins(gameId, limit = 5000) {
-  await open();
-  return new Promise((resolve, reject) => {
-    const store = getStore();
-    // STRICT ISOLATION: Use the gameId index to ONLY load spins for this game
-    // The index automatically sorts by gameId, then by primary key (num) descending
-    const req = store.index('gameId').openCursor(IDBKeyRange.only(gameId), 'prev');
-    const results = [];
-
-    req.onsuccess = (e) => {
-      const cursor = e.target.result;
-      if (!cursor) {
-        resolve(results);
-        return;
-      }
-
-      results.push(cursor.value);
-
-      if (results.length < limit) {
-        cursor.continue();
-      } else {
-        resolve(results);
-      }
-    };
-    req.onerror = (e) => reject(e.target.error);
+  const { entries } = await dispatch('SEARCH_CHUNK', {
+    whereSql: 'gameId = ?',
+    params: [gameId],
+    cursor: null,
+    chunkSize: limit,
+    orderBy: { column: 'num', dir: 'DESC' },
   });
+  return entries;
 }
 
 /**
@@ -133,154 +159,58 @@ export async function loadAllSpins(gameId, limit = 5000) {
  * Returns newest-first within the active game.
  */
 export async function loadSpinsCursor(gameId, afterKey = null, limit = 5000) {
-  await open();
-  return new Promise((resolve, reject) => {
-    const store = getStore();
-    // Use the gameId index to ONLY scan spins for this game, sorted by num descending
-    const req = store.index('gameId').openCursor(IDBKeyRange.only(gameId), 'prev');
-    const results = [];
-
-    req.onsuccess = (e) => {
-      const cursor = e.target.result;
-      if (!cursor) {
-        resolve(results);
-        return;
-      }
-
-      // If we provided an afterKey, skip until we find a primaryKey (num) strictly less than afterKey
-      if (afterKey != null && cursor.primaryKey >= afterKey) {
-        cursor.continue();
-        return;
-      }
-
-      results.push(cursor.value);
-      if (results.length < limit) cursor.continue();
-      else resolve(results);
-    };
-    req.onerror = (e) => reject(e.target.error);
+  const { entries } = await dispatch('SEARCH_CHUNK', {
+    whereSql: 'gameId = ?',
+    params: [gameId],
+    cursor: afterKey != null ? { afterVal: afterKey, afterNum: afterKey } : null,
+    chunkSize: limit,
+    orderBy: { column: 'num', dir: 'DESC' },
   });
+  return entries;
 }
 
 /** Get the next spin number (max num + 1) */
 export async function getNextSpinNum() {
-  await open();
-  return new Promise((resolve, reject) => {
-    const store = getStore();
-    const req = store.openCursor(null, 'prev'); // descending by key
-    req.onsuccess = (e) => {
-      const cursor = e.target.result;
-      resolve(cursor ? cursor.value.num + 1 : 1);
-    };
-    req.onerror = (e) => reject(e.target.error);
-  });
+  return dispatch('GET_NEXT_NUM');
 }
 
 /** Delete all spins */
 export async function clearAllSpins() {
-  await open();
-  return new Promise((resolve, reject) => {
-    const store = getStore('readwrite');
-    const req = store.clear();
-    req.onsuccess = () => resolve();
-    req.onerror = (e) => reject(e.target.error);
-  });
+  await dispatch('CLEAR_ALL');
 }
 
 export async function clearSpinsForGame(gameId) {
-  await open();
-  return new Promise((resolve, reject) => {
-    const store = getStore('readwrite');
-    const index = store.index('gameId');
-    const req = index.openCursor(IDBKeyRange.only(gameId));
-    req.onsuccess = (e) => {
-      const cursor = e.target.result;
-      if (cursor) {
-        cursor.delete();
-        cursor.continue();
-      } else {
-        resolve();
-      }
-    };
-    req.onerror = (e) => reject(e.target.error);
-  });
+  await dispatch('CLEAR_GAME', { gameId });
 }
 
-/** Delete a batch of spins by their numbers (Fast Transaction) */
+/** Delete a batch of spins by their numbers */
 export async function deleteSpinsBatch(nums) {
-  await open();
-  return new Promise((resolve, reject) => {
-    // Open a single transaction for maximum speed
-    const tx = _db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
-
-    for (let i = 0; i < nums.length; i++) {
-      store.delete(nums[i]);
-    }
-
-    tx.oncomplete = () => resolve();
-    tx.onerror = (e) => reject(e.target.error);
-  });
+  await dispatch('DELETE_BATCH', nums);
 }
 
 /** Delete a single spin by number */
 export async function deleteSpin(num) {
-  await open();
-  return new Promise((resolve, reject) => {
-    const store = getStore('readwrite');
-    const req = store.delete(num);
-    req.onsuccess = () => resolve();
-    req.onerror = (e) => reject(e.target.error);
-  });
+  await dispatch('DELETE_BATCH', [num]);
 }
 
 /** Get total count (optionally for a specific game) */
 export async function getSpinCount(gameId = null) {
-  await open();
-  return new Promise((resolve, reject) => {
-    const store = getStore();
-    let req;
-    if (gameId) {
-      req = store.index('gameId').count(gameId);
-    } else {
-      req = store.count();
-    }
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = (e) => reject(e.target.error);
-  });
+  return dispatch('COUNT', { gameId });
 }
 
 /**
  * Build the set of dedup fingerprints across EVERY game in the store.
  * Fingerprint matches the one used on import/export:
  *   `${timestamp}_${summary.coins}_${fields.length}`.
- * Cursors the whole store so merge-import dedup covers all games, not just
- * the active one's loaded history.
  */
 export async function getAllFingerprints() {
-  await open();
-  return new Promise((resolve, reject) => {
-    const store = getStore();
-    const req = store.openCursor();
-    const fingers = new Set();
-    req.onsuccess = (e) => {
-      const cursor = e.target.result;
-      if (!cursor) {
-        resolve(fingers);
-        return;
-      }
-      const s = cursor.value;
-      const coins = s.summary?.coins;
-      const len = Array.isArray(s.fields) ? s.fields.length : 0;
-      fingers.add(`${s.timestamp}_${coins}_${len}`);
-      cursor.continue();
-    };
-    req.onerror = (e) => reject(e.target.error);
-  });
+  const list = await dispatch('FINGERPRINTS');
+  return new Set(list);
 }
 
 /**
- * Migrate existing localStorage history into IndexedDB (one-time).
- * Deletes the localStorage key after successful migration.
+ * Migrate existing localStorage history into SQLite (one-time, legacy path —
+ * kept for users who never made it past the original localStorage-only build).
  */
 export async function migrateFromLocalStorage() {
   try {
@@ -289,7 +219,6 @@ export async function migrateFromLocalStorage() {
     const arr = JSON.parse(raw);
     if (!Array.isArray(arr) || arr.length === 0) return;
 
-    // Ensure every entry has the required fields
     const entries = arr.map((e, i) => ({
       ...e,
       num: e.num || i + 1,
@@ -299,7 +228,7 @@ export async function migrateFromLocalStorage() {
 
     await saveAllSpins(entries);
     localStorage.removeItem('slot_history');
-    console.log(`Migrated ${entries.length} spins from localStorage to IndexedDB`);
+    console.log(`Migrated ${entries.length} spins from localStorage to SQLite`);
   } catch (err) {
     console.error('Migration failed:', err);
   }
@@ -307,152 +236,97 @@ export async function migrateFromLocalStorage() {
 
 /** Toggle bookmark state for a spin */
 export async function toggleBookmark(num, state) {
-  await open();
-  return new Promise((resolve, reject) => {
-    const tx = _db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
-    const req = store.get(num);
-    req.onsuccess = () => {
-      const entry = req.result;
-      if (entry) {
-        entry.bookmarked = state;
-        store.put(entry);
-      }
-    };
-    tx.oncomplete = () => resolve();
-    tx.onerror = (e) => reject(e.target.error);
-  });
+  await dispatch('TOGGLE_BOOKMARK', { num, state });
 }
 
 /**
- * Search the database for the active game.
- * Uses getAll() for a fast bulk read, then filters in JS with periodic yields
- * so the UI thread stays responsive.
- * Pass an AbortSignal to cancel early.
+ * Fetch ONE resumable page of filtered results for the active game, ordered
+ * per `sortField`. Filters with a whitelisted scalar field (see
+ * sqlite-query-builder.js) are pushed down as a SQL WHERE clause narrowing
+ * candidate rows via native indexes (including for win_desc/cascade_desc —
+ * both are real indexed columns, so pagination stays indexed for every sort
+ * mode, never a full-scan-then-sort in JS); every active filter is then still
+ * re-checked with its real FILTER_DEFS[].apply() in JS — SQL only narrows, JS
+ * is always the correctness authority, so SQL can never cause a false match.
+ *
+ * `cursor` is `null` for the first page, otherwise the `nextCursor` returned
+ * by the previous call — this makes filtered results truly resumable (no
+ * hard cap, no silent truncation): keep calling with the returned cursor for
+ * "infinite scroll" over filtered results, exactly like the unfiltered
+ * `loadSpinsCursor` path.
+ *
+ * Pass an AbortSignal to cancel early — returns whatever was collected so far
+ * with `exhausted: false`, so a subsequent call with the same `cursor` you
+ * already had will safely re-attempt without gaps or duplicates.
+ *
+ * @returns {Promise<{entries: Array, nextCursor: object|null, exhausted: boolean}>}
  */
-export async function searchEntireDb(filters, gameConfig, limit = 2000, signal = null) {
-  await open();
+export async function searchFilteredPage(
+  filters,
+  gameConfig,
+  sortField,
+  cursor = null,
+  pageSize = 1000,
+  signal = null,
+) {
   const { FILTER_DEFS } = await import('./filters.js');
-  const CHUNK_SIZE = 1500; // records to read per transaction before yielding
-  let results = [];
-  let nextKey = null;
+  const { whereSql, params } = buildWhitelistedWhere(filters, gameConfig.id);
 
-  while (true) {
-    if (signal?.aborted) return results;
-
-    const chunk = await new Promise((resolve, reject) => {
-      const store = getStore();
-      const range = nextKey !== null ? IDBKeyRange.upperBound(nextKey, true) : null;
-      const req = store.openCursor(range, 'prev');
-      let batchResults = [];
-      let count = 0;
-      let lastKey = null;
-
-      req.onsuccess = (e) => {
-        const cursor = e.target.result;
-        if (!cursor) {
-          resolve({ batch: batchResults, next: null });
-          return;
-        }
-
-        const spin = cursor.value;
-        lastKey = cursor.key;
-
-        if (spin.gameId === gameConfig.id) {
-          const isMatch = filters.every((af) => {
-            if (af.disabled) return true;
-            const def = FILTER_DEFS.find((d) => d.id === af.id);
-            return def ? def.apply(spin, af.value, gameConfig) : true;
-          });
-          if (isMatch) batchResults.push(spin);
-        }
-
-        count++;
-        if (count >= CHUNK_SIZE) {
-          resolve({ batch: batchResults, next: lastKey });
-        } else {
-          cursor.continue();
-        }
-      };
-      req.onerror = (e) => reject(e.target.error);
-    });
-
-    results.push(...chunk.batch);
-    nextKey = chunk.next;
-
-    if (results.length >= limit || nextKey === null) {
-      break;
-    }
-
-    // Yield to UI thread between transactions
-    await new Promise((r) => setTimeout(r, 0));
-  }
-
-  // Ensure limit is respected if we overshot
-  if (results.length > limit) {
-    results = results.slice(0, limit);
-  }
-
-  return results;
+  return paginateFilteredSearch(
+    (orderBy, cur, chunkSize) =>
+      dispatch('SEARCH_CHUNK', { whereSql, params, cursor: cur, chunkSize, orderBy }),
+    {
+      filters,
+      gameConfig,
+      sortField,
+      cursor,
+      pageSize,
+      signal,
+      applyFilter: (spin, fs, gc) =>
+        fs.every((af) => {
+          if (af.disabled) return true;
+          const def = FILTER_DEFS.find((d) => d.id === af.id);
+          return def ? def.apply(spin, af.value, gc) : true;
+        }),
+    },
+  );
 }
 
 /** Iterate DB for streaming. Supports 'filtered' (active game) or 'all' (entire DB) */
 export async function iterateDb(exportMode, filters, gameConfig, callback) {
-  await open();
   const { FILTER_DEFS } = await import('./filters.js');
-  let nextKey = null;
+  let whereSql = '1=1';
+  let params = [];
+  if (exportMode === 'filtered') {
+    ({ whereSql, params } = buildWhitelistedWhere(filters, gameConfig.id));
+  }
+  // exportMode === 'all': no gameId restriction, isMatch stays true for every game
 
-  // NOTE: never await inside an IDB request's onsuccess — a transaction auto-commits
-  // the instant control returns to the event loop with no pending request, so calling
-  // cursor.continue() after an await throws TransactionInactiveError. Each batch below
-  // runs inside its own short-lived transaction; the callback (and any yielding) happens
-  // strictly between transactions, resuming the next one via a key-range cursor.
+  const orderBy = { column: 'num', dir: 'DESC' };
+  let cur = null;
   while (true) {
-    const { matched, next, done } = await new Promise((resolve, reject) => {
-      const store = getStore('readonly');
-      const range = nextKey !== null ? IDBKeyRange.upperBound(nextKey, true) : null;
-      const req = store.openCursor(range, 'prev');
-      const matched = [];
-      let lastKey = null;
-
-      req.onsuccess = (e) => {
-        const cursor = e.target.result;
-        if (!cursor) {
-          resolve({ matched, next: null, done: true });
-          return;
-        }
-
-        const spin = cursor.value;
-        lastKey = cursor.key;
-        let isMatch = true;
-
-        if (exportMode === 'filtered') {
-          // Enforce Game Isolation for filtered exports
-          if (spin.gameId !== gameConfig.id) {
-            isMatch = false;
-          } else if (filters && filters.length > 0) {
-            isMatch = filters.every((af) => {
-              if (af.disabled) return true;
-              const def = FILTER_DEFS.find((d) => d.id === af.id);
-              return def ? def.apply(spin, af.value, gameConfig) : true;
-            });
-          }
-        } // If exportMode === 'all', isMatch remains true for EVERY game!
-
-        if (isMatch) matched.push(spin);
-
-        if (matched.length >= 500) {
-          resolve({ matched, next: lastKey, done: false });
-        } else {
-          cursor.continue();
-        }
-      };
-      req.onerror = (e) => reject(e.target.error);
+    const chunk = await dispatch('SEARCH_CHUNK', {
+      whereSql,
+      params,
+      cursor: cur,
+      chunkSize: 500,
+      orderBy,
     });
 
+    let matched = chunk.entries;
+    if (exportMode === 'filtered' && filters && filters.length > 0) {
+      matched = chunk.entries.filter((spin) =>
+        filters.every((af) => {
+          if (af.disabled) return true;
+          const def = FILTER_DEFS.find((d) => d.id === af.id);
+          return def ? def.apply(spin, af.value, gameConfig) : true;
+        }),
+      );
+    }
+
     if (matched.length > 0) await callback(matched);
-    if (done) return;
-    nextKey = next;
-    await new Promise((r) => setTimeout(r, 0)); // yield to the UI thread between transactions
+    cur = chunk.nextCursor;
+    if (chunk.exhausted) return;
+    await new Promise((r) => setTimeout(r, 0)); // yield to the UI thread between chunks
   }
 }

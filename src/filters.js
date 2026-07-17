@@ -45,6 +45,18 @@ function evalCondition(actual, op, target) {
   }
 }
 
+// parseFeatureTarget is pure given `val` (a fixed filter-config string, never
+// per-row data) but was being re-parsed on every (spin x field x pair) check
+// — memoize it since the same handful of `val` strings repeat across an
+// entire filtered scan.
+const _featureTargetCache = new Map();
+export function parseFeatureTargetCached(val) {
+  if (_featureTargetCache.has(val)) return _featureTargetCache.get(val);
+  const result = parseFeatureTarget(val);
+  _featureTargetCache.set(val, result);
+  return result;
+}
+
 /** Parse a feature-match value string into its real JS type — including arrays/objects (e.g. "[1]") */
 function parseFeatureTarget(val) {
   if (val.toLowerCase() === 'true') return true;
@@ -52,10 +64,19 @@ function parseFeatureTarget(val) {
   if (val.toLowerCase() === 'undefined' || val === '') return undefined;
   if (!isNaN(val)) return Number(val);
   const trimmed = val.trim();
-  if (
-    (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
-    (trimmed.startsWith('{') && trimmed.endsWith('}'))
-  ) {
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      // Not plain JSON — try a per-slot pattern instead, e.g. "[0-2, 3, *]"
+      // (range | wildcard | literal per element). Falls back to a plain string
+      // below if even that doesn't parse cleanly.
+      const inner = trimmed.slice(1, -1).trim();
+      const tokens = inner === '' ? [] : inner.split(',');
+      return { __pattern: tokens.map(parseArrayToken) };
+    }
+  }
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
     try {
       return JSON.parse(trimmed);
     } catch {
@@ -65,6 +86,15 @@ function parseFeatureTarget(val) {
   return val;
 }
 
+/** Classify one comma-split array-pattern element: wildcard ("*"), inclusive numeric range ("0-2"), or literal */
+function parseArrayToken(token) {
+  const trimmed = token.trim();
+  if (trimmed === '*') return { __wildcard: true };
+  const rangeMatch = trimmed.match(/^(-?\d+)-(-?\d+)$/);
+  if (rangeMatch) return { __range: [Number(rangeMatch[1]), Number(rangeMatch[2])] };
+  return { __literal: parseFeatureTarget(trimmed) };
+}
+
 /** Resolve a dot-path (e.g. "modifier.multiplier") against an object */
 export function getAtPath(obj, path) {
   return path
@@ -72,8 +102,25 @@ export function getAtPath(obj, path) {
     .reduce((o, key) => (o === undefined || o === null ? undefined : o[key]), obj);
 }
 
+/** Match an array against a per-slot pattern (wildcard / range / literal), same length required */
+function matchArrayPattern(actual, patternTokens) {
+  if (!Array.isArray(actual) || actual.length !== patternTokens.length) return false;
+  return patternTokens.every((tok, i) => {
+    const val = actual[i];
+    if (tok.__wildcard) return true;
+    if (tok.__range) {
+      const [min, max] = tok.__range;
+      return typeof val === 'number' && val >= min && val <= max;
+    }
+    return valuesMatch(val, tok.__literal);
+  });
+}
+
 /** Structural equality — arrays/objects compare by content, everything else by value */
 function valuesMatch(actual, target) {
+  if (target && typeof target === 'object' && Array.isArray(target.__pattern)) {
+    return matchArrayPattern(actual, target.__pattern);
+  }
   if (actual === target) return true;
   if (
     typeof actual !== 'object' ||
@@ -88,14 +135,14 @@ function valuesMatch(actual, target) {
 
 /**
  * Evaluate a set of { key, val } pairs against one field's `features` object.
- * Returns { matched, details } where details = [{ key, target, actual, ok }] for every pair.
+ * Returns { matched, details } where details = [{ key, val, target, actual, ok }] for every pair.
  */
 export function evalFeatureMatchPairs(features, pairs) {
   const details = (pairs || []).map(({ key, val }) => {
-    const target = parseFeatureTarget(val);
+    const target = parseFeatureTargetCached(val);
     const actual = getAtPath(features, key);
     const ok = target === undefined ? actual === undefined : valuesMatch(actual, target);
-    return { key, target, actual, ok };
+    return { key, val, target, actual, ok };
   });
   return { matched: details.length > 0 && details.every((d) => d.ok), details };
 }
@@ -227,12 +274,15 @@ export const FILTER_DEFS = [
       // Fallback for older cached single-string 'hasSymbol' values
       const symId = typeof value === 'object' ? parseInt(value.symId) : parseInt(value);
       const minCount = typeof value === 'object' ? parseInt(value.count || 1) : 1;
+      const countMatches = (arr) => {
+        let n = 0;
+        for (const s of arr) if (s === symId) n++;
+        return n;
+      };
       return spin.fields.some((f) => {
-        const initialCount = (f.symbols.initial || f.symbols.final || []).filter(
-          (s) => s === symId,
-        ).length;
-        const finalCount = (f.symbols.final || []).filter((s) => s === symId).length;
-        return initialCount >= minCount || finalCount >= minCount;
+        const initial = f.symbols.initial || f.symbols.final || [];
+        if (countMatches(initial) >= minCount) return true;
+        return countMatches(f.symbols.final || []) >= minCount;
       });
     },
     formatValue: (value, game) => {
@@ -341,7 +391,7 @@ export const FILTER_DEFS = [
       return (
         spin.num.toString().includes(q) ||
         spin.totalWin.toString().includes(q) ||
-        JSON.stringify(spin.fields).toLowerCase().includes(q) ||
+        getSearchText(spin).includes(q) ||
         (spin.spinMode && spin.spinMode.toLowerCase().includes(q)) ||
         (spin.roundTags && JSON.stringify(spin.roundTags).toLowerCase().includes(q))
       );
@@ -387,6 +437,26 @@ export const FILTER_DEFS = [
   },
 ];
 
+/** O(1) lookup by id instead of FILTER_DEFS.find() — built once, reused everywhere. */
+export const FILTER_DEFS_MAP = new Map(FILTER_DEFS.map((d) => [d.id, d]));
+
+// The 'text' filter's apply() ran JSON.stringify(spin.fields).toLowerCase()
+// fresh on every call, even though a spin's `fields` never change after
+// creation and the same spin gets re-checked repeatedly across scroll/re-
+// filter passes. Cache the lowercased stringified form per spin object —
+// safe since object identity is stable for a spin's lifetime in RAM
+// (reconcile() preserves it), invalid the moment `fields` would change,
+// which never happens post-creation.
+const _searchTextCache = new WeakMap();
+function getSearchText(spin) {
+  let cached = _searchTextCache.get(spin);
+  if (cached === undefined) {
+    cached = JSON.stringify(spin.fields).toLowerCase();
+    _searchTextCache.set(spin, cached);
+  }
+  return cached;
+}
+
 /**
  * Apply all active filters to the history array.
  * @param {Array} history
@@ -401,7 +471,7 @@ export function applyFilters(history, activeFilters, gameConfig) {
     activeFilters.every((af) => {
       // OpenSearch style: disabled filters are ignored
       if (af.disabled) return true;
-      const def = FILTER_DEFS.find((d) => d.id === af.id);
+      const def = FILTER_DEFS_MAP.get(af.id);
       if (!def) return true;
       if (af.value === '' || af.value === null || af.value === undefined) return true;
       return def.apply(spin, af.value, gameConfig);

@@ -14,5 +14,10 @@ export default defineConfig(({ mode }) => {
         interval: 100,
       },
     },
+    // @sqlite.org/sqlite-wasm ships its own WASM/worker glue that Vite's
+    // dependency pre-bundler mishandles — exclude it per the package's docs.
+    optimizeDeps: {
+      exclude: ['@sqlite.org/sqlite-wasm'],
+    },
   };
 });
